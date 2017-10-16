@@ -1,0 +1,172 @@
+\documentclass[a4paper]{report}
+\usepackage{geometry}
+\usepackage{makeidx}
+\usepackage{graphicx}
+\usepackage{tabularx}
+\usepackage[printwatermark]{xwatermark}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usepackage{multicol}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{ifthen}
+\usepackage{textcomp}
+\usepackage{alltt}
+\usepackage{ifpdf}
+\ifpdf%
+\usepackage[pdftex,
+            colorlinks=true,
+            linkcolor=blue,
+            unicode
+           ]{hyperref}
+\else
+\usepackage[ps2pdf,
+            colorlinks=true,
+            linkcolor=blue,
+            unicode
+           ]{hyperref}
+\usepackage{pspicture}
+\fi
+\usepackage[utf8]{inputenc}
+\usepackage{mathptmx}
+\usepackage[scaled=.90]{helvet}
+\usepackage{courier}
+\usepackage{parskip}
+\usepackage{sectsty}
+\usepackage{booktabs}
+\usepackage[titles]{tocloft}
+\usepackage{fancyhdr}
+\usepackage{scrextend}
+\usepackage{afterpage}
+\usepackage[nottoc,numbib]{tocbibind}
+
+\renewcommand{\familydefault}{\sfdefault}
+
+% A watermark for draft copies (remove as necessary)
+%\newsavebox\mybox{}
+%\savebox\mybox{\tikz[color=red,opacity=0.3]\node{DRAFT};}
+%\newwatermark*[
+%  allpages,
+%  angle=45,
+%  scale=6,
+%  xpos=-20,
+%  ypos=15
+%]{\usebox\mybox}
+
+% The geometry of all of our pages
+\geometry{
+ a4paper,
+ total={170mm,237mm},
+ left=20mm,
+ top=30mm,
+}
+
+% Define the thickness of the header and footer rules
+\renewcommand{\headrulewidth}{1pt}
+\renewcommand{\footrulewidth}{1pt}
+
+% A command to provide a completely blank page
+\newcommand\blankpage{%
+    \null%
+    \thispagestyle{empty}%
+    \addtocounter{page}{-1}%
+    \newpage}
+
+% A method defined in fancyhdr documentation for twosided blank pages before a chapter start
+%\makeatletter
+%\def\cleardoublepage{\clearpage\if@twoside \ifodd\c@page\else
+%  \hbox{}
+%  \vspace*{\fill}
+%  \begin{center}
+%  This page is intentionally left blank.
+%  \end{center}
+%  \vspace{\fill}
+%  \thispagestyle{empty}
+%  \newpage
+%  \if@twocolumn\hbox{}\newpage\fi\fi\fi}
+%\makeatother
+
+% Define the header and footer for all pages except the title and blank pages
+\fancypagestyle{plain}{
+  \fancyhf{}
+  \fancyhead[L]{SAFEcrypto}
+  \fancyhead[R]{\leftmark}
+  \fancyfoot[R]{\thepage}
+}
+\pagestyle{plain}
+
+% Configure indexing of the TOC to a depth of 3 levels
+\makeindex
+\setcounter{tocdepth}{3}
+
+\makeatletter% Set distance from top of page to first float
+\setlength{\@fptop}{5pt}
+\makeatother
+
+\begin{document}
+\hypersetup{pageanchor=false}
+
+% THe title page
+\begin{titlepage}
+\vspace*{7cm}
+\begin{center}
+\includegraphics[scale=0.5]{../Resources/SAFEcrypto.png}\\
+\vspace*{1cm}
+{\huge Software Coding Guidelines}\\
+\vspace*{1cm}
+{\LARGE SAFEcrypto: Secure Architectures of Future Emerging Cryptography}\\
+\vspace*{0.5cm}
+{\small \today}\\
+\end{center}
+\end{titlepage}
+
+% Intentionally leave a blank page after the title/cover page
+\afterpage{\blankpage}
+\clearpage
+
+% Use Roman numbers for any pages prior to the Introduction
+\pagenumbering{roman}
+
+% Insert a Revision History table (MUST BE MANUALLY EDITED)
+\begin{table}[t!]
+\centering
+\caption{Revision History}
+\label{my-label}
+\begin{tabularx}{\textwidth}{lllX}
+\toprule
+\textbf{Date} &\textbf{Version} &\textbf{Author~(s)} &\textbf{History}  \\
+\midrule
+3rd August 2016 &1.0 &N.Smyth &Initial Draft  \\
+\midrule
+22nd March 2017 &1.1 &N.Smyth &Expanded using MSc Cyber Security lecture notes \\
+\midrule
+ &  &  & \\
+ \bottomrule
+\end{tabularx}
+\end{table}
+
+\clearpage
+
+% Insert a Table of Contents
+\tableofcontents
+
+% From this point onwards insert a blank page WHERE NECESSARY to ensure chapters start on the right
+%\clearpage{\pagestyle{empty}\cleardoublepage}
+
+% Use Arabic numbering from this point onwards
+\pagenumbering{arabic}
+\hypersetup{pageanchor=true}
+
+
+\include{intro}
+\include{goals}
+\include{overview}
+\include{rules}
+
+\bibliographystyle{unsrt}
+\bibliography{coding}
+
+\printindex
+
+\end{document}

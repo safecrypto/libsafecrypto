@@ -1,0 +1,23 @@
+\chapter{Purpose and Goals}
+\label{ch_goals}
+
+The C programming language will be used to deliver a software library that implements lattice-based cryptography. A set of coding guidelines for the C programming language will have a direct influence on the purpose and goals of the SAFEcrypto project, as defined by Section 1 of the Software Requirements Document.
+
+\noindent A set of C coding rules will be used to address the following project goals:
+
+\begin{labeling}{iii}
+\item [i] \textbf{Readability and documentation} \\
+A consistent coding style permits a user to more readily familiarise themselves with the source code. The use of automated source code documentation such as Doxygen also improves readability by encouraging programmers to explain the purpose of their code as they are writing it and to provide concise descriptions of functions, variables and macros.
+\item [ii] \textbf{Code security}\\
+It is essential that secure coding guidelines are adhered to such that otherwise mundane or invisible behaviour is avoided and associated vulnerabilities cannot be exploited.
+\item [iii] \textbf{Cryptographically secure development methods}\\
+Best practices must be employed to ensure that no vulnerabilities exist in cryptographic routines involving random number generation, the inadvertant leaking of information, etc.
+\item [iv] \textbf{Lifespan and maintainability}\\
+The use of coding guidelines aids in the maintenance of code as it will reduce the presence of awkward or dangerous coding techniques that may become prevalent only under certain situations. Readable code also accelerates the diagnosis and fixing of bugs and the future development of additional features.
+\end{labeling}
+
+If developers are encouraged to follow coding rules this should result in fewer bugs associated with undefined behaviour as the offending source code is more readily identified and fixed. However, it is not always possible to strictly adhere to a large set of rules when developing code due to a developer's focus on the problem at hand, the creative process, time restrictions, etc. For this reason the use of code reviews and automated build tools that analyse the source code are invaluable.
+
+The purpose of these coding guidelines is to introduce a set of coding rules that allows us to develop a secure and robust cryptographic software solution that can be confidently released into the public domain. However, these rules should not act as an impediment to development particularly in the unstable environment of a research project. Therefore a pragmatic approach will be taken to applying a set of coding rules that permits rapid development whilst enforcing the rules in a hierarchical manner using an automated build system. Automatic enforcement of coding guidelines also points to greater compliance.
+
+The software coding guidelines will be segmented into two areas: a style guideline and coding rules. Coding style is subjective and has no influence on software failure, therefore these rules will not be rigidly enforced. However, a set of coding rules in a cryptographic software project must be rigidly enforced, therefore the build system will provide an automated means to detect and report violations of the rules.

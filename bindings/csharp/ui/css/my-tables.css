@@ -1,0 +1,29 @@
+﻿/*****************************************************************************
+ * Copyright (C) Queen's University Belfast, ECIT, 2016                      *
+ *                                                                           *
+ * This file is part of libsafecrypto.                                       *
+ *                                                                           *
+ * This file is subject to the terms and conditions defined in the file      *
+ * 'LICENSE', which is part of this source code package.                     *
+ *****************************************************************************/
+
+.my_table_header th {
+    background-color: #337ab7;
+    color: #ffffff;
+}
+
+.navbar-default .navbar-toggle .icon-bar {
+    background-color: black;
+}
+
+#container {
+    min-width:760px;
+    width: auto !important;
+    width:760px;
+}
+
+#page-content-wrapper {
+    min-width:760px;
+    width: auto !important;
+    width:760px;
+}

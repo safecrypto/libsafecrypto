@@ -1,0 +1,45 @@
+\chapter{Implementation Issues}
+
+The following section is provided as a discussion on various aspects of the practical implementation of the \textit{libsafecrypto} library.
+
+\section{Random Number Generation}
+
+The first issue is to understand that a practical secure system cannot obtain true random numbers for cryptographic purposes, particularly with high bandwidth. Therefore a compromise must be obtained using PRNG's that are initialised using a random source. Note that it is also desirable to allow these PRNG's to be initialised in a repeatable manner for test and debug purposes only, but such functionality should NOT be allowed in a production system.
+
+\subsection{Acceptable Random Functions}
+
+As the C Standard \textit{rand()} function makes no guarantees regarding the quality of the random sequences it produces (see SEI CERT MSC30-C or SAFECrypto Coding Rule I.17) it should not be used for secure coding applications. If used it could provide weaknesses due to short cycles and predictability of the number sequence.
+
+On a POSIX system a true entropy source such as \textit{/dev/random} can be used for the creation of strong cryptographic keys. An issue with this as a source of random numbers is speed, particularly as the \textit{/dev/random} device can block if there are insufficient events occuring to drive the generation of random numbers. Therefore such a source of random numbers should be used sparingly, particularly in a server application where it can not guarantee performance.
+
+Therefore in a practical security application it is common to segregate the generation of random numbers into a slow/strong source of entropy and a fast source of entropy that relies upon an algorithm to produce a secure pseudorandom sequence. This fast source of entropy is then initialised using the slow/strong entropy source. A range of random number generators have been developed for cryptographic purposes known as cryptographically secure pseudo random number generator's (CSPRNG's). These CSPRNG's have been developed for the purposes of security applications and as such have been heavily analysed for their suitability and standardized by bodies such as NIST and ANSI.
+
+On a POSIX system the \textit{random()} function can be used as a C standard means of generating a pseudorandom number sequence. However, it should not be used in cryptographic applications, contrary to the examples provided by the SEI CERT Secure Coding Standard in which \textit{random()} is described as a compliant solution. Instead a suitable CSPRNG algorithm should be used such as ChaCha20-CSPRNG or AES CTR\_DRBG (NIST SP 800-90A Rev.1).
+
+\textbf{\textit{NOTE: It would be better if the SAFEcrypto PRNG function allowed an arbitrary number of bits to be extracted. Some of the explanations I've read about random() etc. say that the least significant bits can be periodic, so if you need 4 random bits and keep calling prng\_32() maybe that could be an issue? It would also be more efficient to use all the bits that are generated when using expensive CSPRNG's etc.}}
+
+
+\subsection{Seeding}
+
+The SEI CERT C Secure Coding Standards have some important recommendations for seeding a random number generator (see MSC32-C or SAFEcrypto Coding Rule C.11). Their compliant POSIX solution is to seed the \textit{random()} function using the current time, but to ensure that current time is scrambled using an XOR of the second and nanosecond variables. If the time is not scrambled it is possible for an attacker to guess the low resolution components of the date (e.g. year, month) and reduce the effort required in a brute force attack.
+
+Alternatively a strong entropy source such as \textit{/dev/random} can be used provided that the seeding operation is not used in a time critical application.
+
+\textbf{\textit{NOTE: In the current SAFEcrypto PRNG the above seeding is currently disabled as it did not work on C90/gnu90 compilers. It currently initialises using time\_t result = time(NULL) - this has got to go! Autotools has since been reconfigured to enforce and create the correct switches for C99/GNU99 compliance, so the SEI recommended method will be used again once I've finished typing this sentence...!}}
+
+\textbf{\textit{NOTE: I'm going to add /dev/random and/or /dev/urandom support to the SAFEcrypto PRNG as an option alongside the SEI CERT seeding method.}}
+
+
+
+\section{Scalability}
+
+[Blabber on about vectorisation, making use of 64-bit and 128-bit, falling back to 32-bit as the minimum processor width on low power/resource CPU's]
+
+\section{Adaptive Processing}
+
+[Dynamic choice of coding tools based on system performance and application (e.g. on a stressed server temporarily switch to faster crypto coding tools such as disabling blinding to countermeasure side-channel attacks, more efficient but less statistically good samplers/PRNGs)]
+
+
+\section{Multithreading}
+
+[Implications of multiple threads on RNG, using worker threads to provide random numbers or vectors with gaussian distribution as background tasks, accelerating schemes using producer/consumer pipes with threadpools, impact on side-channel attacks when multithreading, ]

@@ -1,0 +1,27 @@
+\chapter{Quality}
+\label{ch_quality}
+
+The quality goals have been identified in Table \ref{table:quality_goals}:
+
+
+\begin{table}[h]
+\centering
+\caption{Quality Goals and Solutions}
+\label{table:quality_goals}
+\begin{tabularx}{\textwidth}{l p{5cm} p{8cm}}
+\toprule
+\textbf{Goal} &\textbf{Description}  &\textbf{Solution}  \\
+\midrule
+\textbf{Q1 Portability} &Ability to be used on a wide range of target systems. &The library will be written in portable C and will be compliant with the C99 standard. \\
+\midrule
+\textbf{Q2 Reliability} &Users will be confident that the software is robust and functional. &All builds will use automated testing to verify their functionality. \\
+\midrule
+\textbf{Q3 Security} &Users will be confident that the software is secure. &The software will adhere to industry standard secure coding guidelines. \\
+\midrule
+\textbf{Q4 Maintainability} &Someone must be capable of picking up the source code and quickly fixing or enhancing its features. &The source code will be self-documented (in particular Doxygen will be used), architectural decisions will be documented, tests will be used to illustrate the operation. \\
+\midrule
+\textbf{Q5 Flexibility} &It will be possible to adapt the source code to different target platforms. &Autotools will be used as a configurable build system, preprocessor definitions will be used to provide compile-time adaptability. Dynamic reconfiguration will be possible by applying some principles of OOP. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+

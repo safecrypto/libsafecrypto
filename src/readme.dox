@@ -1,0 +1,11 @@
+/**
+
+@mainpage SAFEcrypto: Secure Architectures of Future Emerging Cryptography
+
+SAFEcrypto will provide a new generation of practical, robust and physically secure post-quantum cryptographic solutions that ensure long-term security for future ICT systems, services and applications. Novel public-key cryptographic schemes (digital signatures, authentication, identity-based encryption (IBE), attribute-based encryption (ABE)) will be developed using lattice problems as the source of computational hardness.
+
+SAFEcrypto brings together a consortium of four academic institutions, one research-intensive cyber-security SME and two multi-national security companies, providing a balance of expertise in theoretical cryptographic primitive construction, cryptographic architecture design and optimisation, side channel analysis and key management. The industry partners present excellent opportunities for commercialisation of the project results.
+
+The objective of work package 6 is to develop a suite of software routines implementing the constructions identified during work package WP4. The routines developed will address the needs of different applications and case studies as specified in work package WP9. Target platforms will range from small processors for embedded applications to high performance multi-core platforms for cloud-based servers, hence this suite will be designed such that it is easily configurable and platform independent.
+
+*/

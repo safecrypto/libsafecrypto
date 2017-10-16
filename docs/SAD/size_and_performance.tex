@@ -1,0 +1,43 @@
+\chapter{Size and Performance}
+\label{ch_size_and_performance}
+
+\section{Size}
+
+The size goals have been identified in Table \ref{table:size_goals}:
+
+\begin{table}[h]
+\centering
+\caption{Size Goals and Solutions}
+\label{table:size_goals}
+\begin{tabularx}{\textwidth}{l p{13cm}}
+\toprule
+\textbf{Goal} &\textbf{Description}  \\
+\midrule
+\textbf{S1 Platform} &The target platform for initial deployment will be an Intel x86/AMD64 processor, with consideration for later deployment on other processors ranging from low level microcontrollers with no FPU up to high-end multi-core processors. \\
+\midrule
+\textbf{S2 Scalability} &The \textit{SAFEcrypto} library must be capable of scaling at compile-time to exploit the available hardware resources and capabilities made available by the C compiler on that target platform. It is envisaged that application specific variants of the library will be required at compile-time, such as high performance server and low power embedded variants. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+
+
+\section{Performance}
+
+The performance goals have been identified in Table \ref{table:performance_goals}:
+
+\begin{table}[h]
+\centering
+\caption{Performance Goals and Solutions}
+\label{table:performance_goals}
+\begin{tabularx}{\textwidth}{l p{13cm}}
+\toprule
+\textbf{Goal} &\textbf{Description}  \\
+\midrule
+\textbf{P1 Lattices} &The library must be equivalent to or exceed the performance of existing lattice-based cryptography implementations. \\
+\midrule
+\textbf{P2 Classical} &The library must provide cryptographic schemes that are competitive in terms of performance, memory usage and/or bandwidth requirements in comparison to classical public-key cryptography schemes \\
+\bottomrule
+\end{tabularx}
+\end{table}
+

@@ -1,0 +1,11 @@
+#!/bin/bash
+
+cfile="$1.c"
+if [ -e $cfile ]
+then
+	echo "NTT tables already exist"
+else
+	./build_tools/ntt_table_gen/ntt_table_gen $1
+fi
+
+exit 0

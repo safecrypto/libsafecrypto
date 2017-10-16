@@ -1,0 +1,33 @@
+\chapter{Testing}
+\label{ch_testing}
+
+
+\section{Stakeholders}
+
+\textbf{\textit{Developers, Testers}}
+
+
+\section{Overview}
+
+All testing will be used within the automated build system as a means of regression testing and verifying the compilation of the library. Testing will take three forms:
+
+\begin{enumerate}
+  \item Unit Tests
+  \item Functional Tests
+  \item Known Answer Tests
+\end{enumerate}
+
+\subsection{Unit Tests}
+
+All components in the system will be unit tested to validate the correct operation of the smallest testable parts of the software (i.e. units). The unit tests will form an important part of regression testing within the automated build system. The unit tests will be used to ensure that as new features are developed and bugs are fixed that existing functionality is maintained.
+
+Testing at the unit level is not capable of validating correct operation for every possible scenario, therefore it is important additional unit tests are created to validate those scenarios that are uncovered by high level testing. Unit testing will incorporate integration testing of groups of units where appropriate.
+
+\subsection{Functional Tests}
+
+The functional tests will be used to verify the correct operation of the software from the user's perspective. As such they are concerned with the performance, user interface (API) and integration into other software applications.
+
+\subsection{Known Answer Tests}
+
+The correct operation of defined algorithms within the system will be verified with Known Answer Tests. This ensures that those software components are generating the same outputs regardless of the software implementation or the hardware platform.
+

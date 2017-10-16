@@ -1,0 +1,59 @@
+\chapter{Introduction}
+\label{ch_introduction}
+
+This Introduction provides an overview of the entire \textit{Software Coding Guidelines} document for SAFEcrypto.
+It includes the purpose, scope, definitions, acronyms, abbreviations, references and a document overview.
+
+\section{Purpose}
+SAFEcrypto will provide a new generation of practical, robust, and physically secure post-quantum cryptographic functions. Work Package 6 will develop a suite of software routines to implement the lattice-based constructions identified in Work Package 4 of the SAFEcrypto project.
+
+A well designed system can be rendered useless at the implementation stage if poor coding and weak coding practices are used. All coding environments, no matter how small the project is, must have a set of policies and guidelines that are well documented and enforced. The adoption of a uniform set of rules and guidelines will promote robust coding practices that achieve software assurance.
+
+Coding Standards exist for a range of languages, the Software Engineering Institute (SEI) contains secure coding standards for C, \verb!C++!, Java, Perl and Android and is an excellent resource for information around software assurance. Typically network and systems level code is written in C/\verb!C++! and the reality is a large amount of cryptographic code and security protocols are written in these languages.
+
+While these are some of the most powerful and performance enhancing languages available, they are also amongst the most dangerous. The danger lies in the flexibility of these languages, and that they are at a lower level of compilation. As the level of language compilation gets lower bugs and vulnerabilities become more difficult to detect.
+
+The SEI Secure Coding Standards contain a comprehensive wiki of rules and recommendations:
+
+\begin{enumerate}
+	\item Rules provided are normative requirements for code violations have the potential to introduce a security vulnerability and are detectable through code analysers.
+	\item Recommendations provide guidance on increasing software assurance at a code level these are not compulsory and are suggestions that can increase the level of assurance within code. Recommendations are typically enforced in accordance with the product requirements, for example high grade security products will normally enforce many of the recommendations. A system that has critical safety requirements may go even further by enforcing safety standards, e.g. a ban on dynamic memory etc.
+\end{enumerate}
+
+This document provides a set of secure coding guidelines and principles that will ensure that the software development process adheres to best practices in trustworthy software development. In addition to secure coding guidelines some rules with regards to style guidelines are also provided, this is to provide a consistent and readable source code package that will be released into the public domain. In addition the build system and various build tools are described that will be used to automate the process of rule checking.
+
+\section{Scope}
+The scope of this document includes the entire SAFEcrypto software development lifecycle including architecture and design, implementation, build infrastructure and testing strategy. A well-documented and enforceable coding standard is an essential element of coding in the C programming language.
+
+A SAFEcrypto coding standard encourages developers to follow a set of rules that benefit the SAFEcrypto project in terms of producing software that is secure, reliable and robust. These rules can be checked manually (e.g.\ code reviews) or using automated processes incorporated into the build system (e.g. Lint, CppCheck).
+
+
+\section{Definitions, Acronyms and Abbreviations}
+\begin{labeling}{SAFEcrypto}
+\item [SAD] Software Architecture Document
+\item [SAFEcrypto] Safe Architectures of Future Emerging Cryptography
+\item [WP\textit{N}] Work Package \textit{N}
+\end{labeling}
+
+\section{References}
+The following documents should be read in conjunction with this \textit{Software Architecture Document}:
+
+\begin{itemize}
+\item SAFEcrypto: Secure Architectures of Future Emerging Cryptography, H2020-ICT-2014--1~\cite{safecrypto_overview}
+\item SAFEcrypto: Software Requirements Specification, Version 1.0, April 22 2016~\cite{safecrypto_srs}
+\item SAFEcrypto: Software Architecture Document, Version 1.0,~???
+\end{itemize}
+
+\section{Overview}
+This document consists of 5 sections which are described below:
+
+\begin{itemize}
+\item Section 1 is simply an introduction to the coding guidelines of the SAFEcrypto software system.
+\item Section 2 identifies the goals and constraints of the coding guidelines.
+\item Section 3 describes an overview of the proposed software system.
+\item Section 4 provides a set of rules for C programming language development.
+%\item Section 5 discusses the automated tools that will be incorporated into the build system.
+%\item Section 6 provides a description of the code review process.
+\item Section 5 is a bibliography of the references used to create this document.
+\end{itemize}
+

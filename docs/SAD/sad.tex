@@ -1,0 +1,222 @@
+\documentclass[a4paper, twoside, parskip=full]{book}
+\usepackage[toc,page]{appendix}
+\usepackage{geometry}
+\usepackage{makeidx}
+\usepackage{graphicx}
+\usepackage{tabularx}
+\usepackage{multicol}
+\usepackage{multirow}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{enumerate}
+\usepackage{color}
+\usepackage{ifthen}
+\usepackage[table]{xcolor}
+\usepackage{textcomp}
+\usepackage{alltt}
+\usepackage{ifpdf}
+\ifpdf%
+\usepackage[pdftex,
+            colorlinks=true,
+            linkcolor=blue,
+            unicode
+           ]{hyperref}
+\else
+\usepackage[ps2pdf,
+            colorlinks=true,
+            linkcolor=blue,
+            unicode
+           ]{hyperref}
+\usepackage{pspicture}
+\fi
+\usepackage[utf8]{inputenc}
+\usepackage{mathptmx}
+\usepackage[scaled=.90]{helvet}
+\usepackage{courier}
+\usepackage{parskip}
+\usepackage{sectsty}
+\usepackage{booktabs}
+\usepackage[titles]{tocloft}
+\usepackage{fancyhdr}
+\usepackage{fancyvrb}
+\usepackage{scrextend}
+\usepackage{afterpage}
+\usepackage[nottoc,numbib]{tocbibind}
+\usepackage{pgfplots}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+
+\usetikzlibrary{patterns}
+
+\expandafter\def\expandafter\UrlBreaks\expandafter{\UrlBreaks%  save the current one
+  \do\a\do\b\do\c\do\d\do\e\do\f\do\g\do\h\do\i\do\j%
+  \do\k\do\l\do\m\do\n\do\o\do\p\do\q\do\r\do\s\do\t%
+  \do\u\do\v\do\w\do\x\do\y\do\z\do\A\do\B\do\C\do\D%
+  \do\E\do\F\do\G\do\H\do\I\do\J\do\K\do\L\do\M\do\N%
+  \do\O\do\P\do\Q\do\R\do\S\do\T\do\U\do\V\do\W\do\X%
+  \do\Y\do\Z}
+
+\renewcommand{\familydefault}{\sfdefault}
+
+% The geometry of al of our pages
+\geometry{
+ a4paper,
+ total={170mm,237mm},
+ left=20mm,
+ top=30mm,
+}
+
+% Define the thickness of the header and footer rules
+\renewcommand{\headrulewidth}{1pt}
+\renewcommand{\footrulewidth}{1pt}
+
+% Change the Bibliography name to references
+\renewcommand{\bibname}{References}
+
+% A command to provide a completely blank page
+\newcommand\blankpage{%
+    \null%
+    \thispagestyle{empty}%
+    \addtocounter{page}{-1}%
+    \newpage}
+
+% A method defined in fancyhdr documentation for twosided blank pages before a chapter start
+\makeatletter
+\def\cleardoublepage{\clearpage\if@twoside\ifodd\c@page\else
+  \hbox{}
+  \vspace*{\fill}
+  \begin{center}
+  This page is intentionally left blank.
+  \end{center}
+  \vspace{\fill}
+  \thispagestyle{empty}
+  \newpage
+  \if@twocolumn\hbox{}\newpage\fi\fi\fi}
+\makeatother
+
+% Define the header and footer for all pages except the title and blank pages
+\fancypagestyle{plain}{
+  \fancyhf{}
+  \fancyhead[RE,LO]{SAFEcrypto}
+  \fancyhead[LE,RO]{\leftmark}
+  \fancyfoot[LE,RO]{\thepage}
+}
+\pagestyle{plain}
+
+% Configure indexing of the TOC to a depth of 3 levels
+\makeindex
+\setcounter{tocdepth}{2}
+
+\providecommand{\versionnumber}{1.4}
+
+
+\begin{document}
+\hypersetup{pageanchor=false}
+
+% The title page
+\begin{titlepage}
+\vspace*{7cm}
+\begin{center}
+\includegraphics[scale=0.5]{../Resources/SAFEcrypto.png}\\
+\vspace*{1cm}
+{\Large \textbf{SAFEcrypto}: \textbf{S}ecure \textbf{A}rchitectures of \textbf{F}uture \textbf{E}merging \textbf{Cryptography}}\\
+\vspace*{1cm}
+{\Huge Software Architecture Document}\\
+\vspace*{0.5cm}
+{\Large \today}\\
+\vspace*{0.5cm}
+{\Large Version \versionnumber}\\
+\end{center}
+\end{titlepage}
+
+% Intentionally leave a blank page after the title/cover page
+\afterpage{\blankpage}
+\clearpage
+
+% Use Roman numbers for any pages prior to the Introduction
+\pagenumbering{roman}
+
+% Insert a Revision History table (MUST BE MANUALLY EDITED)
+\begin{table}[ht!]
+\centering
+\caption{Revision History}
+\label{my-label}
+\begin{tabularx}{\textwidth}{lll p{10cm}}
+\toprule
+\textbf{Date} &\textbf{Author} &\textbf{Version}  &\textbf{History}  \\
+\midrule
+1\textsuperscript{st} Aug 2016 &NS &1.0  &Initial documentation.  \\
+\midrule
+9\textsuperscript{th} Dec 2016 &NS &1.1  &Updated Architectural View and added an Optimization Appendix. \\
+\midrule
+9\textsuperscript{th} Feb 2017 &NS &1.2  &Updated diagrams and references. Expanded Architectural View and Optimizations. \\
+\midrule
+24\textsuperscript{th} March 2017 &NS &1.3  &Updated version number description, added IBE and AKE discussion. \\
+\midrule
+8\textsuperscript{th} May 2017 &NS &1.4  &Updated Use Case View, Process View and HW integration. Added details to the Appendix. \\
+\midrule
+ &  &  &  \\
+\midrule
+ &  &  &  \\
+\midrule
+ &  &  &  \\
+\midrule
+ &  &  &  \\
+\midrule
+ &  &  &  \\
+ \bottomrule
+\end{tabularx}
+\end{table}
+
+% Insert a Table of Contents
+\tableofcontents
+
+% From this point onwards insert a blank page WHERE NECESSARY to ensure chapters start on the right
+\clearpage{\pagestyle{empty}\cleardoublepage}
+
+% Use Arabic numbering from this point onwards
+\pagenumbering{arabic}
+\hypersetup{pageanchor=true}
+
+
+\mainmatter
+
+\include{intro}
+\include{goals_and_constraints}
+
+\include{arch_representation}
+\include{view_use_case}
+\include{view_development}
+\include{view_logical}
+\include{view_process}
+\include{view_physical}
+
+\include{security}
+
+\include{hardware_integration}
+
+\include{testing}
+
+\include{size_and_performance}
+
+\include{quality}
+
+
+\bibliographystyle{unsrt}
+\bibliography{sad}
+
+\begin{appendices}
+\addtocontents{toc}{\protect\setcounter{tocdepth}{1}}
+
+\include{build_environment}
+\include{client_build}
+
+%\include{implementation_issues}
+%\include{schemes}
+%\include{ibe_and_ake}
+%\include{proposals}
+\end{appendices}
+
+\printindex
+
+\end{document}

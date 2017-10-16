@@ -1,0 +1,6 @@
+#!/bin/bash
+NEXT_VERSION=$(cat version | perl -pe 's/\b(\d+)(?=\D*$)/$1+1/e')
+echo $NEXT_VERSION > version
+echo Version number changed to $NEXT_VERSION
+git add version
+exit 0

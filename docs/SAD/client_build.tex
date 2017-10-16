@@ -1,0 +1,120 @@
+\chapter{Build Customisation}
+
+The SAFEcrypto library can be customised using the following Autotools features shown in Table \ref{table:autotools_scheme_switches}. These features can be enabled or disabled using the appropriate \textit{"--enable-FEATURE"} or \textit{"--disable-FEATURE"} when running the Autoconf configure script.
+
+\begin{table}[h]
+\caption{Autotools Features to provide optimised builds}
+\label{table:autotools_scheme_switches}
+\begin{tabularx}{\textwidth}{l p{13cm}}
+\toprule
+\textbf{Feature} &\textbf{Description}  \\
+\midrule
+\textbf{shared} &Build shared libraries (default: enabled) \\
+\midrule
+\textbf{static} &Build static libraries (default: enabled) \\
+\midrule
+\textbf{simd} &Use SIMD instructions if available (default: enabled) \\
+\midrule
+\textbf{gcc-builtin} &Use gcc builtins (default: enabled) \\
+\midrule
+\textbf{code-style-rules} &Enable the enforcement of coding style rules for distribution packages (default: enabled) \\
+\midrule
+\textbf{128bit} &Enable support of 128-bit types (default: enabled) \\
+\midrule
+\textbf{tests} &Enable the compilation and execution of tests as part of the build process (default: enabled) \\
+\midrule
+\textbf{dev} &Enable features currently in development and not considered stable (default: \textbf{disabled}) \\
+\midrule
+\textbf{constrained-ram} &Enable features specifically designed to reduce RAM usage (default: \textbf{disabled}) \\
+\midrule
+\textbf{constrained-rom} &Enable features specifically designed to reduce ROM usage (default: \textbf{disabled}) \\
+\midrule
+\textbf{constrained-cpu} &Enable features specifically designed to reduce CPU usage (default: \textbf{disabled}) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The SAFEcrypto library contains four scheme interfaces for performing cryptographic operations as described in Table \ref{table:crypto_interfaces}.
+
+\begin{table}[h]
+\centering
+\caption{SAFEcrypto Cryptographic Interfaces}
+\label{table:crypto_interfaces}
+\begin{tabularx}{\textwidth}{l p{13cm}}
+\toprule
+\textbf{Scheme} &\textbf{Operations}  \\
+\midrule
+\textbf{Public-Key Encryption} &KeyGen, Encrypt, Decrypt \\
+\midrule
+\textbf{Digital Signature Schemes} &KeyGen, Sign, Verify \\
+\midrule
+\textbf{Key Encapsulation Mechanisms} &KeyGen, Encapsulate, Decapsulate \\
+\midrule
+\textbf{Identity-Based Encryption} &KeyGen, Extract, Encrypt, Decrypt \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+
+In order to provide targeted builds that are specific to client or server applications the Autotools build system will be used to provide compile-time switches to selectively disable specific interfaces. In example, this will enable a client only build to be targeted to the application by disabling the \textit{KeyGen} and \textit{Sign} interfaces of all Digital Signature Schemes and all associated functionality and resources in the compiled library.
+
+In order to permit maximum flexibility the build system will allow specific types of scheme, algorithm and type of cryptographic operation to be enabled or disabled. The following cryptographic targets described in Table \ref{table:autotools_crypto_scheme_switches} will be specified for the Autotools build system:
+
+\begin{table}[h]
+\caption{Autotools features to provide specific cryptographic functionality}
+\label{table:autotools_crypto_scheme_switches}
+\begin{tabularx}{\textwidth}{l p{13cm}}
+\toprule
+\textbf{Feature} &\textbf{Description}  \\
+\midrule
+\textbf{encryption} &Enable/disable all Public-Key Encryption functionality (default: enabled) \\
+\midrule
+\textbf{signatures} &Enable/disable all Digital Signature Scheme functionality (default: enabled) \\
+\midrule
+\textbf{kem} &Enable/disable all Key Encapsulation Mechanism functionality (default: enabled) \\
+\midrule
+\textbf{ibe} &Enable/disable all Identity-Based Encryption functionality (default: enabled) \\
+\midrule
+\textbf{signatures-client} &Enable/disable all DSS KeyGen and Sign functionality (default: enabled) \\
+\midrule
+\textbf{signatures-server} &Enable/disable all DSS Verify functionality (default: enabled) \\
+\midrule
+\textbf{kem-client} &Enable/disable all KEM KeyGen and Encapsulate functionality (default: enabled) \\
+\midrule
+\textbf{kem-server} &Enable/disable all KEM Decapsulate functionality (default: enabled) \\
+\midrule
+\textbf{ibe-client} &Enable/disable all IBE KeyGen and Extract functionality (default: enabled) \\
+\midrule
+\textbf{ibe-server} &Enable/disable all KEM Encrypt and Decrypt functionality (default: enabled) \\
+\midrule
+\textbf{bliss} &Enable/disable all BLISS DSS functionality (default: enabled) \\
+\midrule
+\textbf{bliss-client} &Enable/disable all BLISS DSS KeyGen and Sign functionality (default: enabled) \\
+\midrule
+\textbf{bliss-server} &Enable/disable all BLISS DSS Verify functionality (default: enabled) \\
+\midrule
+\textbf{ring-tesla} &Enable/disable all Ring-TESLA DSS functionality (default: enabled) \\
+\midrule
+\textbf{ring-tesla-client} &Enable/disable all Ring-TESLA DSS KeyGen and Sign functionality (default: enabled) \\
+\midrule
+\textbf{ring-tesla-server} &Enable/disable all Ring-TESLA DSS Verify functionality (default: enabled) \\
+\midrule
+\textbf{whole-sig} &Enable/disable all Whole AKE DSS functionality (default: enabled) \\
+\midrule
+\textbf{whole-sig-client} &Enable/disable all Whole AKE DSS KeyGen and Sign functionality (default: enabled) \\
+\midrule
+\textbf{whole-sig-server} &Enable/disable all Whole AKE DSS Verify functionality (default: enabled) \\
+\midrule
+\textbf{whole-kem} &Enable/disable all Whole AKE KEM functionality (default: enabled) \\
+\midrule
+\textbf{rlwe-encryption} &Enable/disable all RLWE Encryption functionality (default: enabled) \\
+\midrule
+\textbf{dlp-ibe} &Enable/disable all DLP IBE functionality (default: enabled) \\
+\midrule
+\textbf{dlp-ibe-client} &Enable/disable all DLP IBE KeyGen and Extract functionality (default: enabled) \\
+\midrule
+\textbf{dlp-ibe-server} &Enable/disable all DLP IBE Encrypt and Decrypt functionality (default: enabled) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+

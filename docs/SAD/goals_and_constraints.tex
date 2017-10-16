@@ -1,0 +1,36 @@
+
+\chapter{Architectural Goals and Constraints}
+\label{ch_goals_and_constraints}
+
+The SAFEcrypto software architecture has been designed with the following objectives in mind:
+
+\begin{itemize}
+\item Low overhead lattice-based cryptographic software implementations for embedded platforms.
+  \begin{enumerate}[(a)]
+  \item Low level cryptographic algorithms optimised for a small memory footprint.
+  \item Optimisation of arithmetic intensize operations for high speed implementations.
+  \end{enumerate}
+\item High performance lattice-based cryptographic software implementations for multi-core architectures:
+  \begin{enumerate}[(b)]
+  \item A fully pipelined parallel architecture to maximise throughput.
+  \item Optimisation of scheduling and resource allocation for high scalability.
+  \end{enumerate}
+\item Future hardware acceleration using FPGA/ASIC.
+\end{itemize}
+
+\vspace{5mm}
+
+\noindent
+The major design and implementation constraints on the system are:
+
+\begin{itemize}
+\item Portability
+\item Reliability
+\item Security
+\item Maintainability
+\item Flexibility
+\end{itemize}
+
+\vspace{5mm}
+
+The \textit{libsafecrypto} library must adhere to the security coding guideliness described in \cite{safecrypto_secure_coding_guidelines} and discussed in Chapter \ref{ch_security}.

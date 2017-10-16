@@ -1,0 +1,57 @@
+/*****************************************************************************
+ * Copyright (C) Queen's University Belfast, ECIT, 2016                      *
+ *                                                                           *
+ * This file is part of libsafecrypto.                                       *
+ *                                                                           *
+ * This file is subject to the terms and conditions defined in the file      *
+ * 'LICENSE', which is part of this source code package.                     *
+ *****************************************************************************/
+
+/*
+ * Git commit information:
+ *   Author: $SC_AUTHOR$
+ *   Date:   $SC_DATE$
+ *   Branch: $SC_BRANCH$
+ *   Id:     $SC_IDENT$
+ */
+
+#include "blake2_safecrypto.h"
+
+SINT32 sc_blake2b_init(void *c, SINT32 outlen)
+{
+	blake2b_state *S = (blake2b_state *) c;
+	return blake2b_init(S, outlen)? PRNG_FUNC_FAILURE : PRNG_FUNC_SUCCESS;
+}
+
+SINT32 sc_blake2b_update(void *c, const void *data, size_t inlen)
+{
+	blake2b_state *S = (blake2b_state *) c;
+	const UINT8 *d = (const UINT8*) data;
+	return blake2b_update(S, d, inlen)? PRNG_FUNC_FAILURE : PRNG_FUNC_SUCCESS;
+}
+
+SINT32 sc_blake2b_final(void *c, void *out)
+{
+	blake2b_state *S = (blake2b_state *) c;
+	UINT8 *md = (UINT8*) out;
+	return blake2b_final(S, md, 64)? PRNG_FUNC_FAILURE : PRNG_FUNC_SUCCESS;
+}
+
+SINT32 sc_blake2xb_init(void *c, SINT32 outlen)
+{
+	blake2xb_state *S = (blake2xb_state *) c;
+	return blake2xb_init(S, outlen)? PRNG_FUNC_FAILURE : PRNG_FUNC_SUCCESS;
+}
+
+SINT32 sc_blake2xb_update(void *c, const void *data, size_t inlen)
+{
+	blake2xb_state *S = (blake2xb_state *) c;
+	const UINT8 *d = (const UINT8*) data;
+	return blake2xb_update(S, d, inlen)? PRNG_FUNC_FAILURE : PRNG_FUNC_SUCCESS;
+}
+
+SINT32 sc_blake2xb_xof(void *c, void *out, size_t len)
+{
+	blake2xb_state *S = (blake2xb_state *) c;
+	return blake2xb_final(S, out, len)? PRNG_FUNC_FAILURE : PRNG_FUNC_SUCCESS;
+}

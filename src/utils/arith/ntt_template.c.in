@@ -1,0 +1,2097 @@
+#define NTT_FUNC_NAME_0(x,A) x ## _ ## A
+#define NTT_FUNC_NAME_1(x,A) NTT_FUNC_NAME_0(x,A)
+#define NTT_FUNC_NAME(x)     NTT_FUNC_NAME_1(x, NTT_NAME_EXT)
+
+const utils_arith_ntt_t *ntt_table;
+
+
+#ifdef _ENABLE_AVX2_INTRINSICS
+
+static SC_FORCE_INLINE __m256 int16_to_float(__m128i x)
+{
+    __m256i tmp = _mm256_cvtepi16_epi32(x);
+    return _mm256_cvtepi32_ps(tmp);
+}
+
+static SC_FORCE_INLINE __m256i float_to_int16_2(__m256 x1, __m256 x2)
+{
+    __m256i tmp1 = _mm256_cvtps_epi32(x1);
+    __m256i tmp2 = _mm256_cvtps_epi32(x2);
+    tmp1 = _mm256_packs_epi32(tmp1, tmp2);
+    return _mm256_permute4x64_epi64(tmp1, 0xD8);
+}
+
+static SC_FORCE_INLINE __m128i float_to_int16(__m256 x)
+{
+    __m256i tmp = _mm256_cvtps_epi32(x);
+    tmp = _mm256_packs_epi32(tmp, _mm256_setzero_si256());
+    tmp = _mm256_permute4x64_epi64(tmp, 0xD8);
+    return _mm256_castsi256_si128(tmp);
+}
+
+static SC_FORCE_INLINE __m256i float_to_int32(__m256 x)
+{
+    return _mm256_cvtps_epi32(x);
+}
+
+static SC_FORCE_INLINE __m256d int64_to_double(__m256i x)
+{
+    x = _mm256_add_epi64(x, _mm256_castpd_si256(_mm256_set1_pd(0x0018000000000000)));
+    return _mm256_sub_pd(_mm256_castsi256_pd(x), _mm256_set1_pd(0x0018000000000000));
+}
+
+static SC_FORCE_INLINE __m256i double_to_int64(__m256d x)
+{
+    x = _mm256_add_pd(x, _mm256_set1_pd(0x0018000000000000));
+    return _mm256_sub_epi64(
+        _mm256_castpd_si256(x),
+        _mm256_castpd_si256(_mm256_set1_pd(0x0018000000000000))
+    );
+}
+
+static SC_FORCE_INLINE __m256d int64_to_double_full_range(const __m256i v)
+{
+    const __m256i msk_lo       =_mm256_set1_epi64x(0xFFFFFFFF);
+    const __m256d cnst2_32_dbl =_mm256_set1_pd(4294967296.0);                 // 2^32
+
+    __m256i v_lo         = _mm256_and_si256(v,msk_lo);                  // extract the 32 lowest significant bits of v
+    __m256i v_hi         = _mm256_srli_epi64(v,32);                     // 32 most significant bits of v. srai_epi64 doesn't exist
+    __m256i v_sign       = _mm256_srai_epi32(v,32);                     // broadcast sign bit to the 32 most significant bits
+            v_hi         = _mm256_blend_epi32(v_hi,v_sign,0b10101010);  // restore the correct sign of v_hi
+    __m256d v_lo_dbl     = int64_to_double(v_lo);                       // v_lo is within specified range of int64_to_double
+    __m256d v_hi_dbl     = int64_to_double(v_hi);                       // v_hi is within specified range of int64_to_double
+            v_hi_dbl     = _mm256_mul_pd(cnst2_32_dbl,v_hi_dbl);        // _mm256_mul_pd and _mm256_add_pd may compile to a single fma instruction
+    return _mm256_add_pd(v_hi_dbl,v_lo_dbl);                            // rounding occurs if the integer doesn't exist as a double
+}
+
+#endif
+
+
+extern SINT32 barrett_reduction_32(/*should be UINT64*/SINT64 a, SINT32 m, SINT32 k, SINT32 q);
+
+inline SINT32 NTT_FUNC_NAME(ntt32_modn)(SINT32 x, const ntt_params_t *p)
+{
+#if defined(_ENABLE_REFERENCE)
+    return x % p->u.ntt32.q;
+#elif defined(_ENABLE_BARRETT)
+    SINT32 m = p->u.ntt32.m;
+    SINT32 k = p->u.ntt32.k;
+    SINT32 q = p->u.ntt32.q;
+    return barrett_reduction_32((SINT64) x, m, k, q);
+#elif defined(_ENABLE_SOLINAS_7681)
+    SINT32 high, low;
+    high = x >> 13;
+    low  = x & 0x1FFF;
+    x    = low - high + (high << 9);
+    high = x >> 13;
+    low  = x & 0x1FFF;
+    x    = low - high + (high << 9);
+    high = x >> 13;
+    low  = x & 0x1FFF;
+    x    = low - high + (high << 9);
+    return x;
+#elif defined(_ENABLE_SOLINAS_8380417)
+    SINT32 high, low;
+    high = x >> 23;
+    low  = x & 0x7FFFFF;
+    x    = low - high + (high << 13);
+    high = x >> 23;
+    low  = x & 0x7FFFFF;
+    x    = low - high + (high << 13);
+    high = x >> 23;
+    low  = x & 0x7FFFFF;
+    x    = low - high + (high << 13);
+    return x;
+#elif defined(_ENABLE_SOLINAS_16813057)
+    SINT64 high, low;
+    high = x >> 24;
+    low  = x & 0xFFFFFF;
+    x    = low - high - (high << 10) - (high << 11) - (high << 15);
+    high = x >> 24;
+    low  = x & 0xFFFFFF;
+    x    = low - high - (high << 10) - (high << 11) - (high << 15);
+    high = x >> 24;
+    low  = x & 0xFFFFFF;
+    x    = low - high - (high << 10) - (high << 11) - (high << 15);
+    if (x < 0) {
+        x += 16813057;
+    }
+    return (SINT32) x;
+#elif defined(_ENABLE_SOLINAS_134348801)
+    SINT64 high, low;
+    high = x >> 27;
+    low  = x & 0x7FFFFFF;
+    x    = low - high - (high << 17);
+    high = x >> 27;
+    low  = x & 0x7FFFFFF;
+    x    = low - high - (high << 17);
+    high = x >> 27;
+    low  = x & 0x7FFFFFF;
+    x    = low - high - (high << 17);
+    if (x < 0) {
+        x += 134348801;
+    }
+    return (SINT32) x;
+#else
+    // Multiply by the inverse of q, truncate towards zero and then multiply
+    // by q, subtracting the result from the input to obtain the remainder.
+    // Use casting to truncate towards zero for both positive and negative numbers.
+#if 0
+    FLOAT temp = (FLOAT) x * p->inv_q_flt;
+    SINT32 r = (SINT32)(x - p->u.ntt32.q * (SINT64) temp);
+    return (r < 0)? r + p->u.ntt32.q : r;
+#else
+    DOUBLE temp = (DOUBLE) x * p->inv_q_dbl;
+    return x - p->u.ntt32.q * (SINT64) temp;
+#endif
+#endif
+#if 0
+    SINT64 t, t2, t3;
+    t2 = (x<<4)+(x<<6)+(x<<8);
+    t3 = t2 << 6;
+    t = ((x<<1)+t2+t3)>>28;
+    //t = ((x<<1)+(x<<4)+(x<<6)+(x<<8)+(x<<10)+(x<<12)+(x<<14))>>28;
+    t = x-((t<<12)+(t<<13)+t);
+    while (t >= 12289)
+        t -= 12289;
+    while (t < 0)
+        t += 12289;
+    return t;
+#endif
+}
+
+inline SINT32 NTT_FUNC_NAME(ntt32_muln)(SINT32 x, SINT32 y, const ntt_params_t *p)
+{
+#if defined(_ENABLE_REFERENCE)
+    return (((SINT64) x) * ((SINT64) y)) % p->u.ntt32.q;
+#elif defined(_ENABLE_BARRETT)
+    SINT32 m = p->u.ntt32.m;
+    SINT32 k = p->u.ntt32.k;
+    SINT32 q = p->u.ntt32.q;
+    SINT64 product = ((SINT64) x) * ((SINT64) y);
+    return barrett_reduction_32(product, m, k, q);
+#elif defined(_ENABLE_SOLINAS_7681)
+    SINT64 high, low;
+    SINT64 x64 = (SINT64) x * (SINT64) y;
+    high = x64 >> 13;
+    low  = x64 & 0x1FFF;
+    x64  = low - high + (high << 9);
+    high = x64 >> 13;
+    low  = x64 & 0x1FFF;
+    x64  = low - high + (high << 9);
+    high = x64 >> 13;
+    low  = x64 & 0x1FFF;
+    x64  = low - high + (high << 9);
+    return (SINT32) x64;
+#elif defined(_ENABLE_SOLINAS_8380417)
+    SINT64 high, low;
+    SINT64 x64 = (SINT64) x * (SINT64) y;
+    high = x64 >> 23;
+    low  = x64 & 0x7FFFFF;
+    x64  = low - high + (high << 13);
+    high = x64 >> 23;
+    low  = x64 & 0x7FFFFF;
+    x64  = low - high + (high << 13);
+    high = x64 >> 23;
+    low  = x64 & 0x7FFFFF;
+    x64  = low - high + (high << 13);
+    return (SINT32) x64;
+#elif defined(_ENABLE_SOLINAS_16813057)
+    SINT64 high, low;
+    SINT64 x64 = (SINT64) x * (SINT64) y;
+    high = x64 >> 24;
+    low  = x64 & 0xFFFFFF;
+    x64    = low - high - (high << 10) - (high << 11) - (high << 15);
+    high = x64 >> 24;
+    low  = x64 & 0xFFFFFF;
+    x64    = low - high - (high << 10) - (high << 11) - (high << 15);
+    high = x64 >> 24;
+    low  = x64 & 0xFFFFFF;
+    x    = low - high - (high << 10) - (high << 11) - (high << 15);
+    if (x64 < 0) {
+        x64 += 16813057;
+    }
+    return (SINT32) x64;
+#elif defined(_ENABLE_SOLINAS_134348801)
+    SINT64 high, low;
+    SINT64 x64 = (SINT64) x * (SINT64) y;
+    high = x64 >> 27;
+    low  = x64 & 0x7FFFFFF;
+    x64  = low - high - (high << 17);
+    high = x64 >> 27;
+    low  = x64 & 0x7FFFFFF;
+    x64  = low - high - (high << 17);
+    high = x64 >> 27;
+    low  = x64 & 0x7FFFFFF;
+    x64  = low - high - (high << 17);
+    if (x64 < 0) {
+        x64 += 134348801;
+    }
+    return (SINT32) x64;
+#else
+#if 0
+    SINT64 prod = (SINT64) x * (SINT64) y;
+    FLOAT temp = (FLOAT) prod * p->inv_q_flt;
+    SINT32 r = (SINT32)(prod - p->u.ntt32.q * (SINT64) temp);
+    return (r < 0)? r + p->u.ntt32.q : r;
+#else
+    SINT64 prod = (SINT64) x * (SINT64) y;
+    DOUBLE temp = (DOUBLE) prod * p->inv_q_dbl;
+    return prod - p->u.ntt32.q * (SINT64) temp;
+#endif
+#endif
+#if 0
+    SINT64 temp, t2, t3;
+    SINT64 x64 = (SINT64) x * (SINT64) y;
+    t2 = (x64<<4)+(x64<<6)+(x64<<8);
+    t3 = t2 << 6;
+    temp = ((x<<1)+t2 + t3)>>28;
+    //temp = ((x64<<1)+(x64<<4)+(x64<<6)+(x64<<8)+(x64<<10)+(x64<<12)+(x64<<14))>>28;
+    temp = x64-((temp<<12)+(temp<<13)+temp);
+    while (temp >= 12289)
+        temp -= 12289;
+    while (temp < 0)
+        temp += 12289;
+    return temp;
+#endif
+}
+
+inline SINT32 NTT_FUNC_NAME(ntt32_sqrn)(SINT32 x, const ntt_params_t *p)
+{
+#if defined(_ENABLE_REFERENCE)
+    return (((SINT64) x) * ((SINT64) x)) % p->u.ntt32.q;
+#elif defined(_ENABLE_BARRETT)
+    SINT32 m = p->u.ntt32.m;
+    SINT32 k = p->u.ntt32.k;
+    SINT32 q = p->u.ntt32.q;
+    SINT64 product = ((SINT64) x) * ((SINT64) x);
+    return barrett_reduction_32(product, m, k, q);
+#elif defined(_ENABLE_SOLINAS_7681)
+    SINT64 high, low;
+    SINT64 x64 = (SINT64) x * (SINT64) x;
+    high = x64 >> 13;
+    low  = x64 & 0x1FFF;
+    x64  = low - high + (high << 9);
+    high = x64 >> 13;
+    low  = x64 & 0x1FFF;
+    x64  = low - high + (high << 9);
+    high = x64 >> 13;
+    low  = x64 & 0x1FFF;
+    x64  = low - high + (high << 9);
+    return (SINT32) x64;
+#elif defined(_ENABLE_SOLINAS_8380417)
+    SINT64 high, low;
+    SINT64 x64 = (SINT64) x * (SINT64) x;
+    high = x64 >> 23;
+    low  = x64 & 0x7FFFFF;
+    x64  = low - high + (high << 13);
+    high = x64 >> 23;
+    low  = x64 & 0x7FFFFF;
+    x64  = low - high + (high << 13);
+    high = x64 >> 23;
+    low  = x64 & 0x7FFFFF;
+    x64  = low - high + (high << 13);
+    return (SINT32) x64;
+#elif defined(_ENABLE_SOLINAS_16813057)
+    SINT64 high, low;
+    SINT64 x64 = (SINT64) x * (SINT64) x;
+    high = x64 >> 24;
+    low  = x64 & 0xFFFFFF;
+    x64  = low - high - (high << 10) - (high << 11) - (high << 15);
+    high = x64 >> 24;
+    low  = x64 & 0xFFFFFF;
+    x64  = low - high - (high << 10) - (high << 11) - (high << 15);
+    high = x64 >> 24;
+    low  = x64 & 0xFFFFFF;
+    x64  = low - high - (high << 10) - (high << 11) - (high << 15);
+    if (x64 < 0) {
+        x64 += 16813057;
+    }
+    return (SINT32) x64;
+#elif defined(_ENABLE_SOLINAS_134348801)
+    SINT64 high, low;
+    SINT64 x64 = (SINT64) x * (SINT64) x;
+    high = x64 >> 27;
+    low  = x64 & 0x7FFFFFF;
+    x64  = low - high - (high << 17);
+    high = x64 >> 27;
+    low  = x64 & 0x7FFFFFF;
+    x64  = low - high - (high << 17);
+    high = x64 >> 27;
+    low  = x64 & 0x7FFFFFF;
+    x64  = low - high - (high << 17);
+    if (x64 < 0) {
+        x64 += 134348801;
+    }
+    return (SINT32) x64;
+#else
+#if 0
+    SINT64 prod = (SINT64) x * (SINT64) x;
+    FLOAT temp = (FLOAT) prod * p->inv_q_flt;
+    SINT32 r = (SINT32)(prod - p->u.ntt32.q * (SINT64) temp);
+    return (r < 0)? r + p->u.ntt32.q : r;
+#else
+    SINT64 prod = (SINT64) x * (SINT64) x;
+    DOUBLE temp = (DOUBLE) prod * p->inv_q_dbl;
+    return prod - p->u.ntt32.q * (SINT64) temp;
+#endif
+#endif
+}
+
+// Pointwise multiplication of two vectors of length n  v = t .* c
+void NTT_FUNC_NAME(ntt32_mult_pointwise)(SINT32 *v, const ntt_params_t *p,
+                const SINT32 *t, const SINT32 *u)
+{
+#if defined(_ENABLE_BARRETT)
+    size_t i;
+    SINT32 m = p->u.ntt32.m;
+    SINT32 k = p->u.ntt32.k;
+    SINT32 q = p->u.ntt32.q;
+
+    // multiply each element point-by-point
+    for (i=p->n; i--;) {
+        SINT64 product = ((SINT64) t[i]) * ((SINT64) u[i]);
+        v[i] = barrett_reduction_32(product, m, k, q);
+    }
+#elif defined(_ENABLE_AVX2_INTRINSICS)
+    size_t i;
+    // Create Barret reduction constant vectors
+    const __m256i b_q = _mm256_setr_epi32(p->u.ntt32.q, 0, p->u.ntt32.q, 0, p->u.ntt32.q, 0, p->u.ntt32.q, 0);
+    const __m256i zero = _mm256_set1_epi32(0);
+    const __m256i idx = _mm256_set1_epi32((7<<21) | (5<<18) | (3<<15) | (1<<12) | (6<<9) | (4<<6) | (2<<3) | (0));
+    const __m256d invqd = _mm256_set1_pd(p->inv_q_dbl);
+    for (i=0; i<p->n; i+=4) {
+        // Load 4 32-bit signed words and convert to double's
+        __m128i ti = _mm_load_si128((__m128i*)(t + i));
+        __m128i ui = _mm_load_si128((__m128i*)(u + i));
+        __m256i vec1 = _mm256_cvtepi32_epi64(ti);
+        __m256i vec2 = _mm256_cvtepi32_epi64(ui);
+        __m256i product = _mm256_mul_epi32(vec1, vec2);
+        __m256d td = int64_to_double_full_range(product);
+        // Multiply v by q and convert to 64-bit integers
+        __m256d temp = _mm256_mul_pd(td, invqd);
+        //temp = _mm256_round_pd(temp, _MM_FROUND_TO_ZERO |_MM_FROUND_NO_EXC);
+        __m256i res = double_to_int64(temp);
+        // Multiply by q and subtract from the input to form the residual
+        res = _mm256_mul_epi32(res, b_q);
+        res = _mm256_sub_epi64(product, res);
+
+        /*__m256i cond = _mm256_cmpgt_epi64(res, b_q_minus1);
+        __m256i sub = _mm256_and_si256(cond, b_q);
+        res = _mm256_sub_epi64(res, sub);*/
+
+        __m256i cond = _mm256_cmpgt_epi64(zero, res);
+        __m256i add = _mm256_and_si256(cond, b_q);
+        res = _mm256_add_epi64(res, add);
+
+        // Transfer the 64-bit integers to the output 32-bit storage
+        v[i+0] = _mm256_extract_epi32(res, 0);
+        v[i+1] = _mm256_extract_epi32(res, 2);
+        v[i+2] = _mm256_extract_epi32(res, 4);
+        v[i+3] = _mm256_extract_epi32(res, 6);
+    }
+#else
+    size_t i;
+
+    // multiply each element point-by-point
+    for (i=p->n; i--;) {
+        v[i] = NTT_FUNC_NAME(ntt32_muln)(t[i], u[i], p);
+    }
+#endif
+}
+
+// Pointwise multiplication of two vectors of length n  v = t .* c
+void NTT_FUNC_NAME(ntt32_mult_pointwise_16)(SINT32 *v, const ntt_params_t *p,
+                const SINT32 *t, const SINT16 *u)
+{
+#if defined(_ENABLE_BARRETT)
+    size_t i;
+    SINT32 m = p->u.ntt32.m;
+    SINT32 k = p->u.ntt32.k;
+    SINT32 q = p->u.ntt32.q;
+
+    // multiply each element point-by-point
+    for (i=p->n; i--;) {
+        SINT64 product = ((SINT64) t[i]) * ((SINT64) u[i]);
+        v[i] = barrett_reduction_32(product, m, k, q);
+    }
+#elif defined(_ENABLE_AVX2_INTRINSICS)
+    size_t i;
+
+    // Create Barret reduction constant vectors
+#if 0
+    const __m256i b_q = _mm256_set1_epi32(p->u.ntt32.q);
+    const __m256i zero = _mm256_set1_epi32(0);
+    const __m256 qs_inv = _mm256_set1_ps((FLOAT)p->inv_q_dbl);
+    for (i=0; i<p->n; i+=8) {
+        // Load 8 32-bit signed words and convert to float's
+        __m256i vec1 = _mm256_load_si256((__m256i*)(t + i));
+        __m256i vec2 = _mm256_load_si256((__m256i*)(u + i));
+        __m256 ts1 = _mm256_cvtepi32_ps(vec1);
+        __m256 ts2 = _mm256_cvtepi32_ps(vec2);
+        __m256 product = _mm256_mul_ps(ts1, ts2);
+        
+        // Multiply v by q and convert to 32-bit integers
+        __m256 temp = _mm256_mul_ps(product, qs_inv);
+        __m256i sub = _mm256_cvtps_epi32(temp);
+
+        // Multiply by q and subtract from the input to form the residual
+        sub = _mm256_mullo_epi32(sub, b_q);
+        temp = _mm256_cvtepi32_ps(sub);
+        temp = _mm256_sub_ps(product, temp);
+        sub = _mm256_cvtps_epi32(temp);
+
+        // Make sure the output is positive
+        __m256i cond = _mm256_cmpgt_epi32(zero, sub);
+        __m256i qadd = _mm256_and_si256(cond, b_q);
+        __m256i res  = _mm256_add_epi32(sub, qadd);
+
+        // Transfer the 32-bit integers to the output 32-bit storage
+        _mm256_store_si256((__m256i*)(v + i), res);
+    }
+    fprintf(stderr, "v = %d %d %d %d %d %d %d %d\n", v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7]);
+    exit(-1);
+#else
+    const __m256i b_q = _mm256_setr_epi32(p->u.ntt32.q, 0, p->u.ntt32.q, 0, p->u.ntt32.q, 0, p->u.ntt32.q, 0);
+    const __m256i zero = _mm256_set1_epi32(0);
+    const __m256d invqd = _mm256_set1_pd(p->inv_q_dbl);
+    const __m256 qs_inv = _mm256_set1_ps((FLOAT)p->inv_q_dbl);
+
+    if (p->u.ntt32.q == 7681) {
+        for (i=0; i<p->n; i+=4) {
+            // Load 4 32-bit signed words and convert to double's
+            __m128i ti = _mm_load_si128((__m128i*)(t + i));
+            __m256i vec1 = _mm256_cvtepi32_epi64(ti);
+            __m256i vec2 = _mm256_setr_epi32(u[i], 0, u[i+1], 0, u[i+2], 0, u[i+3], 0);
+            __m256i product = _mm256_mul_epi32(vec1, vec2);
+            __m256 ts = _mm256_cvtepi32_ps(product);
+            
+            // Multiply v by q and convert to 64-bit integers
+            __m256 temp = _mm256_mul_ps(ts, qs_inv);
+            __m256i sub = _mm256_cvtps_epi32(temp);
+    
+            // Multiply by q and subtract from the input to form the residual
+            sub = _mm256_mullo_epi32(sub, b_q);
+            sub = _mm256_sub_epi32(product, sub);
+    
+            // Make sure the output is positive
+            __m256i cond = _mm256_cmpgt_epi32(zero, sub);
+            __m256i qadd = _mm256_and_si256(cond, b_q);
+            __m256i res  = _mm256_add_epi32(sub, qadd);
+    
+            // Transfer the 64-bit integers to the output 32-bit storage
+            v[i+0] = _mm256_extract_epi32(res, 0);
+            v[i+1] = _mm256_extract_epi32(res, 2);
+            v[i+2] = _mm256_extract_epi32(res, 4);
+            v[i+3] = _mm256_extract_epi32(res, 6);
+        }
+    }
+    else {
+        for (i=0; i<p->n; i+=4) {
+            // Load 4 32-bit signed words and convert to double's
+            __m128i ti = _mm_load_si128((__m128i*)(t + i));
+            __m256i vec1 = _mm256_cvtepi32_epi64(ti);
+            __m256i vec2 = _mm256_setr_epi32(u[i], 0, u[i+1], 0, u[i+2], 0, u[i+3], 0);
+            __m256i product = _mm256_mul_epi32(vec1, vec2);
+            __m256d td = int64_to_double(product);
+
+            // Multiply v by q and convert to 64-bit integers
+            __m256d temp = _mm256_mul_pd(td, invqd);
+
+            //temp = _mm256_round_pd(temp, _MM_FROUND_TO_ZERO |_MM_FROUND_NO_EXC);
+            __m256i res = double_to_int64(temp);
+
+            // Multiply by q and subtract from the input to form the residual
+            res = _mm256_mul_epi32(res, b_q);
+            res = _mm256_sub_epi64(product, res);
+            __m256i cond = _mm256_cmpgt_epi64(zero, res);
+            __m256i add = _mm256_and_si256(cond, b_q);
+            res = _mm256_add_epi64(res, add);
+    
+            // Transfer the 64-bit integers to the output 32-bit storage
+            v[i+0] = _mm256_extract_epi32(res, 0);
+            v[i+1] = _mm256_extract_epi32(res, 2);
+            v[i+2] = _mm256_extract_epi32(res, 4);
+            v[i+3] = _mm256_extract_epi32(res, 6);
+        }
+    }
+#endif
+#else
+    size_t i;
+
+    // multiply each element point-by-point
+    for (i=p->n; i--;) {
+        v[i] = NTT_FUNC_NAME(ntt32_muln)(t[i], (SINT32)u[i], p);
+    }
+#endif
+}
+
+
+void NTT_FUNC_NAME(ntt32_fft_32)(SINT32 *v, const ntt_params_t *p, const SINT32 *w)
+{
+#if defined(_NTT_MK1)
+    size_t i, j, k, l;
+    SINT32 x, y;
+    size_t n = p->n;
+
+#if defined(_ENABLE_AVX2_INTRINSICS)
+    // Create Barret reduction constant vectors
+    const __m256i b_q = _mm256_setr_epi32(p->u.ntt32.q, 0, p->u.ntt32.q, 0, p->u.ntt32.q, 0, p->u.ntt32.q, 0);
+    const __m256i zero = _mm256_setr_epi32(0, 0, 0, 0, 0, 0, 0, 0);
+    const __m256d invqd = _mm256_set1_pd(p->inv_q_dbl);
+#endif
+
+    // main loops
+    for (i = 1, l = n; i < n; i <<= 1, l >>= 1) {
+
+        size_t i_next = i + i;
+
+#if defined(_ENABLE_AVX2_INTRINSICS)
+        if (i < (n >> 3)) {
+            for (j = 0; j < i; j++) {
+                y = w[j * l];
+                __m256i vec2 = _mm256_setr_epi32(y, 0, y, 0, y, 0, y, 0);
+
+                for (k = j; k < n; k += 4*i_next) {
+                    // Load 4 32-bit signed words v[k+i], ... and convert to double's
+                    __m256i vec1 = _mm256_setr_epi32(v[k+i], 0, v[k+i+i_next], 0, v[k+i+2*i_next], 0, v[k+i+3*i_next], 0);
+                    __m256i product = _mm256_mul_epi32(vec1, vec2);
+                    __m256d td = int64_to_double(product);
+
+                    // Multiply v by q and convert to 64-bit integers
+                    __m256d temp = _mm256_mul_pd(td, invqd);
+                    __m256i res = double_to_int64(temp);
+
+                    // Multiply by q and subtract from the input to form the residual
+                    res = _mm256_mul_epi32(res, b_q);
+                    res = _mm256_sub_epi64(product, res);
+                    __m256i cond = _mm256_cmpgt_epi64(zero, res);
+                    __m256i add = _mm256_and_si256(cond, b_q);
+                    res = _mm256_add_epi64(res, add);
+
+                    // Load 4 32-bit signed words v[k], ... and subtract and add the residual
+                    __m256i vec3 = _mm256_setr_epi32(v[k], 0, v[k+i_next], 0, v[k+2*i_next], 0, v[k+3*i_next], 0);
+                    __m256i res2 = _mm256_sub_epi64(vec3, res);
+                    res = _mm256_add_epi64(vec3, res);
+
+                    // Transfer the 64-bit integers to the output 32-bit storage
+                    v[k+0*i_next]   = _mm256_extract_epi32(res, 0);
+                    v[k+1*i_next]   = _mm256_extract_epi32(res, 2);
+                    v[k+2*i_next]   = _mm256_extract_epi32(res, 4);
+                    v[k+3*i_next]   = _mm256_extract_epi32(res, 6);
+                    v[k+i+0*i_next] = _mm256_extract_epi32(res2, 0);
+                    v[k+i+1*i_next] = _mm256_extract_epi32(res2, 2);
+                    v[k+i+2*i_next] = _mm256_extract_epi32(res2, 4);
+                    v[k+i+3*i_next] = _mm256_extract_epi32(res2, 6);
+                }
+            }
+        }
+        else
+#endif
+        {
+            // w[0] is always 1
+            for (k = 0; k < n; k += i_next) {
+                x = v[k + i];
+                v[k + i] = v[k] - x;
+                v[k] = v[k] + x;
+            }
+    
+            for (j = 1; j < i; j++) {
+                y = w[j * l];
+                for (k = j; k < n; k += i_next) {
+                    x = NTT_FUNC_NAME(ntt32_muln)(v[k + i], y, p);
+                    v[k + i] = v[k] - x;
+                    v[k] = v[k] + x;
+                }
+            }
+        }
+    }
+#else
+    size_t start, j, i, l, lpwr2;
+    SINT32 temp, x;
+    SINT32 q = p->u.ntt32.q;
+    size_t n = p->n;
+    size_t levels = (256 == n)? 8 : (512 == n)? 9 : 10;
+  
+    for (l=0, lpwr2=1; l<levels; l++, lpwr2<<=1) {
+        for (start=0; start<lpwr2; start++) {
+            for (j=start, i=0; j<n-1; j+=2*lpwr2) {
+                temp = v[j];
+        
+                v[j] = (temp + v[j + lpwr2]);
+                x = NTT_FUNC_NAME(ntt32_muln)(temp - v[j + lpwr2], w[i++], p);
+                v[j + lpwr2] = x;
+            }
+        }
+    }
+#endif
+}
+
+void NTT_FUNC_NAME(ntt32_large_fft_32)(SINT32 *v, const ntt_params_t *p, const SINT32 *w)
+{
+#if defined(_NTT_MK1)
+    size_t i, j, k, l;
+    SINT32 x, y;
+    size_t n = p->n;
+
+#if defined(_ENABLE_AVX2_INTRINSICS)
+    // Create Barret reduction constant vectors
+    const __m256i b_q = _mm256_setr_epi32(p->u.ntt32.q, 0, p->u.ntt32.q, 0, p->u.ntt32.q, 0, p->u.ntt32.q, 0);
+    const __m256i zero = _mm256_setr_epi32(0, 0, 0, 0, 0, 0, 0, 0);
+    const __m256d invqd = _mm256_set1_pd(p->inv_q_dbl);
+#endif
+
+    // main loops
+    for (i = 1, l = n; i < n; i <<= 1, l >>= 1) {
+
+        size_t i_next = i + i;
+
+#if defined(_ENABLE_AVX2_INTRINSICS)
+        if (i < (n >> 3)) {
+            for (j = 0; j < i; j++) {
+                y = w[j * l];
+                __m256i vec2 = _mm256_setr_epi32(y, 0, y, 0, y, 0, y, 0);
+
+                for (k = j; k < n; k += 4*i_next) {
+                    // Load 4 32-bit signed words v[k+i], ... and convert to double's
+                    __m256i vec1 = _mm256_setr_epi32(v[k+i], 0, v[k+i+i_next], 0, v[k+i+2*i_next], 0, v[k+i+3*i_next], 0);
+                    __m256i product = _mm256_mul_epi32(vec1, vec2);
+                    __m256d td = int64_to_double_full_range(product);
+
+                    // Multiply v by q and convert to 64-bit integers
+                    __m256d temp = _mm256_mul_pd(td, invqd);
+                    __m256i res = double_to_int64(temp);
+
+                    // Multiply by q and subtract from the input to form the residual
+                    res = _mm256_mul_epi32(res, b_q);
+                    res = _mm256_sub_epi64(product, res);
+                    __m256i cond = _mm256_cmpgt_epi64(zero, res);
+                    __m256i add = _mm256_and_si256(cond, b_q);
+                    res = _mm256_add_epi64(res, add);
+
+                    // Load 4 32-bit signed words v[k], ... and subtract and add the residual
+                    __m256i vec3 = _mm256_setr_epi32(v[k], 0, v[k+i_next], 0, v[k+2*i_next], 0, v[k+3*i_next], 0);
+                    __m256i res2 = _mm256_sub_epi64(vec3, res);
+                    res = _mm256_add_epi64(vec3, res);
+
+                    // Transfer the 64-bit integers to the output 32-bit storage
+                    v[k+0*i_next]   = _mm256_extract_epi32(res, 0);
+                    v[k+1*i_next]   = _mm256_extract_epi32(res, 2);
+                    v[k+2*i_next]   = _mm256_extract_epi32(res, 4);
+                    v[k+3*i_next]   = _mm256_extract_epi32(res, 6);
+                    v[k+i+0*i_next] = _mm256_extract_epi32(res2, 0);
+                    v[k+i+1*i_next] = _mm256_extract_epi32(res2, 2);
+                    v[k+i+2*i_next] = _mm256_extract_epi32(res2, 4);
+                    v[k+i+3*i_next] = _mm256_extract_epi32(res2, 6);
+                }
+            }
+        }
+        else
+#endif
+        {
+            for (j = 0; j < i; j++) {
+                y = w[j * l];
+                for (k = j; k < n; k += i_next) {
+                    x = NTT_FUNC_NAME(ntt32_muln)(v[k + i], y, p);
+                    v[k + i] = v[k] - x;
+                    v[k + i] = NTT_FUNC_NAME(ntt32_modn)(v[k + i], p);
+                    v[k] = v[k] + x;
+                    v[k] = NTT_FUNC_NAME(ntt32_modn)(v[k], p);
+                }
+            }
+        }
+    }
+#else
+    size_t start, j, i, l, lpwr2;
+    SINT32 temp, x;
+    SINT32 q = p->u.ntt32.q;
+    size_t n = p->n;
+    size_t levels = (256 == n)? 8 : (512 == n)? 9 : 10;
+  
+    for (l=0, lpwr2=1; l<levels; l++, lpwr2<<=1) {
+        for (start=0; start<lpwr2; start++) {
+            for (j=start, i=0; j<n-1; j+=2*lpwr2) {
+                temp = v[j];
+        
+                v[j] = NTT_FUNC_NAME(ntt32_modn)(temp + v[j + lpwr2], p);
+                x = NTT_FUNC_NAME(ntt32_muln)(temp - v[j + lpwr2], w[i++], p);
+                v[j + lpwr2] = x;
+            }
+        }
+    }
+#endif
+}
+
+void NTT_FUNC_NAME(ntt32_fft_16)(SINT32 *v, const ntt_params_t *p, const SINT16 *w)
+{
+#if defined(_NTT_MK1)
+    size_t i, j, k, l;
+    SINT32 x, y;
+    size_t n = p->n;
+
+#if defined(_ENABLE_AVX2_INTRINSICS)
+    // Create Barret reduction constant vectors
+    const __m256i b_q = _mm256_setr_epi32(p->u.ntt32.q, 0, p->u.ntt32.q, 0, p->u.ntt32.q, 0, p->u.ntt32.q, 0);
+    const __m256i zero = _mm256_setr_epi32(0, 0, 0, 0, 0, 0, 0, 0);
+    const __m256d invqd = _mm256_set1_pd(p->inv_q_dbl);
+    const __m256 qs_inv = _mm256_set1_ps((FLOAT)p->inv_q_dbl);
+#endif
+
+    // main loops
+    for (i = 1, l = n; i < n; i <<= 1, l >>= 1) {
+
+        size_t i_next = i + i;
+
+#if defined(_ENABLE_AVX2_INTRINSICS)
+        if (i < (n >> 3)) {
+            for (j = 0; j < i; j++) {
+                y = w[j * l];
+                __m256i vec2 = _mm256_setr_epi32(y, 0, y, 0, y, 0, y, 0);
+
+                if (p->u.ntt32.q <= 12289) {
+                    for (k = j; k < n; k += 4*i_next) {
+                        // Load 4 32-bit signed words and convert to double's
+                        __m256i vec1 = _mm256_setr_epi32(v[k+i], 0, v[k+i+i_next], 0, v[k+i+2*i_next], 0, v[k+i+3*i_next], 0);
+                        __m256i product = _mm256_mul_epi32(vec1, vec2);
+                        __m256 ts = _mm256_cvtepi32_ps(product);
+                        
+                        // Multiply v by q and convert to 64-bit integers
+                        __m256 temp = _mm256_mul_ps(ts, qs_inv);
+                        __m256i sub = _mm256_cvtps_epi32(temp);
+                
+                        // Multiply by q and subtract from the input to form the residual
+                        sub = _mm256_mullo_epi32(sub, b_q);
+                        sub = _mm256_sub_epi32(product, sub);
+                
+                        // Make sure the output is positive
+                        __m256i cond = _mm256_cmpgt_epi32(zero, sub);
+                        __m256i qadd = _mm256_and_si256(cond, b_q);
+                        __m256i res  = _mm256_add_epi32(sub, qadd);
+                
+                        // Load 4 32-bit signed words v[k], ... and subtract and add the residual
+                        __m256i vec3 = _mm256_setr_epi32(v[k], 0, v[k+i_next], 0, v[k+2*i_next], 0, v[k+3*i_next], 0);
+                        __m256i res2 = _mm256_sub_epi64(vec3, res);
+                        res = _mm256_add_epi64(vec3, res);
+
+                        // Transfer the 64-bit integers to the output 32-bit storage
+                        v[k+0*i_next]   = _mm256_extract_epi32(res, 0);
+                        v[k+1*i_next]   = _mm256_extract_epi32(res, 2);
+                        v[k+2*i_next]   = _mm256_extract_epi32(res, 4);
+                        v[k+3*i_next]   = _mm256_extract_epi32(res, 6);
+                        v[k+i+0*i_next] = _mm256_extract_epi32(res2, 0);
+                        v[k+i+1*i_next] = _mm256_extract_epi32(res2, 2);
+                        v[k+i+2*i_next] = _mm256_extract_epi32(res2, 4);
+                        v[k+i+3*i_next] = _mm256_extract_epi32(res2, 6);
+                    }
+                }
+                else {
+                    for (k = j; k < n; k += 4*i_next) {
+                        // Load 4 32-bit signed words v[k+i], ... and convert to double's
+                        __m256i vec1 = _mm256_setr_epi32(v[k+i], 0, v[k+i+i_next], 0, v[k+i+2*i_next], 0, v[k+i+3*i_next], 0);
+                        __m256i product = _mm256_mul_epi32(vec1, vec2);
+                        __m256d td = int64_to_double(product);
+    
+                        // Multiply v by q and convert to 64-bit integers
+                        __m256d temp = _mm256_mul_pd(td, invqd);
+                        __m256i res = double_to_int64(temp);
+    
+                        // Multiply by q and subtract from the input to form the residual
+                        res = _mm256_mul_epi32(res, b_q);
+                        res = _mm256_sub_epi64(product, res);
+                        __m256i cond = _mm256_cmpgt_epi64(zero, res);
+                        __m256i add = _mm256_and_si256(cond, b_q);
+                        res = _mm256_add_epi64(res, add);
+    
+                        // Load 4 32-bit signed words v[k], ... and subtract and add the residual
+                        __m256i vec3 = _mm256_setr_epi32(v[k], 0, v[k+i_next], 0, v[k+2*i_next], 0, v[k+3*i_next], 0);
+                        __m256i res2 = _mm256_sub_epi64(vec3, res);
+                        res = _mm256_add_epi64(vec3, res);
+    
+                        // Transfer the 64-bit integers to the output 32-bit storage
+                        v[k+0*i_next]   = _mm256_extract_epi32(res, 0);
+                        v[k+1*i_next]   = _mm256_extract_epi32(res, 2);
+                        v[k+2*i_next]   = _mm256_extract_epi32(res, 4);
+                        v[k+3*i_next]   = _mm256_extract_epi32(res, 6);
+                        v[k+i+0*i_next] = _mm256_extract_epi32(res2, 0);
+                        v[k+i+1*i_next] = _mm256_extract_epi32(res2, 2);
+                        v[k+i+2*i_next] = _mm256_extract_epi32(res2, 4);
+                        v[k+i+3*i_next] = _mm256_extract_epi32(res2, 6);
+                    }
+                }
+            }
+        }
+        else
+#endif
+        {
+            // w[0] is always 1
+            for (k = 0; k < n; k += i_next) {
+                x = v[k + i];
+                v[k + i] = v[k] - x;
+                v[k] = v[k] + x;
+            }
+
+            for (j = 1; j < i; j++) {
+                y = w[j * l];
+                for (k = j; k < n; k += i_next) {
+                    x = NTT_FUNC_NAME(ntt32_muln)(v[k + i], y, p);
+                    v[k + i] = v[k] - x;
+                    v[k] = v[k] + x;
+                }
+            }
+        }
+    }
+#else
+    size_t start, j, i, l, lpwr2;
+    SINT32 temp, x;
+    SINT32 q = p->u.ntt32.q;
+    size_t n = p->n;
+    size_t levels = (256 == n)? 8 : (512 == n)? 9 : 10;
+  
+    for (l=0, lpwr2=1; l<levels; l++, lpwr2<<=1) {
+        for (start=0; start<lpwr2; start++) {
+            for (j=start, i=0; j<n-1; j+=2*lpwr2) {
+                temp = v[j];
+        
+                if (l & 1)
+                    v[j] = NTT_FUNC_NAME(ntt32_modn)(temp + v[j + lpwr2], p);
+                else
+                    v[j] = (temp + v[j + lpwr2]);
+                
+                x = NTT_FUNC_NAME(ntt32_muln)(temp - v[j + lpwr2], w[i++], p);
+                v[j + lpwr2] = x;
+            }
+        }
+    }
+#endif
+}
+
+void NTT_FUNC_NAME(ntt32_large_fft_16)(SINT32 *v, const ntt_params_t *p, const SINT16 *w)
+{
+#if defined(_NTT_MK1)
+    size_t i, j, k, l;
+    SINT32 x, y;
+    size_t n = p->n;
+
+    // main loops
+    for (i = 1, l = n; i < n; i <<= 1, l >>= 1) {
+
+        size_t i_next = i + i;
+
+        // w[0] is always 1
+        for (k = 0; k < n; k += i_next) {
+            x = NTT_FUNC_NAME(ntt32_modn)(v[k + i], p);
+            v[k + i] = v[k] - x;
+            v[k + i] = NTT_FUNC_NAME(ntt32_modn)(v[k + i], p);
+            v[k] = v[k] + x;
+            v[k] = NTT_FUNC_NAME(ntt32_modn)(v[k], p);
+        }
+
+        for (j = 1; j < i; j++) {
+            y = w[j * l];
+            for (k = j; k < n; k += i_next) {
+                x = NTT_FUNC_NAME(ntt32_muln)(v[k + i], y, p);
+                v[k + i] = v[k] - x;
+                v[k + i] = NTT_FUNC_NAME(ntt32_modn)(v[k + i], p);
+                v[k] = v[k] + x;
+                v[k] = NTT_FUNC_NAME(ntt32_modn)(v[k], p);
+            }
+        }
+    }
+#else
+    size_t start, j, i, l, lpwr2;
+    SINT32 temp, x;
+    SINT32 q = p->u.ntt32.q;
+    size_t n = p->n;
+    size_t levels = (256 == n)? 8 : (512 == n)? 9 : 10;
+  
+    for (l=0, lpwr2=1; l<levels; l++, lpwr2<<=1) {
+        for (start=0; start<lpwr2; start++) {
+            for (j=start, i=0; j<n-1; j+=2*lpwr2) {
+                temp = v[j];
+        
+                //if (l & 1)
+                    v[j] = NTT_FUNC_NAME(ntt32_modn)(temp + v[j + lpwr2], p);
+                /*else
+                    v[j] = (temp + v[j + lpwr2]);*/
+                
+                x = NTT_FUNC_NAME(ntt32_muln)(temp - v[j + lpwr2], w[i++], p);
+                v[j + lpwr2] = x;
+            }
+        }
+    }
+#endif
+}
+
+void NTT_FUNC_NAME(ntt32_fwd_ntt_32)(SINT32 *v, const ntt_params_t *p,
+    const SINT32 *t, const SINT32 *w)
+{
+#if defined(_NTT_MK1)
+    NTT_FUNC_NAME(ntt32_mult_pointwise)(v, p, t, w);
+    inverse_shuffle_32(v, p->n);
+    NTT_FUNC_NAME(ntt32_fft_32)(v, p, w);
+#else
+    NTT_FUNC_NAME(ntt32_mult_pointwise)(v, p, t, w);
+    NTT_FUNC_NAME(ntt32_fft_32)(v, p, w);
+#endif
+}
+
+void NTT_FUNC_NAME(ntt32_large_fwd_ntt_32)(SINT32 *v, const ntt_params_t *p,
+    const SINT32 *t, const SINT32 *w)
+{
+#if defined(_NTT_MK1)
+    NTT_FUNC_NAME(ntt32_mult_pointwise)(v, p, t, w);
+    inverse_shuffle_32(v, p->n);
+    NTT_FUNC_NAME(ntt32_large_fft_32)(v, p, w);
+#else
+    NTT_FUNC_NAME(ntt32_mult_pointwise)(v, p, t, w);
+    NTT_FUNC_NAME(ntt32_large_fft_32)(v, p, w);
+#endif
+}
+
+void NTT_FUNC_NAME(ntt32_inv_ntt_32)(SINT32 *v, const ntt_params_t *p,
+    const SINT32 *t, const SINT32 *w, const SINT32 *r)
+{
+    if (v != t) {
+        size_t i;
+#pragma GCC ivdep
+        for (i=p->n; i--;) {
+            v[i] = t[i];
+        }
+    }
+
+#if defined(_NTT_MK1)
+    inverse_shuffle_32(v, p->n);
+    NTT_FUNC_NAME(ntt32_fft_32)(v, p, w);
+    NTT_FUNC_NAME(ntt32_mult_pointwise)(v, p, v, r);
+    ntt32_flip_generic(v, p);
+#else
+    inverse_shuffle_32(v, p->n);
+    NTT_FUNC_NAME(ntt32_fft_32)(v, p, w);
+    NTT_FUNC_NAME(ntt32_mult_pointwise)(v, p, v, r);
+    inverse_shuffle_32(v, p->n);
+#endif
+}
+
+void NTT_FUNC_NAME(ntt32_large_inv_ntt_32)(SINT32 *v, const ntt_params_t *p,
+    const SINT32 *t, const SINT32 *w, const SINT32 *r)
+{
+    if (v != t) {
+        size_t i;
+#pragma GCC ivdep
+        for (i=p->n; i--;) {
+            v[i] = t[i];
+        }
+    }
+
+#if defined(_NTT_MK1)
+    inverse_shuffle_32(v, p->n);
+    NTT_FUNC_NAME(ntt32_large_fft_32)(v, p, w);
+    NTT_FUNC_NAME(ntt32_mult_pointwise)(v, p, v, r);
+    ntt32_flip_generic(v, p);
+#else
+    inverse_shuffle_32(v, p->n);
+    NTT_FUNC_NAME(ntt32_large_fft_32)(v, p, w);
+    NTT_FUNC_NAME(ntt32_mult_pointwise)(v, p, v, r);
+    inverse_shuffle_32(v, p->n);
+#endif
+}
+
+void NTT_FUNC_NAME(ntt32_fwd_ntt_16)(SINT32 *v, const ntt_params_t *p,
+    const SINT32 *t, const SINT16 *w)
+{
+#if defined(_NTT_MK1)
+    NTT_FUNC_NAME(ntt32_mult_pointwise_16)(v, p, t, w);
+    inverse_shuffle_32(v, p->n);
+    NTT_FUNC_NAME(ntt32_fft_16)(v, p, w);
+#else
+    NTT_FUNC_NAME(ntt32_mult_pointwise_16)(v, p, t, w);
+    NTT_FUNC_NAME(ntt32_fft_16)(v, p, w);
+#endif
+}
+
+void NTT_FUNC_NAME(ntt32_large_fwd_ntt_16)(SINT32 *v, const ntt_params_t *p,
+    const SINT32 *t, const SINT16 *w)
+{
+#if defined(_NTT_MK1)
+    NTT_FUNC_NAME(ntt32_mult_pointwise_16)(v, p, t, w);
+    inverse_shuffle_32(v, p->n);
+    NTT_FUNC_NAME(ntt32_large_fft_16)(v, p, w);
+#else
+    NTT_FUNC_NAME(ntt32_mult_pointwise_16)(v, p, t, w);
+    NTT_FUNC_NAME(ntt32_large_fft_16)(v, p, w);
+#endif
+}
+
+void NTT_FUNC_NAME(ntt32_inv_ntt_16)(SINT32 *v, const ntt_params_t *p,
+    const SINT32 *t, const SINT16 *w, const SINT16 *r)
+{
+    if (v != t) {
+        size_t i;
+#pragma GCC ivdep
+        for (i=p->n; i--;) {
+            v[i] = t[i];
+        }
+    }
+
+#if defined(_NTT_MK1)
+    inverse_shuffle_32(v, p->n);
+    NTT_FUNC_NAME(ntt32_fft_16)(v, p, w);
+    NTT_FUNC_NAME(ntt32_mult_pointwise_16)(v, p, v, r);
+    ntt32_flip_generic(v, p);
+#else
+    inverse_shuffle_32(v, p->n);
+    NTT_FUNC_NAME(ntt32_fft_16)(v, p, w);
+    NTT_FUNC_NAME(ntt32_mult_pointwise_16)(v, p, v, r);
+    inverse_shuffle_32(v, p->n);
+#endif
+}
+
+void NTT_FUNC_NAME(ntt32_large_inv_ntt_16)(SINT32 *v, const ntt_params_t *p,
+    const SINT32 *t, const SINT16 *w, const SINT16 *r)
+{
+    if (v != t) {
+        size_t i;
+#pragma GCC ivdep
+        for (i=p->n; i--;) {
+            v[i] = t[i];
+        }
+    }
+
+#if defined(_NTT_MK1)
+    inverse_shuffle_32(v, p->n);
+    NTT_FUNC_NAME(ntt32_large_fft_16)(v, p, w);
+    NTT_FUNC_NAME(ntt32_mult_pointwise_16)(v, p, v, r);
+    ntt32_flip_generic(v, p);
+#else
+    inverse_shuffle_32(v, p->n);
+    NTT_FUNC_NAME(ntt32_large_fft_16)(v, p, w);
+    NTT_FUNC_NAME(ntt32_mult_pointwise_16)(v, p, v, r);
+    inverse_shuffle_32(v, p->n);
+#endif
+}
+
+SINT32 NTT_FUNC_NAME(ntt32_pwr)(SINT32 x, SINT32 e, const ntt_params_t *p)
+{
+    SINT32 y;
+
+    y = 1;
+    if (e & 1)
+        y = x;
+
+    e >>= 1;
+
+    while (e > 0) {
+        x = NTT_FUNC_NAME(ntt32_sqrn)(x, p);
+        if (e & 1)
+            y = NTT_FUNC_NAME(ntt32_muln)(x, y, p);
+        e >>= 1;
+    }
+
+    return y;
+}
+
+SINT32 NTT_FUNC_NAME(ntt32_invert)(SINT32 *v, const ntt_params_t *p, size_t n)
+{
+    size_t i;
+    SINT32 q = p->u.ntt32.q;
+#ifdef _ENABLE_BARRETT
+    SINT32 m = p->u.ntt32.m;
+    SINT32 k = p->u.ntt32.k;
+#endif
+
+    for (i=0; i<n; i++) {
+#if defined(_ENABLE_REFERENCE)
+        SINT32 x = v[i] % q;
+#elif defined(_ENABLE_BARRETT)
+        SINT32 x = barrett_reduction_32(v[i], m, k, q);
+#else
+        SINT32 x = NTT_FUNC_NAME(ntt32_modn)(v[i], p);
+#endif
+        if (x == 0) {
+            return SC_FUNC_FAILURE;
+        }
+        x = NTT_FUNC_NAME(ntt32_pwr)(x, q - 2, p);
+        v[i] = -x; // NOTE: Sign inversion here
+    }
+
+    return SC_FUNC_SUCCESS;
+}
+
+void NTT_FUNC_NAME(ntt32_center_32)(SINT32 *v, size_t n, const ntt_params_t *p)
+{
+#ifdef _ENABLE_AVX2_INTRINSICS
+    size_t i;
+
+    // Constants used throughout
+    const __m256i b_q   = _mm256_set1_epi32(p->u.ntt32.q);
+    const __m256 qs_inv = _mm256_set1_ps((FLOAT)p->inv_q_dbl);
+    const __m256i b_q2  = _mm256_set1_epi32(p->u.ntt32.q>>1);
+    const __m256i b_q2_minus = _mm256_set1_epi32(-(p->u.ntt32.q>>1));
+
+    for (i=0; i<n; i+=8) {
+        // Load 8 32-bit signed words and convert to float's
+        __m256i vec1 = _mm256_load_si256((__m256i*)(v + i));
+        __m256 ts    = _mm256_cvtepi32_ps(vec1);
+
+        // Multiply v by q and convert to 32-bit integers
+        __m256 temp  = _mm256_mul_ps(ts, qs_inv);
+        __m256i sub  = _mm256_cvtps_epi32(temp);
+
+        // Multiply by q and subtract from the input to form the residual
+        sub          = _mm256_mullo_epi32(sub, b_q);
+        sub          = _mm256_sub_epi32(vec1, sub);
+
+        // Make sure the output lies within -q/2 to q/2
+        __m256i cond = _mm256_cmpgt_epi32(b_q2, sub);
+        __m256i qadd = _mm256_and_si256(cond, b_q);
+        sub          = _mm256_sub_epi32(sub, qadd);
+        cond         = _mm256_cmpgt_epi32(b_q2_minus, sub);
+        __m256i qd2  = _mm256_and_si256(cond, b_q);
+        sub = _mm256_add_epi32(sub, qd2);
+
+        // Store the result as 8 32-bit words
+        _mm256_store_si256((__m256i*)(v + i), sub);
+    }
+#else
+    SINT32 i;
+    SINT32 q = p->u.ntt32.q;
+    SINT32 q2 = (q - 1) >> 1;
+#ifdef _ENABLE_BARRETT
+    SINT32 m = p->u.ntt32.m;
+    SINT32 k = p->u.ntt32.k;
+#endif
+
+    for (i=n; i--;) {
+#if defined(_ENABLE_REFERENCE)
+        SINT32 x = v[i] % q;
+#elif defined(_ENABLE_BARRETT)
+        SINT32 x = barrett_reduction_32(v[i], m, k, q);
+#else
+        SINT32 x = NTT_FUNC_NAME(ntt32_modn)(v[i], p);
+#endif
+        while (x < -q2) {
+            x += q;
+        }
+        while (x > q2) {
+            x -= q;
+        }
+        v[i] = x;
+    }
+#endif
+}
+
+void NTT_FUNC_NAME(ntt32_center_16)(SINT16 *v, size_t n, const ntt_params_t *p)
+{
+#ifdef _ENABLE_AVX2_INTRINSICS
+    size_t i;
+    union u {
+        __m256i m;
+        SINT32 s[8];
+    };
+    const __m256i b_q = _mm256_setr_epi32(p->u.ntt32.q, 0, p->u.ntt32.q, 0, p->u.ntt32.q, 0, p->u.ntt32.q, 0);
+    const __m256i b_q2 = _mm256_setr_epi32(p->u.ntt32.q>>1, 0, p->u.ntt32.q>>1, 0, p->u.ntt32.q>>1, 0, p->u.ntt32.q>>1, 0);
+    const __m256 qs = _mm256_set1_ps(p->inv_q_dbl);
+    const __m256i b_q2_minus = _mm256_setr_epi32(-p->u.ntt32.q>>1, 0, -p->u.ntt32.q>>1, 0, -p->u.ntt32.q>>1, 0, -p->u.ntt32.q>>1, 0);
+    union u simd;
+    for (i=0; i<n; i+=8) {
+        // Load 8 16-bit signed words and convert to float's
+        __m128i vi = _mm_load_si128((__m128i*)(v + i));
+        __m256i vi32 = _mm256_cvtepi16_epi32(vi);
+        __m256 ts = int16_to_float(vi);
+        // Multiply v by q and convert to 16-bit integers
+        __m256 temp = _mm256_mul_ps(ts, qs);
+        __m256i sub = float_to_int32(temp);
+        // Multiply by q and subtract from the input to form the residual
+        sub = _mm256_mullo_epi32(sub, b_q);
+        sub = _mm256_sub_epi32(vi32, sub);
+        // Make sure the output is less than q/2
+        __m256i cond = _mm256_cmpgt_epi64(sub, b_q2);
+        __m256i qsub = _mm256_and_si256(cond, b_q);
+        sub = _mm256_sub_epi32(sub, qsub);
+        // Make sure the output is greater than -q/2
+        cond = _mm256_cmpgt_epi32(b_q2_minus, sub);
+        __m256i qadd = _mm256_and_si256(cond, b_q);
+        // Transfer the 64-bit integers to the output 32-bit storage
+        sub = _mm256_add_epi32(sub, qadd);
+        _mm256_store_si256((__m256i*)(v + i), sub);
+    }
+#else
+    SINT32 i;
+    SINT32 q = p->u.ntt32.q;
+    SINT32 q2 = (q - 1) >> 1;
+#ifdef _ENABLE_BARRETT
+    SINT32 m = p->u.ntt32.m;
+    SINT32 k = p->u.ntt32.k;
+#endif
+
+    for (i=n; i--;) {
+#if defined(_ENABLE_REFERENCE)
+        SINT16 x = v[i] % q;
+#elif defined(_ENABLE_BARRETT)
+        SINT16 x = barrett_reduction_32(v[i], m, k, q);
+#else
+        SINT16 x = NTT_FUNC_NAME(ntt32_modn)(v[i], p);
+#endif
+        while (x < -q2) {
+            x += q;
+        }
+        while (x > q2) {
+            x -= q;
+        }
+        v[i] = x;
+    }
+#endif
+}
+
+void NTT_FUNC_NAME(ntt32_normalize_32)(SINT32 *v, size_t n, const ntt_params_t *p)
+{
+#ifdef _ENABLE_AVX2_INTRINSICS
+    size_t i;
+
+    // Constants used throughout
+    const __m256i b_q = _mm256_set1_epi32(p->u.ntt32.q);
+    const __m256 qs_inv = _mm256_set1_ps((FLOAT)p->inv_q_dbl);
+    const __m256i zero = _mm256_set1_epi32(0);
+
+    for (i=0; i<n; i+=8) {
+        // Load 4 32-bit signed words and convert to double's
+        __m256i vec1 = _mm256_load_si256((__m256i*)(v + i));
+        __m256 ts = _mm256_cvtepi32_ps(vec1);
+
+        // Multiply v by q and convert to 64-bit integers
+        __m256 temp = _mm256_mul_ps(ts, qs_inv);
+        __m256i sub = _mm256_cvtps_epi32(temp);
+
+        // Multiply by q and subtract from the input to form the residual
+        sub = _mm256_mullo_epi32(sub, b_q);
+        sub = _mm256_sub_epi32(vec1, sub);
+
+        // Make sure the output is positive
+        __m256i cond = _mm256_cmpgt_epi32(zero, sub);
+        __m256i qadd = _mm256_and_si256(cond, b_q);
+
+        // Transfer the 64-bit integers to the output 32-bit storage
+        sub = _mm256_add_epi32(sub, qadd);
+        _mm256_store_si256((__m256i*)(v + i), sub);
+    }
+#else
+    SINT32 i;
+    SINT32 q = p->u.ntt32.q;
+#ifdef _ENABLE_BARRETT
+    SINT32 m = p->u.ntt32.m;
+    SINT32 k = p->u.ntt32.k;
+#endif
+
+    for (i=n; i--;) {
+#if defined(_ENABLE_REFERENCE)
+        SINT32 x = v[i] % q;
+#elif defined(_ENABLE_BARRETT)
+        SINT32 x = barrett_reduction_32(v[i], m, k, q);
+#else
+        SINT32 x = NTT_FUNC_NAME(ntt32_modn)(v[i], p);
+#endif
+        if (x >= q) {
+            x -= q;
+        }
+        if (x < 0) {
+            x += q;
+        }
+        v[i] = x;
+    }
+#endif
+}
+
+void NTT_FUNC_NAME(ntt32_normalize_16)(SINT16 *v, size_t n, const ntt_params_t *p)
+{
+#ifdef _ENABLE_AVX2_INTRINSICS
+    size_t i;
+
+    SC_DEFAULT_ALIGNED SINT32 buffer[8];
+    const __m256i b_q = _mm256_setr_epi32(p->u.ntt32.q, 0, p->u.ntt32.q, 0, p->u.ntt32.q, 0, p->u.ntt32.q, 0);
+    const __m256 qs = _mm256_set1_ps(p->inv_q_dbl);
+    const __m256i zero = _mm256_set1_epi32(0);
+
+    for (i=0; i<n; i+=8) {
+        // Load 8 16-bit signed words and convert to float's
+        __m128i vi = _mm_load_si128((__m128i*)(v + i));
+        __m256i vi32 = _mm256_cvtepi16_epi32(vi);
+        __m256 ts = int16_to_float(vi);
+
+        // Multiply v by q and convert to 16-bit integers
+        __m256 temp = _mm256_mul_ps(ts, qs);
+        __m256i sub = float_to_int32(temp);
+
+        // Multiply by q and subtract from the input to form the residual
+        sub = _mm256_mullo_epi32(sub, b_q);
+        sub = _mm256_sub_epi32(vi32, sub);
+
+        // Make sure the output is positive
+        __m256i cond = _mm256_cmpgt_epi32(zero, sub);
+        __m256i qadd = _mm256_and_si256(cond, b_q);
+
+        // Transfer the 64-bit integers to the output 32-bit storage
+        sub = _mm256_add_epi32(sub, qadd);
+        _mm256_store_si256((__m256i*)buffer, sub);
+        v[i+0] = buffer[0];
+        v[i+1] = buffer[1];
+        v[i+2] = buffer[2];
+        v[i+3] = buffer[3];
+        v[i+4] = buffer[4];
+        v[i+5] = buffer[5];
+        v[i+6] = buffer[6];
+        v[i+7] = buffer[7];
+    }
+#else
+    SINT32 i;
+    SINT32 q = p->u.ntt32.q;
+#ifdef _ENABLE_BARRETT
+    SINT32 m = p->u.ntt32.m;
+    SINT32 k = p->u.ntt32.k;
+#endif
+
+    for (i=n; i--;) {
+#if defined(_ENABLE_REFERENCE)
+        SINT16 x = v[i] % q;
+#elif defined(_ENABLE_BARRETT)
+        SINT16 x = barrett_reduction_32(v[i], m, k, q);
+#else
+        SINT16 x = NTT_FUNC_NAME(ntt32_modn)(v[i], p);
+#endif
+        if (x >= q) {
+            x -= q;
+        }
+        if (x < 0) {
+            x += q;
+        }
+        v[i] = x;
+    }
+#endif
+}
+
+
+
+#ifdef _ENABLE_BARRETT
+inline static sc_slimb_t barrett_reduction(sc_slimb_big_t a, SINT32 m, SINT32 k, SINT32 q)
+{
+    sc_slimb_big_t t = ((a * m) >> k);
+    sc_slimb_big_t c = a - t * q;
+    if (q <= c)
+        c -= q;
+    return c;
+}
+#endif
+
+inline sc_slimb_t NTT_FUNC_NAME(ntt_modn)(sc_slimb_t x, const ntt_params_t *p)
+{
+#if defined(_ENABLE_REFERENCE)
+    return x % p->u.nttlimb.q;
+#elif defined(_ENABLE_BARRETT)
+    sc_slimb_t m = p->u.nttlimb.m;
+    sc_slimb_t k = p->u.nttlimb.k;
+    sc_slimb_t q = p->u.nttlimb.q;
+    return barrett_reduction(x, m, k, q);
+#elif defined(_ENABLE_SOLINAS_7681)
+    sc_slimb_t high, low;
+    high = x >> 13;
+    low  = x & 0x1FFF;
+    x    = low - high + (high << 9);
+    high = x >> 13;
+    low  = x & 0x1FFF;
+    x    = low - high + (high << 9);
+    high = x >> 13;
+    low  = x & 0x1FFF;
+    x    = low - high + (high << 9);
+    return x;
+#elif defined(_ENABLE_SOLINAS_8380417)
+    sc_slimb_t high, low;
+    high = x >> 23;
+    low  = x & 0x7FFFFF;
+    x    = low - high + (high << 13);
+    high = x >> 23;
+    low  = x & 0x7FFFFF;
+    x    = low - high + (high << 13);
+    high = x >> 23;
+    low  = x & 0x7FFFFF;
+    x    = low - high + (high << 13);
+    return x;
+#elif defined(_ENABLE_SOLINAS_16813057)
+    sc_slimb_big_t high, low;
+    high = x >> 24;
+    low  = x & 0xFFFFFF;
+    x    = low - high - (high << 10) - (high << 11) - (high << 15);
+    high = x >> 24;
+    low  = x & 0xFFFFFF;
+    x    = low - high - (high << 10) - (high << 11) - (high << 15);
+    high = x >> 24;
+    low  = x & 0xFFFFFF;
+    x    = low - high - (high << 10) - (high << 11) - (high << 15);
+    if (x < 0) {
+        x += 16813057;
+    }
+    return (sc_slimb_t) x;
+#elif defined(_ENABLE_SOLINAS_134348801)
+    sc_slimb_big_t high, low;
+    high = x >> 27;
+    low  = x & 0x7FFFFFF;
+    x    = low - high - (high << 17);
+    high = x >> 27;
+    low  = x & 0x7FFFFFF;
+    x    = low - high - (high << 17);
+    high = x >> 27;
+    low  = x & 0x7FFFFFF;
+    x    = low - high - (high << 17);
+    if (x < 0) {
+        x += 134348801;
+    }
+    return (sc_slimb_t) x;
+#else
+    // Multiply by the inverse of q, truncate towards zero and then multiply
+    // by q, subtracting the result from the input to obtain the remainder.
+    // Use casting to truncate towards zero for both positive and negative numbers.
+    DOUBLE temp = (DOUBLE) x * p->inv_q_dbl;
+    return x - p->u.nttlimb.q * (sc_slimb_t) temp;
+#endif
+}
+
+inline sc_slimb_t NTT_FUNC_NAME(ntt_muln)(sc_slimb_t x, sc_slimb_t y, const ntt_params_t *p)
+{
+#if defined(_ENABLE_REFERENCE)
+    return (((sc_slimb_big_t) x) * ((sc_slimb_big_t) y)) % p->u.nttlimb.q;
+#elif defined(_ENABLE_BARRETT)
+    sc_slimb_t m = p->u.nttlimb.m;
+    sc_slimb_t k = p->u.nttlimb.k;
+    sc_slimb_t q = p->u.nttlimb.q;
+    sc_slimb_big_t product = ((sc_slimb_big_t) x) * ((sc_slimb_big_t) y);
+    return barrett_reduction(product, m, k, q);
+#elif defined(_ENABLE_SOLINAS_7681)
+    sc_slimb_big_t high, low;
+    sc_slimb_big_t x64 = (sc_slimb_big_t) x * (sc_slimb_big_t) y;
+    high = x64 >> 13;
+    low  = x64 & 0x1FFF;
+    x64  = low - high + (high << 9);
+    high = x64 >> 13;
+    low  = x64 & 0x1FFF;
+    x64  = low - high + (high << 9);
+    high = x64 >> 13;
+    low  = x64 & 0x1FFF;
+    x64  = low - high + (high << 9);
+    return (sc_slimb_t) x64;
+#elif defined(_ENABLE_SOLINAS_8380417)
+    sc_slimb_big_t high, low;
+    sc_slimb_big_t x64 = (sc_slimb_big_t) x * (sc_slimb_big_t) y;
+    high = x64 >> 23;
+    low  = x64 & 0x7FFFFF;
+    x64  = low - high + (high << 13);
+    high = x64 >> 23;
+    low  = x64 & 0x7FFFFF;
+    x64  = low - high + (high << 13);
+    high = x64 >> 23;
+    low  = x64 & 0x7FFFFF;
+    x64  = low - high + (high << 13);
+    return (sc_slimb_t) x64;
+#elif defined(_ENABLE_SOLINAS_16813057)
+    sc_slimb_big_t high, low;
+    sc_slimb_big_t x64 = (sc_slimb_big_t) x * (sc_slimb_big_t) y;
+    high = x >> 24;
+    low  = x & 0xFFFFFF;
+    x    = low - high - (high << 10) - (high << 11) - (high << 15);
+    high = x >> 24;
+    low  = x & 0xFFFFFF;
+    x    = low - high - (high << 10) - (high << 11) - (high << 15);
+    high = x >> 24;
+    low  = x & 0xFFFFFF;
+    x    = low - high - (high << 10) - (high << 11) - (high << 15);
+    if (x < 0) {
+        x += 16813057;
+    }
+    return (sc_slimb_t) x64;
+#elif defined(_ENABLE_SOLINAS_134348801)
+    sc_slimb_big_t high, low;
+    sc_slimb_big_t x64 = (sc_slimb_big_t) x * (sc_slimb_big_t) y;
+    high = x64 >> 27;
+    low  = x64 & 0x7FFFFFF;
+    x64  = low - high - (high << 17);
+    high = x64 >> 27;
+    low  = x64 & 0x7FFFFFF;
+    x64  = low - high - (high << 17);
+    high = x64 >> 27;
+    low  = x64 & 0x7FFFFFF;
+    x64  = low - high - (high << 17);
+    if (x64 < 0) {
+        x64 += 134348801;
+    }
+    return (sc_slimb_t) x64;
+#else
+    sc_slimb_big_t prod = (sc_slimb_big_t) x * (sc_slimb_big_t) y;
+    DOUBLE temp = (DOUBLE) prod * p->inv_q_dbl;
+    return prod - p->u.nttlimb.q * (sc_slimb_big_t) temp;
+#endif
+}
+
+inline sc_slimb_t NTT_FUNC_NAME(ntt_sqrn)(sc_slimb_t x, const ntt_params_t *p)
+{
+#if defined(_ENABLE_REFERENCE)
+    return (((sc_slimb_big_t) x) * ((sc_slimb_big_t) x)) % p->u.nttlimb.q;
+#elif defined(_ENABLE_BARRETT)
+    sc_slimb_t m = p->u.nttlimb.m;
+    sc_slimb_t k = p->u.nttlimb.k;
+    sc_slimb_t q = p->u.nttlimb.q;
+    sc_slimb_big_t product = ((sc_slimb_big_t) x) * ((sc_slimb_big_t) x);
+    return barrett_reduction(product, m, k, q);
+#elif defined(_ENABLE_SOLINAS_7681)
+    sc_slimb_big_t high, low;
+    sc_slimb_big_t x64 = (sc_slimb_big_t) x * (sc_slimb_big_t) x;
+    high = x64 >> 13;
+    low  = x64 & 0x1FFF;
+    x64  = low - high + (high << 9);
+    high = x64 >> 13;
+    low  = x64 & 0x1FFF;
+    x64  = low - high + (high << 9);
+    high = x64 >> 13;
+    low  = x64 & 0x1FFF;
+    x64  = low - high + (high << 9);
+    return (sc_slimb_t) x64;
+#elif defined(_ENABLE_SOLINAS_8380417)
+    sc_slimb_big_t high, low;
+    sc_slimb_big_t x64 = (sc_slimb_big_t) x * (sc_slimb_big_t) x;
+    high = x64 >> 23;
+    low  = x64 & 0x7FFFFF;
+    x64  = low - high + (high << 13);
+    high = x64 >> 23;
+    low  = x64 & 0x7FFFFF;
+    x64  = low - high + (high << 13);
+    high = x64 >> 23;
+    low  = x64 & 0x7FFFFF;
+    x64  = low - high + (high << 13);
+    return (sc_slimb_t) x64;
+#elif defined(_ENABLE_SOLINAS_16813057)
+    sc_slimb_big_t high, low;
+    sc_slimb_big_t x64 = (sc_slimb_big_t) x * (sc_slimb_big_t) x;
+    high = x >> 24;
+    low  = x & 0xFFFFFF;
+    x    = low - high - (high << 10) - (high << 11) - (high << 15);
+    high = x >> 24;
+    low  = x & 0xFFFFFF;
+    x    = low - high - (high << 10) - (high << 11) - (high << 15);
+    high = x >> 24;
+    low  = x & 0xFFFFFF;
+    x    = low - high - (high << 10) - (high << 11) - (high << 15);
+    if (x < 0) {
+        x += 16813057;
+    }
+    return (sc_slimb_t) x64;
+#elif defined(_ENABLE_SOLINAS_134348801)
+    sc_slimb_big_t high, low;
+    sc_slimb_big_t x64 = (sc_slimb_big_t) x * (sc_slimb_big_t) x;
+    high = x64 >> 27;
+    low  = x64 & 0x7FFFFFF;
+    x64  = low - high - (high << 17);
+    high = x64 >> 27;
+    low  = x64 & 0x7FFFFFF;
+    x64  = low - high - (high << 17);
+    high = x64 >> 27;
+    low  = x64 & 0x7FFFFFF;
+    x64  = low - high - (high << 17);
+    if (x64 < 0) {
+        x64 += 134348801;
+    }
+    return (sc_slimb_t) x64;
+#else
+    sc_slimb_big_t prod = (sc_slimb_big_t) x * (sc_slimb_big_t) x;
+    DOUBLE temp = (DOUBLE) prod * p->inv_q_dbl;
+    return prod - p->u.nttlimb.q * (sc_slimb_big_t) temp;
+#endif
+}
+
+// Pointwise multiplication of two vectors of length n  v = t .* c
+void NTT_FUNC_NAME(ntt_mult_pointwise)(sc_slimb_t *v, const ntt_params_t *p,
+                const sc_slimb_t *t, const sc_slimb_t *u)
+{
+    // Multiply each element point-by-point
+#ifdef _ENABLE_BARRETT
+    size_t i;
+    sc_slimb_t m = p->u.nttlimb.m;
+    sc_slimb_t k = p->u.nttlimb.k;
+    sc_slimb_t q = p->u.nttlimb.q;
+    for (i=p->n; i--;) {
+        sc_slimb_big_t product = ((sc_slimb_big_t) t[i]) * ((sc_slimb_big_t) u[i]);
+        v[i] = barrett_reduction(product, m, k, q);
+    }
+#else
+    size_t i;
+    for (i=p->n; i--;) {
+        v[i] = NTT_FUNC_NAME(ntt_muln)(t[i], u[i], p);
+    }
+#endif
+}
+
+// Pointwise multiplication of two vectors of length n  v = t .* c
+void NTT_FUNC_NAME(ntt_mult_pointwise_32)(sc_slimb_t *v, const ntt_params_t *p,
+                const sc_slimb_t *t, const SINT32 *u)
+{
+    // Multiply each element point-by-point
+#ifdef _ENABLE_BARRETT
+    size_t i;
+    sc_slimb_t m = p->u.nttlimb.m;
+    sc_slimb_t k = p->u.nttlimb.k;
+    sc_slimb_t q = p->u.nttlimb.q;
+    for (i=p->n; i--;) {
+        sc_slimb_big_t product = ((sc_slimb_big_t) t[i]) * ((sc_slimb_big_t) u[i]);
+        v[i] = barrett_reduction(product, m, k, q);
+    }
+#else
+    size_t i;
+    for (i=p->n; i--;) {
+        v[i] = NTT_FUNC_NAME(ntt_muln)(t[i], (sc_slimb_t) u[i], p);
+    }
+#endif
+}
+
+// Pointwise multiplication of two vectors of length n  v = t .* c
+void NTT_FUNC_NAME(ntt_mult_pointwise_16)(sc_slimb_t *v, const ntt_params_t *p,
+                const sc_slimb_t *t, const SINT16 *u)
+{
+    // Multiply each element point-by-point
+#ifdef _ENABLE_BARRETT
+    size_t i;
+    sc_slimb_t m = p->u.nttlimb.m;
+    sc_slimb_t k = p->u.nttlimb.k;
+    sc_slimb_t q = p->u.nttlimb.q;
+    for (i=p->n; i--;) {
+        sc_slimb_big_t product = ((sc_slimb_big_t) t[i]) * ((sc_slimb_big_t) u[i]);
+        v[i] = barrett_reduction(product, m, k, q);
+    }
+#else
+    size_t i;
+    for (i=p->n; i--;) {
+        v[i] = NTT_FUNC_NAME(ntt_muln)(t[i], (sc_slimb_t) u[i], p);
+    }
+#endif
+}
+
+
+void NTT_FUNC_NAME(ntt_fft)(sc_slimb_t *v, const ntt_params_t *p, const sc_slimb_t *w)
+{
+    size_t i, j, k, l;
+    sc_slimb_t x, y;
+    size_t n = p->n;
+
+    // bit-inverse shuffle
+    inverse_shuffle(v, n);
+
+    // main loops
+    for (i = 1, l = n; i < n; i <<= 1, l >>= 1) {
+
+        size_t i_next = i + i;
+
+        for (k = 0; k < n; k += i_next) {
+            x = v[k + i];
+            v[k + i] = v[k] - x;
+            v[k] = v[k] + x;
+        }
+
+        for (j = 1; j < i; j++) {
+            y = w[j * l];
+            for (k = j; k < n; k += i_next) {
+                x = NTT_FUNC_NAME(ntt_muln)(v[k + i], y, p);
+                v[k + i] = v[k] - x;
+                v[k] = v[k] + x;
+            }
+        }
+    }
+}
+
+void NTT_FUNC_NAME(ntt_large_fft)(sc_slimb_t *v, const ntt_params_t *p, const sc_slimb_t *w)
+{
+    size_t i, j, k, l;
+    sc_slimb_t x, y;
+    size_t n = p->n;
+
+    // bit-inverse shuffle
+    inverse_shuffle(v, n);
+
+    // main loops
+    for (i = 1, l = n; i < n; i <<= 1, l >>= 1) {
+
+        size_t i_next = i + i;
+
+        for (k = 0; k < n; k += i_next) {
+            x = NTT_FUNC_NAME(ntt32_modn)(v[k + i], p);
+            v[k + i] = v[k] - x;
+            v[k + i] = NTT_FUNC_NAME(ntt32_modn)(v[k + i], p);
+            v[k] = v[k] + x;
+            v[k] = NTT_FUNC_NAME(ntt32_modn)(v[k], p);
+        }
+
+        for (j = 1; j < i; j++) {
+            y = w[j * l];
+            for (k = j; k < n; k += i_next) {
+                x = NTT_FUNC_NAME(ntt_muln)(v[k + i], y, p);
+                v[k + i] = v[k] - x;
+                v[k + i] = NTT_FUNC_NAME(ntt32_modn)(v[k + i], p);
+                v[k] = v[k] + x;
+                v[k] = NTT_FUNC_NAME(ntt32_modn)(v[k], p);
+            }
+        }
+    }
+}
+
+void NTT_FUNC_NAME(ntt_fft_32)(sc_slimb_t *v, const ntt_params_t *p, const SINT32 *w)
+{
+    size_t i, j, k, l;
+    sc_slimb_t x, y;
+    size_t n = p->n;
+
+    // bit-inverse shuffle
+    inverse_shuffle(v, n);
+
+    // main loops
+    for (i = 1, l = n; i < n; i <<= 1, l >>= 1) {
+
+        size_t i_next = i + i;
+
+        for (k = 0; k < n; k += i_next) {
+            x = v[k + i];
+            v[k + i] = v[k] - x;
+            v[k] = v[k] + x;
+        }
+
+        for (j = 1; j < i; j++) {
+            y = (sc_slimb_t)w[j * l];
+            for (k = j; k < n; k += i_next) {
+                x = NTT_FUNC_NAME(ntt_muln)(v[k + i], y, p);
+                v[k + i] = v[k] - x;
+                v[k] = v[k] + x;
+            }
+        }
+    }
+}
+
+void NTT_FUNC_NAME(ntt_large_fft_32)(sc_slimb_t *v, const ntt_params_t *p, const SINT32 *w)
+{
+    size_t i, j, k, l;
+    sc_slimb_t x, y;
+    size_t n = p->n;
+
+    // bit-inverse shuffle
+    inverse_shuffle(v, n);
+
+    // main loops
+    for (i = 1, l = n; i < n; i <<= 1, l >>= 1) {
+
+        size_t i_next = i + i;
+
+        for (k = 0; k < n; k += i_next) {
+            x = NTT_FUNC_NAME(ntt_modn)(v[k + i], p);
+            v[k + i] = v[k] - x;
+            v[k + i] = NTT_FUNC_NAME(ntt_modn)(v[k + i], p);
+            v[k] = v[k] + x;
+            v[k] = NTT_FUNC_NAME(ntt_modn)(v[k], p);
+        }
+
+        for (j = 1; j < i; j++) {
+            y = (sc_slimb_t)w[j * l];
+            for (k = j; k < n; k += i_next) {
+                x = NTT_FUNC_NAME(ntt_muln)(v[k + i], y, p);
+                v[k + i] = v[k] - x;
+                v[k + i] = NTT_FUNC_NAME(ntt_modn)(v[k + i], p);
+                v[k] = v[k] + x;
+                v[k] = NTT_FUNC_NAME(ntt_modn)(v[k], p);
+            }
+        }
+    }
+}
+
+void NTT_FUNC_NAME(ntt_fft_16)(sc_slimb_t *v, const ntt_params_t *p, const SINT16 *w)
+{
+    size_t i, j, k, l;
+    sc_slimb_t x, y;
+    size_t n = p->n;
+
+    // bit-inverse shuffle
+    inverse_shuffle(v, n);
+
+    // main loops
+    for (i = 1, l = n; i < n; i <<= 1, l >>= 1) {
+
+        size_t i_next = i + i;
+
+        for (k = 0; k < n; k += i_next) {
+            x = v[k + i];
+            v[k + i] = v[k] - x;
+            v[k] = v[k] + x;
+        }
+
+        for (j = 1; j < i; j++) {
+            y = (sc_slimb_t)w[j * l];
+            for (k = j; k < n; k += i_next) {
+                x = NTT_FUNC_NAME(ntt_muln)(v[k + i], y, p);
+                v[k + i] = v[k] - x;
+                v[k] = v[k] + x;
+            }
+        }
+    }
+}
+
+void NTT_FUNC_NAME(ntt_large_fft_16)(sc_slimb_t *v, const ntt_params_t *p, const SINT16 *w)
+{
+    size_t i, j, k, l;
+    sc_slimb_t x, y;
+    size_t n = p->n;
+
+    // bit-inverse shuffle
+    inverse_shuffle(v, n);
+
+    // main loops
+    for (i = 1, l = n; i < n; i <<= 1, l >>= 1) {
+
+        size_t i_next = i + i;
+
+        for (k = 0; k < n; k += i_next) {
+            x = NTT_FUNC_NAME(ntt_modn)(v[k + i], p);
+            v[k + i] = v[k] - x;
+            v[k + i] = NTT_FUNC_NAME(ntt_modn)(v[k + i], p);
+            v[k] = v[k] + x;
+            v[k] = NTT_FUNC_NAME(ntt_modn)(v[k], p);
+        }
+
+        for (j = 1; j < i; j++) {
+            y = (sc_slimb_t)w[j * l];
+            for (k = j; k < n; k += i_next) {
+                x = NTT_FUNC_NAME(ntt_muln)(v[k + i], y, p);
+                v[k + i] = v[k] - x;
+                v[k + i] = NTT_FUNC_NAME(ntt_modn)(v[k + i], p);
+                v[k] = v[k] + x;
+                v[k] = NTT_FUNC_NAME(ntt_modn)(v[k], p);
+            }
+        }
+    }
+}
+
+void NTT_FUNC_NAME(ntt_fwd_ntt)(sc_slimb_t *v, const ntt_params_t *p,
+    const sc_slimb_t *t, const sc_slimb_t *w)
+{
+    NTT_FUNC_NAME(ntt_mult_pointwise)(v, p, t, w);
+    NTT_FUNC_NAME(ntt_fft)(v, p, w);
+}
+
+void NTT_FUNC_NAME(ntt_large_fwd_ntt)(sc_slimb_t *v, const ntt_params_t *p,
+    const sc_slimb_t *t, const sc_slimb_t *w)
+{
+    NTT_FUNC_NAME(ntt_mult_pointwise)(v, p, t, w);
+    NTT_FUNC_NAME(ntt_large_fft)(v, p, w);
+}
+
+void NTT_FUNC_NAME(ntt_inv_ntt)(sc_slimb_t *v, const ntt_params_t *p,
+    const sc_slimb_t *t, const sc_slimb_t *w, const sc_slimb_t *r)
+{
+    if (v != t) {
+        size_t i;
+#pragma GCC ivdep
+        for (i=p->n; i--;) {
+            v[i] = t[i];
+        }
+    }
+
+    NTT_FUNC_NAME(ntt_fft)(v, p, w);
+    NTT_FUNC_NAME(ntt_mult_pointwise)(v, p, v, r);
+    ntt_flip_generic(v, p);
+}
+
+void NTT_FUNC_NAME(ntt_large_inv_ntt)(sc_slimb_t *v, const ntt_params_t *p,
+    const sc_slimb_t *t, const sc_slimb_t *w, const sc_slimb_t *r)
+{
+    if (v != t) {
+        size_t i;
+#pragma GCC ivdep
+        for (i=p->n; i--;) {
+            v[i] = t[i];
+        }
+    }
+
+    NTT_FUNC_NAME(ntt_large_fft)(v, p, w);
+    NTT_FUNC_NAME(ntt_mult_pointwise)(v, p, v, r);
+    ntt_flip_generic(v, p);
+}
+
+void NTT_FUNC_NAME(ntt_fwd_ntt_32)(sc_slimb_t *v, const ntt_params_t *p,
+    const sc_slimb_t *t, const SINT32 *w)
+{
+    NTT_FUNC_NAME(ntt_mult_pointwise_32)(v, p, t, w);
+    NTT_FUNC_NAME(ntt_fft_32)(v, p, w);
+}
+
+void NTT_FUNC_NAME(ntt_large_fwd_ntt_32)(sc_slimb_t *v, const ntt_params_t *p,
+    const sc_slimb_t *t, const SINT32 *w)
+{
+    NTT_FUNC_NAME(ntt_mult_pointwise_32)(v, p, t, w);
+    NTT_FUNC_NAME(ntt_large_fft_32)(v, p, w);
+}
+
+void NTT_FUNC_NAME(ntt_inv_ntt_32)(sc_slimb_t *v, const ntt_params_t *p,
+    const sc_slimb_t *t, const SINT32 *w, const SINT32 *r)
+{
+    if (v != t) {
+        size_t i;
+#pragma GCC ivdep
+        for (i=p->n; i--;) {
+            v[i] = t[i];
+        }
+    }
+
+    NTT_FUNC_NAME(ntt_fft_32)(v, p, w);
+    NTT_FUNC_NAME(ntt_mult_pointwise_32)(v, p, v, r);
+    ntt_flip_generic(v, p);
+}
+
+void NTT_FUNC_NAME(ntt_large_inv_ntt_32)(sc_slimb_t *v, const ntt_params_t *p,
+    const sc_slimb_t *t, const SINT32 *w, const SINT32 *r)
+{
+    if (v != t) {
+        size_t i;
+#pragma GCC ivdep
+        for (i=p->n; i--;) {
+            v[i] = t[i];
+        }
+    }
+
+    NTT_FUNC_NAME(ntt_large_fft_32)(v, p, w);
+    NTT_FUNC_NAME(ntt_mult_pointwise_32)(v, p, v, r);
+    ntt_flip_generic(v, p);
+}
+
+void NTT_FUNC_NAME(ntt_fwd_ntt_16)(sc_slimb_t *v, const ntt_params_t *p,
+    const sc_slimb_t *t, const SINT16 *w)
+{
+    NTT_FUNC_NAME(ntt_mult_pointwise_16)(v, p, t, w);
+    NTT_FUNC_NAME(ntt_fft_16)(v, p, w);
+}
+
+void NTT_FUNC_NAME(ntt_large_fwd_ntt_16)(sc_slimb_t *v, const ntt_params_t *p,
+    const sc_slimb_t *t, const SINT16 *w)
+{
+    NTT_FUNC_NAME(ntt_mult_pointwise_16)(v, p, t, w);
+    NTT_FUNC_NAME(ntt_large_fft_16)(v, p, w);
+}
+
+void NTT_FUNC_NAME(ntt_inv_ntt_16)(sc_slimb_t *v, const ntt_params_t *p,
+    const sc_slimb_t *t, const SINT16 *w, const SINT16 *r)
+{
+    if (v != t) {
+        size_t i;
+#pragma GCC ivdep
+        for (i=p->n; i--;) {
+            v[i] = t[i];
+        }
+    }
+
+    NTT_FUNC_NAME(ntt_fft_16)(v, p, w);
+    NTT_FUNC_NAME(ntt_mult_pointwise_16)(v, p, v, r);
+    ntt_flip_generic(v, p);
+}
+
+void NTT_FUNC_NAME(ntt_large_inv_ntt_16)(sc_slimb_t *v, const ntt_params_t *p,
+    const sc_slimb_t *t, const SINT16 *w, const SINT16 *r)
+{
+    if (v != t) {
+        size_t i;
+#pragma GCC ivdep
+        for (i=p->n; i--;) {
+            v[i] = t[i];
+        }
+    }
+
+    NTT_FUNC_NAME(ntt_large_fft_16)(v, p, w);
+    NTT_FUNC_NAME(ntt_mult_pointwise_16)(v, p, v, r);
+    ntt_flip_generic(v, p);
+}
+
+sc_slimb_t NTT_FUNC_NAME(ntt_pwr)(sc_slimb_t x, sc_slimb_t e, const ntt_params_t *p)
+{
+    sc_slimb_t y;
+
+    y = 1;
+    if (e & 1)
+        y = x;
+
+    e >>= 1;
+
+    while (e > 0) {
+        x = NTT_FUNC_NAME(ntt_sqrn)(x, p);
+        if (e & 1)
+            y = NTT_FUNC_NAME(ntt_muln)(x, y, p);
+        e >>= 1;
+    }
+
+    return y;
+}
+
+SINT32 NTT_FUNC_NAME(ntt_invert)(sc_slimb_t *v, const ntt_params_t *p, size_t n)
+{
+    size_t i;
+    sc_slimb_t q = p->u.nttlimb.q;
+#ifdef _ENABLE_BARRETT
+    sc_slimb_t m = p->u.ntt32.m;
+    sc_slimb_t k = p->u.ntt32.k;
+#endif
+
+    for (i=0; i<n; i++) {
+#ifdef _ENABLE_BARRETT
+        sc_slimb_t x = barrett_reduction(v[i], m, k, q);
+#else
+        sc_slimb_t x = NTT_FUNC_NAME(ntt_modn)(v[i], p);
+#endif
+        if (x == 0) {
+            return SC_FUNC_FAILURE;
+        }
+        x = NTT_FUNC_NAME(ntt_pwr)(x, q - 2, p);
+        v[i] = -x; // NOTE: Sign inversion here
+    }
+
+    return SC_FUNC_SUCCESS;
+}
+
+void NTT_FUNC_NAME(ntt_center)(sc_slimb_t *v, size_t n, const ntt_params_t *p)
+{
+    SINT32 i;
+    sc_slimb_t q = p->u.nttlimb.q;
+    sc_slimb_t q2 = (q - 1) >> 1;
+#ifdef _ENABLE_BARRETT
+    sc_slimb_t m = p->u.nttlimb.m;
+    sc_slimb_t k = p->u.nttlimb.k;
+#endif
+
+    for (i=n; i--;) {
+#ifdef _ENABLE_BARRETT
+        sc_slimb_t x = barrett_reduction(v[i], m, k, q);
+#else
+        sc_slimb_t x = NTT_FUNC_NAME(ntt_modn)(v[i], p);
+#endif
+        while (x < -q2)
+            x += q;
+        while (x > q2)
+            x -= q;
+        v[i] = x;
+    }
+}
+
+void NTT_FUNC_NAME(ntt_normalize)(sc_slimb_t *v, size_t n, const ntt_params_t *p)
+{
+    SINT32 i;
+    sc_slimb_t q = p->u.nttlimb.q;
+#ifdef _ENABLE_BARRETT
+    sc_slimb_t m = p->u.nttlimb.m;
+    sc_slimb_t k = p->u.nttlimb.k;
+#endif
+
+    for (i=n; i--;) {
+#ifdef _ENABLE_BARRETT
+        sc_slimb_t x = barrett_reduction(v[i], m, k, q);
+#else
+        sc_slimb_t x = NTT_FUNC_NAME(ntt_modn)(v[i], p);
+#endif
+        if (x < 0)
+            x += q;
+        v[i] = x;
+    }
+}

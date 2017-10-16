@@ -1,0 +1,18 @@
+if ENABLE_KEM
+MAYBE_KEM=kem
+endif
+
+if ENABLE_IBE
+MAYBE_IBE=ibe
+endif
+
+if ENABLE_ENCRYPTION
+MAYBE_ENC=enc
+endif
+
+if ENABLE_SIGNATURES
+MAYBE_SIG=sig
+endif
+
+SUBDIRS = helloworld $(MAYBE_SIG) $(MAYBE_ENC) $(MAYBE_KEM) $(MAYBE_IBE)
+DIST_SUBDIRS = helloworld $(MAYBE_SIG) $(MAYBE_ENC) $(MAYBE_KEM) $(MAYBE_IBE)

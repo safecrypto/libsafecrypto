@@ -1,0 +1,11 @@
+This README describes the Python bindings for Brian Gladman's AES module.
+
+These bindings are compatible with Python 2.7+ (including Python 3).
+
+You can build a binary distribution like this:
+    $ python setup.py bdist
+
+Or, for development work:
+    $ python setup.py build_ext --inplace
+
+Usage is fairly straightforward; see demo.py for an example.
