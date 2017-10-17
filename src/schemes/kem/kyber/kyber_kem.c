@@ -170,7 +170,7 @@ SINT32 kyber_kem_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
     }
 
     // Create the XOF to be used by the random oracle
-    sc->xof = utils_crypto_xof_create(SC_XOF_SHAKE128);
+    sc->xof = utils_crypto_xof_create(CRYPTO_XOF_SHAKE128);
     if (NULL == sc->xof) {
         return SC_FUNC_FAILURE;
     }
@@ -1050,7 +1050,7 @@ char * kyber_kem_stats(safecrypto_t *sc)
         sc->stats.keygen_num_trials,
         sc->stats.encapsulate_num,
         sc->stats.decapsulate_num,
-        sc_hash_names[sc->kyber->oracle_hash],
+        crypto_hash_names[sc->kyber->oracle_hash],
         (KYBER_KEM_CSPRNG_ENABLED)? "CSPRNG" : "SHAKE128",
         safecrypto_prng_names[(int)prng_get_type(sc->prng_ctx[0])],
         sc_entropy_names[(int)sc->coding_pub_key.type],

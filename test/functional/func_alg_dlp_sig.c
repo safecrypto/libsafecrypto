@@ -169,7 +169,6 @@ int main(void)
             snprintf(disp_msg, 128, "%-16s %-4zu", "Msg Length", length);
 
             for (j=0; j<MAX_ITER; j++) {
-                size_t idx;
 
                 // Generate a random message
                 prng_mem(prng_ctx, message, length);
@@ -183,15 +182,14 @@ int main(void)
                 }
                 SC_TIMER_STOP(sig_timer);
 
-                // Ensure that the last byte (which is potentially partially used) is not corrupted
-                idx = j % siglen;
-                if (idx == (siglen - 1)) {
-                    idx--;
-                }
-
                 // Verify the signature
                 SC_TIMER_START(ver_timer);
                 if ((j & 0x3) == 3) {
+                    // Ensure that the last byte (which is potentially partially used) is not corrupted
+                    size_t idx = j % siglen;
+                    if (idx == (siglen - 1)) {
+                        idx--;
+                    }
                     sig[idx] ^= 1 << (j % 8);
 
                     // Verify the signature using the public key
@@ -206,7 +204,7 @@ int main(void)
                     }
                 }
                 else if ((j & 0x3) == 2) {
-                    message[idx%64] ^= 1 << (j % 8);
+                    message[j%64] ^= 1 << (j % 8);
 
                     // Verify the signature using the public key
                     if (SC_FUNC_SUCCESS == safecrypto_verify(sc, message, length, sig, siglen)) {

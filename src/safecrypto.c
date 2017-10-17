@@ -895,3 +895,28 @@ const sc_statistics_t * safecrypto_get_stats(safecrypto_t *sc)
     return &sc->stats;
 }
 
+void * safecrypto_hash_create(sc_hash_e type)
+{
+    return utils_crypto_hash_create(type);
+}
+
+SINT32 safecrypto_hash_destroy(void *hash)
+{
+    return utils_crypto_hash_destroy(hash);
+}
+
+SINT32 safecrypto_hash_init(void *hash)
+{
+    return hash_init(hash);
+}
+
+SINT32 safecrypto_hash_update(void *hash, const UINT8 *data, size_t len)
+{
+    return hash_update(hash, data, len);
+}
+
+SINT32 safecrypto_hash_final(void *hash, UINT8 *md)
+{
+    return hash_final(hash, md);
+}
+

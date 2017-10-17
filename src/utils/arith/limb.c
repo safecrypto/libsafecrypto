@@ -414,9 +414,11 @@ void limb_binxgcd(sc_ulimb_t a, sc_ulimb_t b, sc_ulimb_t *x, sc_ulimb_t *y)
             v >>= 1;
         }
         else {
-            // We want to set u = (u + beta) >> 1, but that can overflow,
-            // so we use Dietz (see "Understanding Integer Overflow in C/C++")
-            u = ((u ^ beta) >> 1) + (u & beta);
+            // Set u = (u + beta) >> 1, but that can overflow so care must be taken
+            // This uses Dietz (see "Understanding Integer Overflow in C/C++", ICSE 2012)
+            //u = ((u ^ beta) >> 1) + (u & beta);
+            // This may be patented...
+            u = (u >> 1) + (beta >> 1) + (u & beta & 1);
             v = (v >> 1) + alpha;
         }
     }

@@ -23,30 +23,30 @@
 
 
 /// A list of the available schemes
-#define HASH_LIST(m) \
-   m(SC_HASH_SHA3_512) \
-   m(SC_HASH_SHA3_384) \
-   m(SC_HASH_SHA3_256) \
-   m(SC_HASH_SHA3_224) \
-   m(SC_HASH_SHA2_512) \
-   m(SC_HASH_SHA2_384) \
-   m(SC_HASH_SHA2_256) \
-   m(SC_HASH_SHA2_224) \
-   m(SC_HASH_BLAKE2_512) \
-   m(SC_HASH_BLAKE2_384) \
-   m(SC_HASH_BLAKE2_256) \
-   m(SC_HASH_BLAKE2_224) \
-   m(SC_HASH_WHIRLPOOL_512) \
-   m(SC_HASH_SHAKE128_256) \
-   m(SC_HASH_SHAKE256_512)
+#define CRYPTO_HASH_LIST(m) \
+   m(CRYPTO_HASH_SHA3_512) \
+   m(CRYPTO_HASH_SHA3_384) \
+   m(CRYPTO_HASH_SHA3_256) \
+   m(CRYPTO_HASH_SHA3_224) \
+   m(CRYPTO_HASH_SHA2_512) \
+   m(CRYPTO_HASH_SHA2_384) \
+   m(CRYPTO_HASH_SHA2_256) \
+   m(CRYPTO_HASH_SHA2_224) \
+   m(CRYPTO_HASH_BLAKE2_512) \
+   m(CRYPTO_HASH_BLAKE2_384) \
+   m(CRYPTO_HASH_BLAKE2_256) \
+   m(CRYPTO_HASH_BLAKE2_224) \
+   m(CRYPTO_HASH_WHIRLPOOL_512) \
+   m(CRYPTO_HASH_SHAKE128_256) \
+   m(CRYPTO_HASH_SHAKE256_512)
 
 
 /// An enumerated type for the choice of hash algorithm
-GENERATE_ENUM(safecrypto_hash_e, HASH_LIST, SC_HASH_MAX);
+GENERATE_ENUM(crypto_hash_e, CRYPTO_HASH_LIST, CRYPTO_HASH_MAX);
 
 /// A list of the hash algorithms in the form of human readable strings
 __attribute__((unused))
-GENERATE_ENUM_NAMES(sc_hash_names, HASH_LIST, SC_HASH_MAX);
+GENERATE_ENUM_NAMES(crypto_hash_names, CRYPTO_HASH_LIST, CRYPTO_HASH_MAX);
 
 
 /// Function pointers for a common hash interface
@@ -59,7 +59,7 @@ typedef SINT32 (*hash_func_final)(void *, void *);
 /// A struct used to store an instantiated hash
 PRNG_STRUCT_PACK_START
 typedef struct _utils_crypto_hash {
-    safecrypto_hash_e type;
+    crypto_hash_e     type;
     size_t            length;
     hash_func_init    init;
     hash_func_update  update;
@@ -69,7 +69,7 @@ typedef struct _utils_crypto_hash {
 PRNG_STRUCT_PACK_END
 
 /// Create an instance of the selected hash function
-extern utils_crypto_hash_t * utils_crypto_hash_create(safecrypto_hash_e type);
+extern utils_crypto_hash_t * utils_crypto_hash_create(crypto_hash_e type);
 
 /// Destroy an instance of a hash and release all memory resources
 extern SINT32 utils_crypto_hash_destroy(utils_crypto_hash_t* hash);

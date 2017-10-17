@@ -53,7 +53,7 @@ PRNG_STRUCT_PACK_END
 
 /// Create an instance of the HASH-DRBG
 hash_drbg_t* hash_drbg_create(func_get_random func,
-    user_entropy_t *user_entropy, safecrypto_hash_e hash, size_t seed_period,
+    user_entropy_t *user_entropy, crypto_hash_e hash, size_t seed_period,
     const UINT8 *nonce, size_t len_nonce);
 
 /// Free resources associated with the specified HASH-DRBG

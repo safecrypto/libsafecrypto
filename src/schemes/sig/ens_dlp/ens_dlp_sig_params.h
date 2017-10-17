@@ -37,7 +37,7 @@
 SC_STRUCT_PACK_START
 typedef struct ens_dlp_sig_set_t {
     const UINT16  set;
-    const safecrypto_hash_e hash_type;
+    const crypto_hash_e hash_type;
     const UINT16  q;
     const UINT16  q_bits;
     const UINT16  n;

@@ -156,7 +156,7 @@ static SINT32 hash_drbg_instantiate(hash_drbg_t *ctx,
 }
 
 hash_drbg_t* hash_drbg_create(func_get_random func,
-    user_entropy_t *user_entropy, safecrypto_hash_e hash, size_t seed_period,
+    user_entropy_t *user_entropy, crypto_hash_e hash, size_t seed_period,
     const UINT8 *nonce, size_t len_nonce)
 {
     // Check for a valid nonce pointer if used

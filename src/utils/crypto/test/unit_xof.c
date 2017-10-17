@@ -20,11 +20,11 @@ START_TEST(test_create_destroy)
     utils_crypto_xof_t *xof;
 
     // Create an instance of every type of xof and then destroy it
-    for (i=0; i<(size_t)SC_XOF_MAX; i++) {
-        xof = utils_crypto_xof_create((safecrypto_xof_e)i);
+    for (i=0; i<(size_t)CRYPTO_XOF_MAX; i++) {
+        xof = utils_crypto_xof_create((crypto_xof_e)i);
 #ifdef ENABLE_SHAKE
-        if ((safecrypto_xof_e)i == SC_XOF_SHAKE256 ||
-            (safecrypto_xof_e)i == SC_XOF_SHAKE128) {
+        if ((crypto_xof_e)i == CRYPTO_XOF_SHAKE256 ||
+            (crypto_xof_e)i == CRYPTO_XOF_SHAKE128) {
             ck_assert_ptr_ne(xof, NULL);
         }
 #endif
@@ -43,15 +43,15 @@ START_TEST(test_create_destroy_bad)
     utils_crypto_xof_t *xof;
 
     // Ensure that SC_HASH_MAX is not a valid xof type
-    xof = utils_crypto_xof_create(SC_XOF_MAX);
+    xof = utils_crypto_xof_create(CRYPTO_XOF_MAX);
     ck_assert_ptr_eq(xof, NULL);
 
     // Ensure that SC_HASH_MAX + 1 is not a valid xof type
-    xof = utils_crypto_xof_create(SC_XOF_MAX + 1);
+    xof = utils_crypto_xof_create(CRYPTO_XOF_MAX + 1);
     ck_assert_ptr_eq(xof, NULL);
 
     // Ensure that 0xFFFFFFFF is not a valid xof type
-    xof = utils_crypto_xof_create((safecrypto_xof_e)0xFFFFFFFF);
+    xof = utils_crypto_xof_create((crypto_xof_e)0xFFFFFFFF);
     ck_assert_ptr_eq(xof, NULL);
 
     // ENsure that a NULL pointer cannot be destroyed
@@ -69,14 +69,14 @@ START_TEST(test_create_destroy_init)
     // ensure that its initial state can be setup
 
 #ifdef ENABLE_SHAKE
-    xof = utils_crypto_xof_create(SC_XOF_SHAKE256);
+    xof = utils_crypto_xof_create(CRYPTO_XOF_SHAKE256);
     ck_assert_ptr_ne(xof, NULL);
     retval = xof_init(xof);
     ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
     retval = utils_crypto_xof_destroy(xof);
     ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
 
-    xof = utils_crypto_xof_create(SC_XOF_SHAKE128);
+    xof = utils_crypto_xof_create(CRYPTO_XOF_SHAKE128);
     ck_assert_ptr_ne(xof, NULL);
     retval = xof_init(xof);
     ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
@@ -98,8 +98,8 @@ START_TEST(test_input_bad)
 
     // Create an instance of every type of hash and perform a full
     // hash operation, but try to use NULL pointers
-    for (i=0; i<(size_t)SC_XOF_MAX; i++) {
-        xof = utils_crypto_xof_create((safecrypto_xof_e)i);
+    for (i=0; i<(size_t)CRYPTO_XOF_MAX; i++) {
+        xof = utils_crypto_xof_create((crypto_xof_e)i);
 
         // Some hash algorithms may be disabled, if not test their interface
         if (NULL != xof) {
@@ -154,8 +154,8 @@ START_TEST(test_full)
 
     // Create an instance of every type of hash, perform a small
     // hash operation and then destroy the instance
-    for (i=0; i<(size_t)SC_XOF_MAX; i++) {
-        xof = utils_crypto_xof_create((safecrypto_xof_e)i);
+    for (i=0; i<(size_t)CRYPTO_XOF_MAX; i++) {
+        xof = utils_crypto_xof_create((crypto_xof_e)i);
 
         // Some hash algorithms may be disabled, if not test their interface
         if (NULL != xof) {

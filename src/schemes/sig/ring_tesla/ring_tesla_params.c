@@ -20,7 +20,7 @@
 
 
 ring_tesla_set_t param_ring_tesla_0 = {
-    0, SC_HASH_SHA3_512, 512, 9, 30.0f, 8399873, 24, 0.000000119049418961453,
+    0, CRYPTO_HASH_SHA3_512, 512, 9, 30.0f, 8399873, 24, 0.000000119049418961453,
     2097151, 21, 8, 11, 21, 814, 993,
 #ifdef USE_RUNTIME_NTT_TABLES
     NULL, NULL, 824894
@@ -30,7 +30,7 @@ ring_tesla_set_t param_ring_tesla_0 = {
 };
 
 ring_tesla_set_t param_ring_tesla_1 = {
-    1, SC_HASH_SHA3_512, 512, 9, 52.0f, 51750913, 26, 0.0000000193233305854913,
+    1, CRYPTO_HASH_SHA3_512, 512, 9, 52.0f, 51750913, 26, 0.0000000193233305854913,
     4194303, 22, 9, 19, 23, 2766, 3173,
 #ifdef USE_RUNTIME_NTT_TABLES
     NULL, NULL, 36945

@@ -65,7 +65,7 @@ typedef struct bliss_cfg_t {
 #endif
 
     sc_entropy_type_e         entropy;
-    safecrypto_hash_e         oracle_hash;
+    crypto_hash_e             oracle_hash;
 
 } SC_STRUCT_PACKED bliss_cfg_t;
 SC_STRUCT_PACK_END

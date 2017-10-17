@@ -179,7 +179,12 @@ int main(void)
             // Verify the signature
             SC_TIMER_START(ver_timer);
             if ((j & 0x3) == 3) {
-                sig[j%siglen] ^= 1 << (j % 8);
+                // Ensure that the last byte (which is potentially partially used) is not corrupted
+                size_t idx = j % siglen;
+                if (idx == (siglen - 1)) {
+                    idx--;
+                }
+                sig[idx] ^= 1 << (j % 8);
 
                 // Verify the signature using the public key
                 if (SC_FUNC_SUCCESS == safecrypto_verify(sc, message, length, sig, siglen)) {

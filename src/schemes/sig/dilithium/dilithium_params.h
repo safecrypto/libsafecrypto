@@ -55,37 +55,37 @@
 
 SC_STRUCT_PACK_START
 typedef struct dilithium_set_t {
-    UINT32            set;
-    safecrypto_hash_e oracle_hash;
-    UINT32            n;
-    UINT32            n_bits;
-    UINT32            q;
-    UINT32            q_bits;
-    UINT32            k;
-    UINT32            l;
-    UINT32            d;
-    UINT32            max_singular_s;
-    UINT32            weight_of_c;
-    UINT32            gamma_1;
-    UINT32            gamma_1_bits;
-    UINT32            gamma_2;
-    FLOAT             sigma;
-    FLOAT             tailcut;
-    UINT32            alpha;
-    UINT32            alpha_bits;
-    UINT32            eta;
-    UINT32            eta_bits;
-    UINT32            z_bits;
-    UINT32            beta;
-    UINT32            omega;
-    UINT32            omega_bits;
+    UINT32        set;
+    crypto_hash_e oracle_hash;
+    UINT32        n;
+    UINT32        n_bits;
+    UINT32        q;
+    UINT32        q_bits;
+    UINT32        k;
+    UINT32        l;
+    UINT32        d;
+    UINT32        max_singular_s;
+    UINT32        weight_of_c;
+    UINT32        gamma_1;
+    UINT32        gamma_1_bits;
+    UINT32        gamma_2;
+    FLOAT         sigma;
+    FLOAT         tailcut;
+    UINT32        alpha;
+    UINT32        alpha_bits;
+    UINT32        eta;
+    UINT32        eta_bits;
+    UINT32        z_bits;
+    UINT32        beta;
+    UINT32        omega;
+    UINT32        omega_bits;
 #ifdef USE_RUNTIME_NTT_TABLES
-    SINT32           *w;
-    SINT32           *r;
-    SINT32            prim_root;
+    SINT32       *w;
+    SINT32       *r;
+    SINT32        prim_root;
 #else
-    const SINT32     *w;
-    const SINT32     *r;
+    const SINT32 *w;
+    const SINT32 *r;
 #endif
 } SC_STRUCT_PACKED dilithium_set_t;
 SC_STRUCT_PACK_END
@@ -97,7 +97,7 @@ typedef struct dilithium_cfg_t {
     ntt_params_t              ntt;
     ntt_params_t              ntt_alpha;
     sc_entropy_type_e         entropy;
-    safecrypto_hash_e         oracle_hash;
+    crypto_hash_e             oracle_hash;
     prng_ctx_t               *csprng[2];
 } SC_STRUCT_PACKED dilithium_cfg_t;
 SC_STRUCT_PACK_END

@@ -20,7 +20,7 @@
 
 
 dlp_ibe_set_t param_dlp_ibe_0 = {
-    0, SC_HASH_SHA3_512, 5767169, 23, 512, 9,
+    0, CRYPTO_HASH_SHA3_512, 5767169, 23, 512, 9,
     2883584, 19, 971,
 #ifdef USE_RUNTIME_NTT_TABLES
     NULL, NULL
@@ -30,7 +30,7 @@ dlp_ibe_set_t param_dlp_ibe_0 = {
 };
 
 dlp_ibe_set_t param_dlp_ibe_1 = {
-    1, SC_HASH_SHA3_512, 10223617, 24, 512, 9,
+    1, CRYPTO_HASH_SHA3_512, 10223617, 24, 512, 9,
     5111808, 20, 3981,
 #ifdef USE_RUNTIME_NTT_TABLES
     NULL, NULL
@@ -40,7 +40,7 @@ dlp_ibe_set_t param_dlp_ibe_1 = {
 };
 
 dlp_ibe_set_t param_dlp_ibe_2 = {
-    2, SC_HASH_SHA3_512, 51750913, 26, 512, 9,
+    2, CRYPTO_HASH_SHA3_512, 51750913, 26, 512, 9,
     25875456, 23, 115658,
 #ifdef USE_RUNTIME_NTT_TABLES
     NULL, NULL
@@ -50,7 +50,7 @@ dlp_ibe_set_t param_dlp_ibe_2 = {
 };
 
 dlp_ibe_set_t param_dlp_ibe_3 = {
-    3, SC_HASH_SHA3_512, 5767169, 23, 1024, 10,
+    3, CRYPTO_HASH_SHA3_512, 5767169, 23, 1024, 10,
     2883584, 18, 19484,
 #ifdef USE_RUNTIME_NTT_TABLES
     NULL, NULL
@@ -60,7 +60,7 @@ dlp_ibe_set_t param_dlp_ibe_3 = {
 };
 
 dlp_ibe_set_t param_dlp_ibe_4 = {
-    4, SC_HASH_SHA3_512, 10223617, 24, 1024, 10,
+    4, CRYPTO_HASH_SHA3_512, 10223617, 24, 1024, 10,
     5111808, 20, 6877,
 #ifdef USE_RUNTIME_NTT_TABLES
     NULL, NULL
@@ -70,7 +70,7 @@ dlp_ibe_set_t param_dlp_ibe_4 = {
 };
 
 dlp_ibe_set_t param_dlp_ibe_5 = {
-    5, SC_HASH_SHA3_512, 51750913, 26, 1024, 10,
+    5, CRYPTO_HASH_SHA3_512, 51750913, 26, 1024, 10,
     25875456, 22, 36945,
 #ifdef USE_RUNTIME_NTT_TABLES
     NULL, NULL
@@ -81,7 +81,7 @@ dlp_ibe_set_t param_dlp_ibe_5 = {
 
 #if 0
 dlp_ibe_set_t param_dlp_ibe_6 = {
-    6, SC_HASH_SHA3_512, 16813057, 25, 512, 9,
+    6, CRYPTO_HASH_SHA3_512, 16813057, 25, 512, 9,
     8406528, 21, 0,
 #ifdef USE_RUNTIME_NTT_TABLES
     NULL, NULL
@@ -91,7 +91,7 @@ dlp_ibe_set_t param_dlp_ibe_6 = {
 };
 
 dlp_ibe_set_t param_dlp_ibe_7 = {
-    7, SC_HASH_SHA3_512, 134348801, 28, 1024, 10,
+    7, CRYPTO_HASH_SHA3_512, 134348801, 28, 1024, 10,
     67174400, 24, 0,
 #ifdef USE_RUNTIME_NTT_TABLES
     NULL, NULL
@@ -101,7 +101,7 @@ dlp_ibe_set_t param_dlp_ibe_7 = {
 };
 
 dlp_ibe_set_t param_dlp_ibe_8 = {
-    8, SC_HASH_SHA3_512, 7681, 13, 256, 8,
+    8, CRYPTO_HASH_SHA3_512, 7681, 13, 256, 8,
     3840, 0, 0,
 #ifdef USE_RUNTIME_NTT_TABLES
     NULL, NULL
@@ -111,7 +111,7 @@ dlp_ibe_set_t param_dlp_ibe_8 = {
 };
 
 dlp_ibe_set_t param_dlp_ibe_9 = {
-    9, SC_HASH_SHA3_512, 12289, 14, 512, 9,
+    9, CRYPTO_HASH_SHA3_512, 12289, 14, 512, 9,
     6144, 0, 0,
 #ifdef USE_RUNTIME_NTT_TABLES
     NULL, NULL
@@ -121,7 +121,7 @@ dlp_ibe_set_t param_dlp_ibe_9 = {
 };
 
 dlp_ibe_set_t param_dlp_ibe_10 = {
-    10, SC_HASH_SHA3_512, 12289, 14, 1024, 10,
+    10, CRYPTO_HASH_SHA3_512, 12289, 14, 1024, 10,
     6144, 0, 0,
 #ifdef USE_RUNTIME_NTT_TABLES
     NULL, NULL

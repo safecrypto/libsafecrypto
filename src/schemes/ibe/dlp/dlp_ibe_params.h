@@ -44,7 +44,7 @@
 SC_STRUCT_PACK_START
 typedef struct dlp_ibe_set_t {
     const UINT32  set;
-    const safecrypto_hash_e hash_type;
+    const crypto_hash_e hash_type;
     const UINT32  q;
     const UINT32  q_bits;
     const UINT32  n;

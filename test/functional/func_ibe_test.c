@@ -43,7 +43,7 @@ int main(void)
     prng_init(prng_ctx, NULL, 0);
 
     FLOAT sigma = sqrtf((1.36 * q / 2) / n);
-	sampling = create_sampler(ZIGGURAT_GAUSSIAN_SAMPLING,
+	sampling = create_sampler(CDF_GAUSSIAN_SAMPLING,
         SAMPLING_64BIT, NORMAL_SAMPLES, n, SAMPLING_DISABLE_BOOTSTRAP,
         prng_ctx, 13.0f, sigma);
 

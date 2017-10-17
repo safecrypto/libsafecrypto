@@ -23,16 +23,16 @@
 
 
 /// A list of the available schemes
-#define XOF_LIST(m) \
-   m(SC_XOF_SHAKE256) \
-   m(SC_XOF_SHAKE128)
+#define CRYPTO_XOF_LIST(m) \
+   m(CRYPTO_XOF_SHAKE256) \
+   m(CRYPTO_XOF_SHAKE128)
 
 /// An enumerated type for the choice of XOF algorithm
-GENERATE_ENUM(safecrypto_xof_e, XOF_LIST, SC_XOF_MAX);
+GENERATE_ENUM(crypto_xof_e, CRYPTO_XOF_LIST, CRYPTO_XOF_MAX);
 
 /// A list of the XOF algorithms in the form of human readable strings
 __attribute__((unused))
-GENERATE_ENUM_NAMES(sc_xof_names, XOF_LIST, SC_XOF_MAX);
+GENERATE_ENUM_NAMES(crypto_xof_names, CRYPTO_XOF_LIST, CRYPTO_XOF_MAX);
 
 
 /// Function pointers for a common XOF interface
@@ -46,7 +46,7 @@ typedef SINT32 (*xof_func_squeeze)(void *, void *, size_t);
 /// A struct used to store an instantiated hash
 PRNG_STRUCT_PACK_START
 typedef struct _utils_crypto_xof {
-    safecrypto_xof_e  type;
+    crypto_xof_e      type;
     size_t            length;
     xof_func_init     init;
     xof_func_absorb   absorb;
@@ -57,7 +57,7 @@ typedef struct _utils_crypto_xof {
 PRNG_STRUCT_PACK_END
 
 /// Create an instance of the selected hash function
-extern utils_crypto_xof_t * utils_crypto_xof_create(safecrypto_xof_e type);
+extern utils_crypto_xof_t * utils_crypto_xof_create(crypto_xof_e type);
 
 /// Destroy an instance of a hash and release all memory resources
 extern SINT32 utils_crypto_xof_destroy(utils_crypto_xof_t* xof);

@@ -42,7 +42,7 @@
 SC_STRUCT_PACK_START
 typedef struct ring_tesla_set_t {
     UINT16  set;
-    safecrypto_hash_e oracle_hash;
+    crypto_hash_e oracle_hash;
     UINT32  n;
     UINT16  n_bits;
     FLOAT   sig;
@@ -73,7 +73,7 @@ typedef struct ring_tesla_cfg_t {
     safecrypto_ntt_e          ntt_optimisation;
     ntt_params_t              ntt;
     sc_entropy_type_e         entropy;
-    safecrypto_hash_e         oracle_hash;
+    crypto_hash_e             oracle_hash;
 } SC_STRUCT_PACKED ring_tesla_cfg_t;
 SC_STRUCT_PACK_END
 

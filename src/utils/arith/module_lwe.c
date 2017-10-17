@@ -1056,7 +1056,7 @@ void kyber_oracle_xof(safecrypto_t *sc, size_t n, UINT32 q, UINT32 q_bits, UINT3
     size_t num_weight_bytes = (weight_of_c + 7) >> 3;
     UINT8 signs[num_weight_bytes + weight_of_c] SC_DEFAULT_ALIGNED;
 
-    utils_crypto_xof_t *xof = utils_crypto_xof_create(SC_XOF_SHAKE128);
+    utils_crypto_xof_t *xof = utils_crypto_xof_create(CRYPTO_XOF_SHAKE128);
 
     // Initialise the XOF
     xof_init(xof);

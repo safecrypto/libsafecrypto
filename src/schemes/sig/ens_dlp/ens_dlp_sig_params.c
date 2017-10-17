@@ -21,7 +21,7 @@
 
 
 ens_dlp_sig_set_t param_ens_sig_0 = {
-    0, SC_HASH_SHA3_512, 12289, 14, 512, 9, 19, 5, 215.0f, 6, 9,
+    0, CRYPTO_HASH_SHA3_512, 12289, 14, 512, 9, 19, 5, 215.0f, 6, 9,
     33203, // 0.5 * n * 1.17 * sqrtl(q)
 #ifdef USE_RUNTIME_NTT_TABLES
     NULL, NULL
@@ -31,7 +31,7 @@ ens_dlp_sig_set_t param_ens_sig_0 = {
 };
 
 ens_dlp_sig_set_t param_ens_sig_1 = {
-    1, SC_HASH_SHA3_512, 12289, 14, 1024, 10, 19, 10, 271.0f, 6, 9,
+    1, CRYPTO_HASH_SHA3_512, 12289, 14, 1024, 10, 19, 10, 271.0f, 6, 9,
     66407, // 0.5 * n * 1.17 * sqrtl(q)
 #ifdef USE_RUNTIME_NTT_TABLES
     NULL, NULL
@@ -42,7 +42,7 @@ ens_dlp_sig_set_t param_ens_sig_1 = {
 
 #if 1
 ens_dlp_sig_set_t param_dlp_sig_0 = {
-    0, SC_HASH_SHA3_512, 7681, 13, 256, 8, 20, 5, 100.0f, 6, 9,
+    0, CRYPTO_HASH_SHA3_512, 7681, 13, 256, 8, 20, 5, 100.0f, 6, 9,
     13131, // 0.5 * n * 1.17 * sqrtl(q)
 #ifdef USE_RUNTIME_NTT_TABLES
     NULL, NULL
@@ -52,7 +52,7 @@ ens_dlp_sig_set_t param_dlp_sig_0 = {
 };
 
 ens_dlp_sig_set_t param_dlp_sig_1 = {
-    1, SC_HASH_SHA3_512, 12289, 14, 512, 9, 19, 10, 100.0f, 6, 9,
+    1, CRYPTO_HASH_SHA3_512, 12289, 14, 512, 9, 19, 10, 100.0f, 6, 9,
     60000,//26263, // 0.5 * n * 1.17 * sqrtl(q)
 #ifdef USE_RUNTIME_NTT_TABLES
     NULL, NULL
@@ -62,13 +62,13 @@ ens_dlp_sig_set_t param_dlp_sig_1 = {
 };
 #else
 ens_dlp_sig_set_t param_dlp_sig_0 = {
-    0, SC_HASH_SHA3_512, 999, 10, 256, 8, 26, 5, 100.0f, 5, 8,
+    0, CRYPTO_HASH_SHA3_512, 999, 10, 256, 8, 26, 5, 100.0f, 5, 8,
     3996, // 0.5 * sqrt(0.25*q*q*N)
     NULL, NULL
 };
 
 ens_dlp_sig_set_t param_dlp_sig_1 = {
-    1, SC_HASH_SHA3_512, 999, 10, 512, 9, 26, 10, 110.0f, 5, 8,
+    1, CRYPTO_HASH_SHA3_512, 999, 10, 512, 9, 26, 10, 110.0f, 5, 8,
     5651, // 0.5 * sqrt(0.25*q*q*N)
     NULL, NULL
 };

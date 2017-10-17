@@ -65,6 +65,28 @@ __attribute__((unused))
 GENERATE_ENUM_NAMES(sc_entropy_names, ENTROPY_LIST, SC_ENTROPY_SCHEME_MAX);
 
 
+/// A list of the available hash functions
+#define HASH_LIST(m) \
+   m(SC_HASH_SHA3_512) \
+   m(SC_HASH_SHA3_384) \
+   m(SC_HASH_SHA3_256) \
+   m(SC_HASH_SHA3_224) \
+   m(SC_HASH_SHA2_512) \
+   m(SC_HASH_SHA2_384) \
+   m(SC_HASH_SHA2_256) \
+   m(SC_HASH_SHA2_224) \
+   m(SC_HASH_BLAKE2_512) \
+   m(SC_HASH_BLAKE2_384) \
+   m(SC_HASH_BLAKE2_256) \
+   m(SC_HASH_BLAKE2_224) \
+   m(SC_HASH_WHIRLPOOL_512) \
+   m(SC_HASH_SHAKE128_256) \
+   m(SC_HASH_SHAKE256_512)
+
+/// An enumerated type for the choice of hash algorithm
+GENERATE_ENUM(sc_hash_e, HASH_LIST, SC_HASH_MAX);
+
+
 /// A list of the available schemes
 #define SCHEME_LIST(m) \
    m(SC_SCHEME_NONE) \
@@ -572,6 +594,43 @@ extern const char * safecrypto_processing_stats(safecrypto_t *sc);
  */
 extern const sc_statistics_t * safecrypto_get_stats(safecrypto_t *sc);
 
+/** @brief Create an instance of the selected hash function
+ *
+ *  @param type The type of hash function
+ *  @return Returns a pointer to the hash struct
+ */
+extern void * safecrypto_hash_create(sc_hash_e type);
+
+/** @brief Destroy an instance of a hash and release all memory resources
+ *
+ *  @param hash A pointer to the hash struct
+ *  @return Returns 1 on success
+ */
+extern SINT32 safecrypto_hash_destroy(void *hash);
+
+/** @brief The common hash API function used to initialise
+ *
+ *  @param hash A pointer to the hash struct
+ *  @return Returns 1 on success
+ */
+extern SINT32 safecrypto_hash_init(void *hash);
+
+/** @brief The common hash API function used to update using a specified byte array
+ *
+ *  @param hash A pointer to the hash struct
+ *  @param data A pointer to the memory array containing message bytes
+ *  @param len The length of the message data array
+ *  @return Returns 1 on success
+ */
+extern SINT32 safecrypto_hash_update(void *hash, const UINT8 *data, size_t len);
+
+/** @brief The common hash API function used to finalize the hash output
+ *
+ *  @param hash A pointer to the hash struct
+ *  @param md A pointer to the message digest
+ *  @return Returns 1 on success
+ */
+extern SINT32 safecrypto_hash_final(void *hash, UINT8 *md);
 
 #ifdef __cplusplus
 }

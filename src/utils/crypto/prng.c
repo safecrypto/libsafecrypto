@@ -284,7 +284,7 @@ static SINT32 config_csprng(prng_ctx_t *ctx,
         case SC_PRNG_HASH_DRBG_SHA2_256:
             {
                 ctx->hash_drbg_ctx = hash_drbg_create(
-                    fn_entropy, ctx->user_entropy, SC_HASH_SHA2_256, ctx->seed_period,
+                    fn_entropy, ctx->user_entropy, CRYPTO_HASH_SHA2_256, ctx->seed_period,
                     nonce, len_nonce);
                 ctx->get_random_32 = get_random_32_hash_drbg;
             } break;
@@ -292,7 +292,7 @@ static SINT32 config_csprng(prng_ctx_t *ctx,
         case SC_PRNG_HASH_DRBG_SHA2_512:
             {
                 ctx->hash_drbg_ctx = hash_drbg_create(
-                    fn_entropy, ctx->user_entropy, SC_HASH_SHA2_512, ctx->seed_period,
+                    fn_entropy, ctx->user_entropy, CRYPTO_HASH_SHA2_512, ctx->seed_period,
                     nonce, len_nonce);
                 ctx->get_random_32 = get_random_32_hash_drbg;
             } break;
@@ -300,7 +300,7 @@ static SINT32 config_csprng(prng_ctx_t *ctx,
         case SC_PRNG_HASH_DRBG_SHA3_256:
             {
                 ctx->hash_drbg_ctx = hash_drbg_create(
-                    fn_entropy, ctx->user_entropy, SC_HASH_SHA3_256, ctx->seed_period,
+                    fn_entropy, ctx->user_entropy, CRYPTO_HASH_SHA3_256, ctx->seed_period,
                     nonce, len_nonce);
                 ctx->get_random_32 = get_random_32_hash_drbg;
             } break;
@@ -308,7 +308,7 @@ static SINT32 config_csprng(prng_ctx_t *ctx,
         case SC_PRNG_HASH_DRBG_SHA3_512:
             {
                 ctx->hash_drbg_ctx = hash_drbg_create(
-                    fn_entropy, ctx->user_entropy, SC_HASH_SHA3_512, ctx->seed_period,
+                    fn_entropy, ctx->user_entropy, CRYPTO_HASH_SHA3_512, ctx->seed_period,
                     nonce, len_nonce);
                 ctx->get_random_32 = get_random_32_hash_drbg;
             } break;
@@ -316,7 +316,7 @@ static SINT32 config_csprng(prng_ctx_t *ctx,
         case SC_PRNG_HASH_DRBG_BLAKE2_256:
             {
                 ctx->hash_drbg_ctx = hash_drbg_create(
-                    fn_entropy, ctx->user_entropy, SC_HASH_BLAKE2_256, ctx->seed_period,
+                    fn_entropy, ctx->user_entropy, CRYPTO_HASH_BLAKE2_256, ctx->seed_period,
                     nonce, len_nonce);
                 ctx->get_random_32 = get_random_32_hash_drbg;
             } break;
@@ -324,7 +324,7 @@ static SINT32 config_csprng(prng_ctx_t *ctx,
         case SC_PRNG_HASH_DRBG_BLAKE2_512:
             {
                 ctx->hash_drbg_ctx = hash_drbg_create(
-                    fn_entropy, ctx->user_entropy, SC_HASH_BLAKE2_512, ctx->seed_period,
+                    fn_entropy, ctx->user_entropy, CRYPTO_HASH_BLAKE2_512, ctx->seed_period,
                     nonce, len_nonce);
                 ctx->get_random_32 = get_random_32_hash_drbg;
             } break;
@@ -332,7 +332,7 @@ static SINT32 config_csprng(prng_ctx_t *ctx,
         case SC_PRNG_HASH_DRBG_WHIRLPOOL_512:
             {
                 ctx->hash_drbg_ctx = hash_drbg_create(
-                    fn_entropy, ctx->user_entropy, SC_HASH_WHIRLPOOL_512, ctx->seed_period,
+                    fn_entropy, ctx->user_entropy, CRYPTO_HASH_WHIRLPOOL_512, ctx->seed_period,
                     nonce, len_nonce);
                 ctx->get_random_32 = get_random_32_hash_drbg;
             } break;

@@ -41,12 +41,12 @@ START_TEST(test_hash_drbg_0)
 
     // Invalid nonce pointer but correct length
     ctx = hash_drbg_create(get_entropy, NULL,
-        SC_HASH_SHA3_512, 0, NULL, 16);
+        CRYPTO_HASH_SHA3_512, 0, NULL, 16);
     ck_assert_ptr_eq(ctx, NULL);
 
     // Valid nonce pointer and correct length
     ctx = hash_drbg_create(get_entropy, NULL,
-        SC_HASH_SHA3_512, 0, nonce, 16);
+        CRYPTO_HASH_SHA3_512, 0, nonce, 16);
     ck_assert_ptr_ne(ctx, NULL);
 
     retval = hash_drbg_destroy(ctx);
@@ -64,17 +64,17 @@ START_TEST(test_hash_drbg_1)
 
     // Invalid nonce length, must be half security strength
     ctx = hash_drbg_create(get_entropy, NULL,
-        SC_HASH_SHA3_512, 0xFFFFFFFF, nonce, 0);
+        CRYPTO_HASH_SHA3_512, 0xFFFFFFFF, nonce, 0);
     ck_assert_ptr_eq(ctx, NULL);
 
     // Invalid nonce length, must be half security strength
     ctx = hash_drbg_create(get_entropy, NULL,
-        SC_HASH_SHA3_512, 0, nonce, 15);
+        CRYPTO_HASH_SHA3_512, 0, nonce, 15);
     ck_assert_ptr_eq(ctx, NULL);
 
     // Invalid nonce length, must be half security strength
     ctx = hash_drbg_create(get_entropy, NULL,
-        SC_HASH_SHA3_512, 0, nonce, 16);
+        CRYPTO_HASH_SHA3_512, 0, nonce, 16);
     ck_assert_ptr_ne(ctx, NULL);
 
     retval = hash_drbg_update(NULL, data, 16);
@@ -104,7 +104,7 @@ START_TEST(test_hash_drbg_2)
     static const UINT8 nonce[16] = "SAFEcrypto nonce";
 
     hash_drbg_t *ctx = hash_drbg_create(get_entropy, NULL,
-        SC_HASH_SHA3_512, 0x00010000, nonce, 16);
+        CRYPTO_HASH_SHA3_512, 0x00010000, nonce, 16);
     ck_assert_ptr_ne(ctx, NULL);
 
     for (i=0; i<4096; i++) {

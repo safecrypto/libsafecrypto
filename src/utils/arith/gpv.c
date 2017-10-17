@@ -471,7 +471,7 @@ void modified_gram_schmidt_fast_flt(const gpv_t *gpv,
     size_t i, j;
     size_t n = gpv->n;
     FLOAT v[2*n] SC_DEFAULT_ALIGNED, v1[2*n] SC_DEFAULT_ALIGNED;
-    FLOAT C_k, D_k;
+    FLOAT C_k, D_k, D_k_inv;
 
     // First half
 
@@ -515,9 +515,10 @@ void modified_gram_schmidt_fast_flt(const gpv_t *gpv,
 
     // Second half
 
+    D_k_inv = 1 / D_k;
     for (i=0; i<n; i++) {
-        b_gs[n*2*n + n + i] = b_gs[(n-1)*2*n + n - 1 - i] * (FLOAT)q / D_k;
-        b_gs[n*2*n + i]     = -b_gs[(n-1)*2*n + 2*n - 1 - i] * (FLOAT)q / D_k;
+        b_gs[n*2*n + n + i] = b_gs[(n-1)*2*n + n - 1 - i] * (FLOAT)q * D_k_inv;
+        b_gs[n*2*n + i]     = -b_gs[(n-1)*2*n + 2*n - 1 - i] * (FLOAT)q * D_k_inv;
     }
 
     for (i=0; i<n-1; i++) {

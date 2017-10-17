@@ -20,34 +20,34 @@ START_TEST(test_create_destroy)
     utils_crypto_hash_t *hash;
 
     // Create an instance of every type of hash and then destroy it
-    for (i=0; i<(size_t)SC_HASH_MAX; i++) {
-        hash = utils_crypto_hash_create((safecrypto_hash_e)i);
+    for (i=0; i<(size_t)CRYPTO_HASH_MAX; i++) {
+        hash = utils_crypto_hash_create((crypto_hash_e)i);
 #ifdef ENABLE_SHA3
-        if ((safecrypto_hash_e)i == SC_HASH_SHA3_512 ||
-            (safecrypto_hash_e)i == SC_HASH_SHA3_384 ||
-            (safecrypto_hash_e)i == SC_HASH_SHA3_256 ||
-            (safecrypto_hash_e)i == SC_HASH_SHA3_224) {
+        if ((crypto_hash_e)i == CRYPTO_HASH_SHA3_512 ||
+            (crypto_hash_e)i == CRYPTO_HASH_SHA3_384 ||
+            (crypto_hash_e)i == CRYPTO_HASH_SHA3_256 ||
+            (crypto_hash_e)i == CRYPTO_HASH_SHA3_224) {
             ck_assert_ptr_ne(hash, NULL);
         }
 #endif
 #ifdef ENABLE_SHA2
-        if ((safecrypto_hash_e)i == SC_HASH_SHA2_512 ||
-            (safecrypto_hash_e)i == SC_HASH_SHA2_384 ||
-            (safecrypto_hash_e)i == SC_HASH_SHA2_256 ||
-            (safecrypto_hash_e)i == SC_HASH_SHA2_224) {
+        if ((crypto_hash_e)i == CRYPTO_HASH_SHA2_512 ||
+            (crypto_hash_e)i == CRYPTO_HASH_SHA2_384 ||
+            (crypto_hash_e)i == CRYPTO_HASH_SHA2_256 ||
+            (crypto_hash_e)i == CRYPTO_HASH_SHA2_224) {
             ck_assert_ptr_ne(hash, NULL);
         }
 #endif
 #ifdef ENABLE_BLAKE2
-        if ((safecrypto_hash_e)i == SC_HASH_BLAKE2_512 ||
-            (safecrypto_hash_e)i == SC_HASH_BLAKE2_384 ||
-            (safecrypto_hash_e)i == SC_HASH_BLAKE2_256 ||
-            (safecrypto_hash_e)i == SC_HASH_BLAKE2_224) {
+        if ((crypto_hash_e)i == CRYPTO_HASH_BLAKE2_512 ||
+            (crypto_hash_e)i == CRYPTO_HASH_BLAKE2_384 ||
+            (crypto_hash_e)i == CRYPTO_HASH_BLAKE2_256 ||
+            (crypto_hash_e)i == CRYPTO_HASH_BLAKE2_224) {
             ck_assert_ptr_ne(hash, NULL);
         }
 #endif
 #ifdef ENABLE_WHIRLPOOl
-        if ((safecrypto_hash_e)i == SSC_HASH_WHIRLPOOL_512) {
+        if ((crypto_hash_e)i == SCRYPTO_HASH_WHIRLPOOL_512) {
             ck_assert_ptr_ne(hash, NULL);
         }
 #endif
@@ -65,16 +65,16 @@ START_TEST(test_create_destroy_bad)
     SINT32 retval;
     utils_crypto_hash_t *hash;
 
-    // Ensure that SC_HASH_MAX is not a valid hash type
-    hash = utils_crypto_hash_create(SC_HASH_MAX);
+    // Ensure that CRYPTO_HASH_MAX is not a valid hash type
+    hash = utils_crypto_hash_create(CRYPTO_HASH_MAX);
     ck_assert_ptr_eq(hash, NULL);
 
-    // Ensure that SC_HASH_MAX + 1 is not a valid hash type
-    hash = utils_crypto_hash_create(SC_HASH_MAX + 1);
+    // Ensure that CRYPTO_HASH_MAX + 1 is not a valid hash type
+    hash = utils_crypto_hash_create(CRYPTO_HASH_MAX + 1);
     ck_assert_ptr_eq(hash, NULL);
 
     // Ensure that 0xFFFFFFFF is not a valid hash type
-    hash = utils_crypto_hash_create((safecrypto_hash_e)0xFFFFFFFF);
+    hash = utils_crypto_hash_create((crypto_hash_e)0xFFFFFFFF);
     ck_assert_ptr_eq(hash, NULL);
 
     // ENsure that a NULL pointer cannot be destroyed
@@ -92,28 +92,28 @@ START_TEST(test_create_destroy_init)
     // ensure that its initial state can be setup
 
 #ifdef ENABLE_SHA3
-    hash = utils_crypto_hash_create(SC_HASH_SHA3_512);
+    hash = utils_crypto_hash_create(CRYPTO_HASH_SHA3_512);
     ck_assert_ptr_ne(hash, NULL);
     retval = hash_init(hash);
     ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
     retval = utils_crypto_hash_destroy(hash);
     ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
 
-    hash = utils_crypto_hash_create(SC_HASH_SHA3_384);
+    hash = utils_crypto_hash_create(CRYPTO_HASH_SHA3_384);
     ck_assert_ptr_ne(hash, NULL);
     retval = hash_init(hash);
     ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
     retval = utils_crypto_hash_destroy(hash);
     ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
 
-    hash = utils_crypto_hash_create(SC_HASH_SHA3_256);
+    hash = utils_crypto_hash_create(CRYPTO_HASH_SHA3_256);
     ck_assert_ptr_ne(hash, NULL);
     retval = hash_init(hash);
     ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
     retval = utils_crypto_hash_destroy(hash);
     ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
 
-    hash = utils_crypto_hash_create(SC_HASH_SHA3_224);
+    hash = utils_crypto_hash_create(CRYPTO_HASH_SHA3_224);
     ck_assert_ptr_ne(hash, NULL);
     retval = hash_init(hash);
     ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
@@ -122,28 +122,28 @@ START_TEST(test_create_destroy_init)
 #endif
 
 #ifdef ENABLE_SHA2
-    hash = utils_crypto_hash_create(SC_HASH_SHA2_512);
+    hash = utils_crypto_hash_create(CRYPTO_HASH_SHA2_512);
     ck_assert_ptr_ne(hash, NULL);
     retval = hash_init(hash);
     ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
     retval = utils_crypto_hash_destroy(hash);
     ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
 
-    hash = utils_crypto_hash_create(SC_HASH_SHA2_384);
+    hash = utils_crypto_hash_create(CRYPTO_HASH_SHA2_384);
     ck_assert_ptr_ne(hash, NULL);
     retval = hash_init(hash);
     ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
     retval = utils_crypto_hash_destroy(hash);
     ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
 
-    hash = utils_crypto_hash_create(SC_HASH_SHA2_256);
+    hash = utils_crypto_hash_create(CRYPTO_HASH_SHA2_256);
     ck_assert_ptr_ne(hash, NULL);
     retval = hash_init(hash);
     ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
     retval = utils_crypto_hash_destroy(hash);
     ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
 
-    hash = utils_crypto_hash_create(SC_HASH_SHA2_224);
+    hash = utils_crypto_hash_create(CRYPTO_HASH_SHA2_224);
     ck_assert_ptr_ne(hash, NULL);
     retval = hash_init(hash);
     ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
@@ -152,28 +152,28 @@ START_TEST(test_create_destroy_init)
 #endif
 
 #ifdef ENABLE_BLAKE2
-    hash = utils_crypto_hash_create(SC_HASH_BLAKE2_512);
+    hash = utils_crypto_hash_create(CRYPTO_HASH_BLAKE2_512);
     ck_assert_ptr_ne(hash, NULL);
     retval = hash_init(hash);
     ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
     retval = utils_crypto_hash_destroy(hash);
     ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
 
-    hash = utils_crypto_hash_create(SC_HASH_BLAKE2_384);
+    hash = utils_crypto_hash_create(CRYPTO_HASH_BLAKE2_384);
     ck_assert_ptr_ne(hash, NULL);
     retval = hash_init(hash);
     ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
     retval = utils_crypto_hash_destroy(hash);
     ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
 
-    hash = utils_crypto_hash_create(SC_HASH_BLAKE2_256);
+    hash = utils_crypto_hash_create(CRYPTO_HASH_BLAKE2_256);
     ck_assert_ptr_ne(hash, NULL);
     retval = hash_init(hash);
     ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
     retval = utils_crypto_hash_destroy(hash);
     ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
 
-    hash = utils_crypto_hash_create(SC_HASH_BLAKE2_224);
+    hash = utils_crypto_hash_create(CRYPTO_HASH_BLAKE2_224);
     ck_assert_ptr_ne(hash, NULL);
     retval = hash_init(hash);
     ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
@@ -182,7 +182,7 @@ START_TEST(test_create_destroy_init)
 #endif
 
 #ifdef ENABLE_WHIRLPOOL
-    hash = utils_crypto_hash_create(SC_HASH_WHIRLPOOL_512);
+    hash = utils_crypto_hash_create(CRYPTO_HASH_WHIRLPOOL_512);
     ck_assert_ptr_ne(hash, NULL);
     retval = hash_init(hash);
     ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
@@ -204,8 +204,8 @@ START_TEST(test_input_bad)
 
     // Create an instance of every type of hash and perform a full
     // hash operation, but try to use NULL pointers
-    for (i=0; i<(size_t)SC_HASH_MAX; i++) {
-        hash = utils_crypto_hash_create((safecrypto_hash_e)i);
+    for (i=0; i<(size_t)CRYPTO_HASH_MAX; i++) {
+        hash = utils_crypto_hash_create((crypto_hash_e)i);
 
         // Some hash algorithms may be disabled, if not test their interface
         if (NULL != hash) {
@@ -258,8 +258,8 @@ START_TEST(test_full)
 
     // Create an instance of every type of hash, perform a small
     // hash operation and then destroy the instance
-    for (i=0; i<(size_t)SC_HASH_MAX; i++) {
-        hash = utils_crypto_hash_create((safecrypto_hash_e)i);
+    for (i=0; i<(size_t)CRYPTO_HASH_MAX; i++) {
+        hash = utils_crypto_hash_create((crypto_hash_e)i);
 
         // Some hash algorithms may be disabled, if not test their interface
         if (NULL != hash) {

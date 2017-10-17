@@ -64,16 +64,16 @@ static int fips202_shake128_squeeze(void *c, void *out, size_t len)
     return 1;
 }
 
-utils_crypto_xof_t * utils_crypto_xof_create(safecrypto_xof_e type)
+utils_crypto_xof_t * utils_crypto_xof_create(crypto_xof_e type)
 {
     utils_crypto_xof_t *crypto_xof = PRNG_MALLOC(sizeof(utils_crypto_xof_t));
 
     switch (type)
     {
 #ifdef ENABLE_SHA3
-        case SC_XOF_SHAKE256:
+        case CRYPTO_XOF_SHAKE256:
         {
-            crypto_xof->type    = SC_XOF_SHAKE256;
+            crypto_xof->type    = CRYPTO_XOF_SHAKE256;
             crypto_xof->length  = 32;
             crypto_xof->init    = tinysha3_init;
             crypto_xof->absorb  = tinysha3_update;
@@ -82,9 +82,9 @@ utils_crypto_xof_t * utils_crypto_xof_create(safecrypto_xof_e type)
             crypto_xof->ctx     = PRNG_MALLOC(sizeof(sha3_ctx_t));
         } break;
 
-        case SC_XOF_SHAKE128:
+        case CRYPTO_XOF_SHAKE128:
         {
-            crypto_xof->type    = SC_XOF_SHAKE128;
+            crypto_xof->type    = CRYPTO_XOF_SHAKE128;
             crypto_xof->length  = 16;
             crypto_xof->init    = tinysha3_init;//fips202_shake128_init;
             crypto_xof->absorb  = tinysha3_update;//fips202_shake128_absorb;
@@ -113,8 +113,8 @@ SINT32 utils_crypto_xof_destroy(utils_crypto_xof_t *xof)
     switch (xof->type)
     {
 #ifdef ENABLE_SHA3
-        case SC_XOF_SHAKE256:
-        case SC_XOF_SHAKE128:
+        case CRYPTO_XOF_SHAKE256:
+        case CRYPTO_XOF_SHAKE128:
         {
             PRNG_FREE(xof->ctx, sizeof(sha3_ctx_t));
         } break;
