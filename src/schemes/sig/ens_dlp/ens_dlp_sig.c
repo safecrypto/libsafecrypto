@@ -273,12 +273,12 @@ SINT32 ens_dlp_sig_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
     }
 
     // Retrieve the Gaussian Sampler standard deviation
-    sig = sqrt((1.36 * sc->ens_dlp_sig->params->q / 2) / n);
+    sig = 1.17 * sqrt(sc->ens_dlp_sig->params->q / (2*n));
 
     // Precompute any variables for the random distribution sampler
     sc->sc_gauss = create_sampler(sc->sampling,
         sc->sampling_precision, sc->blinding, n, SAMPLING_DISABLE_BOOTSTRAP,
-        sc->prng_ctx[0], 13.0f, sig);
+        sc->prng_ctx[0], 10.0f, sig);
 
 #ifdef USE_RUNTIME_NTT_TABLES
     // Dynamically allocate memory for the necessary NTT tables
@@ -926,27 +926,7 @@ finish:
 static void small_mul_mod_ring(SINT32 *r, const SINT32 *a, const SINT16 *b_sparse,
     size_t n, UINT32 q, SINT32 *sparse)
 {
-#if 0
-    size_t i;
-    sc_complex_t a_fft[n];
-    sc_complex_t b_fft[n];
-    SINT32 b[n];
-    for (i=0; i<n; i++) {
-        b[i] = b_sparse[i];
-    }
-    sc_fft_t *ctx = create_fft(n);
-    fwd_fft_int(ctx, a_fft, a);
-    fwd_fft_int(ctx, b_fft, b);
-    for (i=0; i<n; i++) {
-        a_fft[i] *= b_fft[i];
-    }
-    inv_fft_int(ctx, r, a_fft);
-    destroy_fft(ctx);
-    while (r[i] >= q) r[i] -= q;
-    while (r[i] < 0) r[i] += q;
-#else
     size_t j, k;
-    //SINT32 sparse[2*n-1] SC_DEFAULT_ALIGNED;
 
     // Reset the output to zero
     for (j=2*n-1; j--;) {
@@ -965,7 +945,6 @@ static void small_mul_mod_ring(SINT32 *r, const SINT32 *a, const SINT16 *b_spars
     for (j=n; j--;) {
         r[j] = sparse[j] - sparse[j + n];
     }
-#endif
 }
 
 #ifdef DISABLE_SIGNATURES_SERVER
@@ -1057,6 +1036,27 @@ SINT32 ens_dlp_sig_keygen(safecrypto_t *sc)
         }
     }
 
+    fprintf(stderr, "f = ");
+    for (i=0; i<n; i++) {
+        fprintf(stderr, "%d ", f[i]);
+    }
+    fprintf(stderr, "\n");
+    fprintf(stderr, "g = ");
+    for (i=0; i<n; i++) {
+        fprintf(stderr, "%d ", f[n+i]);
+    }
+    fprintf(stderr, "\n");
+    fprintf(stderr, "F = ");
+    for (i=0; i<n; i++) {
+        fprintf(stderr, "%d ", f[2*n+i]);
+    }
+    fprintf(stderr, "\n");
+    fprintf(stderr, "G = ");
+    for (i=0; i<n; i++) {
+        fprintf(stderr, "%d ", f[3*n+i]);
+    }
+    fprintf(stderr, "\n");
+
     // Store the key pair in the SAFEcrypto structure for future use
     SINT32 *privkey = (SINT32*) sc->privkey->key;
     for (i=4*n; i--;) {
@@ -1074,17 +1074,20 @@ SINT32 ens_dlp_sig_keygen(safecrypto_t *sc)
         create_gpv_matrices(sc, &gpv, q, n);
     }
 
-    for (i=0; i<2*n; i++) {
-        fprintf(stderr, "%1.0f ", sc->ens_dlp_sig->b_gs[i]);
-    }
-    fprintf(stderr, "\n");
-
     // Store an NTT domain version of the public key
+#if 0
     sc->sc_ntt->fwd_ntt_32_16_large(h_ntt, &sc->ens_dlp_sig->ntt,
         h, sc->ens_dlp_sig->params->w);
     sc->sc_ntt->normalize_32(h_ntt, n, &sc->ens_dlp_sig->ntt);
     for (i=n; i--;) {
         pubkey[i + n] = h_ntt[i];
+    }
+#endif
+
+    // Polynomial basis check
+    FLOAT sd = 0;
+    for (i=0; i<2*n; i++) {
+
     }
 
     SC_PRINT_DEBUG(sc, "Print keys\n");
@@ -1263,6 +1266,27 @@ SINT32 ens_dlp_sig_sign(safecrypto_t *sc, const UINT8 *m, size_t m_len, UINT8 **
     SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "m", m, m_len);
     SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "s1", s1, n);
     sc->sc_ntt->center_32(s1, n, &sc->ens_dlp_sig->ntt);
+
+    size_t i;
+    fprintf(stderr, "b_gs = ");
+    for (i=0; i<n; i++) {
+        fprintf(stderr, "%1.0f ", b_gs[i]);
+    }
+    fprintf(stderr, "...\n");
+    for (i=0; i<n; i++) {
+        fprintf(stderr, "%1.0f ", b_gs[n*(n-1)+i]);
+    }
+    fprintf(stderr, " ...\n");
+    fprintf(stderr, "b_gs_inv_norm = ");
+    for (i=0; i<2*n; i++) {
+        fprintf(stderr, "%3.3f ", b_gs_inv_norm[i]);
+    }
+    fprintf(stderr, "\n");
+    fprintf(stderr, "s1 = ");
+    for (i=0; i<n; i++) {
+        fprintf(stderr, "%d ", s1[i]);
+    }
+    fprintf(stderr, "\n");
 
     // Output an encoded byte stream representing the secret key SK
     sc_entropy_t coding_raw = {

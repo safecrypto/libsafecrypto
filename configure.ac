@@ -825,10 +825,10 @@ if test "x${enable_simd}" = "xyes" && test "x${enable_simd_info}" = "xyes"; then
 fi
 
 # Add support for fast_math
-if test "x${enable_x86_simd}" = "xyes"; then
-    AC_SUBST([AM_CFLAGS], ["$AM_CFLAGS -fopenmp"])
-fi
-AC_SUBST([AM_CFLAGS], ["$AM_CFLAGS -ffast-math"])
+#if test "x${enable_x86_simd}" = "xyes"; then
+#    AC_SUBST([AM_CFLAGS], ["$AM_CFLAGS -fopenmp"])
+#fi
+#AC_SUBST([AM_CFLAGS], ["$AM_CFLAGS -ffast-math"])
 
 
 # Check for 64-bit type support
