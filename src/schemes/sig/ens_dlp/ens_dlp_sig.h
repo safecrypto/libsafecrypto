@@ -31,15 +31,21 @@
 //#define ENS_DLP_SIG_USE_RANDOM_ORACLE_CSPRNG
 
 #ifdef ENS_DLP_SIG_USE_SINGLE_PREC_FLOATS
-#define GSO_TYPE    FLOAT
+#define GSO_TYPE                FLOAT
 #define gaussian_lattice_sample gaussian_lattice_sample_flt
+#define gpv_precompute_inv      gpv_precompute_inv_flt
+#define modified_gram_schmidt   modified_gram_schmidt_fast_flt
 #else
 #ifdef ENS_DLP_SIG_USE_DOUBLE_PREC_FLOATS
-#define GSO_TYPE    DOUBLE
+#define GSO_TYPE                DOUBLE
 #define gaussian_lattice_sample gaussian_lattice_sample_dbl
+#define gpv_precompute_inv      gpv_precompute_inv_dbl
+#define modified_gram_schmidt   modified_gram_schmidt_fast_dbl
 #else
-#define GSO_TYPE    LONGDOUBLE
+#define GSO_TYPE                LONGDOUBLE
 #define gaussian_lattice_sample gaussian_lattice_sample_ldbl
+#define gpv_precompute_inv      gpv_precompute_inv_ldbl
+#define modified_gram_schmidt   modified_gram_schmidt_fast_ldbl
 #endif
 #endif
 

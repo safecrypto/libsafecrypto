@@ -44,7 +44,9 @@ DOUBLE gram_schmidt_norm(SINT32 *f, SINT32 *g, size_t n,
         modx += f[i] * f[i] + g[i] * g[i];
     }
     modx = sqrt(modx);
+#if DEBUG_GPV == 1
     fprintf(stderr, "||(g, -f)|| = %3.3f\n", modx);
+#endif
 
     // Early termination - if ||(g,-f)|| cannot satisfy the condition
     // threshold then there's no point continuing, output the bad
@@ -55,7 +57,7 @@ DOUBLE gram_schmidt_norm(SINT32 *f, SINT32 *g, size_t n,
 
 
     size_t i;
-#if 1
+#if 0
     // SECOND NORM
     // Floating-point precision is required
     DOUBLE *f2, *g2;
@@ -129,7 +131,9 @@ DOUBLE gram_schmidt_norm(SINT32 *f, SINT32 *g, size_t n,
         return 2*bd;
     }
 
+#if DEBUG_GPV == 1
     fprintf(stderr, "||(qfb/(ggb + ffb), qgb/(ggb + ffb))|| = %3.9f\n", b_N1);
+#endif
     if (modx > b_N1) {
         return modx;
     }
@@ -998,7 +1002,7 @@ step2:
 #endif
     SINT32 deg_k = sc_poly_mpz_degree(&k);
     for (j=0; j<16; j++) {
-    //while (deg_k >= 0 && !mpi_is_zero(&k.p[0])) {
+    //while (deg_k >= 0 && !sc_mpz_is_zero(&k.p[0])) {
         sc_poly_mpz_mul(&temp, &k, &mp_f);
         sc_poly_mpz_sub(&temp, &pF, &temp);      // F = F - k*f
         sc_poly_mpz_mod_ring(&pF, n, &temp);
@@ -1086,12 +1090,8 @@ step2:
     // Don't need this as it's done above ...
     //poly_mpi_xgcd(&mp_f, &polymod, &Rg, &rho_dummy, &rho_f);
 
-
-
-
     sc_poly_mpz_xgcd(&mp_f, &polymod, &Rf, &rho_f, &rho_dummy);
     sc_mpz_invmod(&Rf, &Rf, &mp_q);
-    //poly_mpi_mod(&rho_f, &rho_f, &modulus);
     sc_poly_mpz_mul_scalar(&inv_f, &rho_f, &Rf);
 
     sc_poly_mpz_mul(&temp, &inv_f, &mp_f);
@@ -1110,7 +1110,6 @@ step2:
         }
     }
 
-    //poly_mpi_mod(&mp_f, &mp_f, &modulus);
     sc_poly_mpz_mul(&temp, &mp_g, &inv_f);
     sc_poly_mpz_mod_ring(&temp, n, &temp);
     sc_poly_mpz_mod(&temp, &temp, &modulus);
@@ -1402,7 +1401,6 @@ SINT32 gaussian_lattice_sample_flt(safecrypto_t *sc,
     
             z = get_sample(gauss) + (SINT32) d;
         }
-        fprintf(stderr, "d=%f, dot_product=%f, z=%ld\n", d, dot_product, z);
 
         for (i=2*n; i--;) {
             ci[i] -= z * gpv->b[j*2*n + i];
@@ -1681,10 +1679,8 @@ static SINT32 gaussian_lattice_sample_debug(safecrypto_t *sc,
     sc_poly->add_32(f, n, s1, s2);
     sc_ntt->normalize_32(f, n, ntt);
     deg = poly_32_degree(f, n);
-    //fprintf(stderr, "  c. (s1-t)*f + g*s2 = %d, deg = %d\n", s1[deg], deg);
 
     if (!(0 == deg && 0 == f[deg])) {
-        fprintf(stderr, "Restarting sampling\n");
         SC_FREE(t, sizeof(SINT32) * 4 * n);
 
         sc_poly_mpz_clear(&temp);
