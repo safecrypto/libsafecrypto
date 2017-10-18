@@ -273,12 +273,12 @@ SINT32 ens_dlp_sig_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
     }
 
     // Retrieve the Gaussian Sampler standard deviation
-    sig = sqrt((1.36 * sc->ens_dlp_sig->params->q / 2) / n);
+    sig = 1.17 * sqrt(sc->ens_dlp_sig->params->q / (2*n));
 
     // Precompute any variables for the random distribution sampler
     sc->sc_gauss = create_sampler(sc->sampling,
         sc->sampling_precision, sc->blinding, n, SAMPLING_DISABLE_BOOTSTRAP,
-        sc->prng_ctx[0], 13.0f, sig);
+        sc->prng_ctx[0], 10.0f, sig);
 
 #ifdef USE_RUNTIME_NTT_TABLES
     // Dynamically allocate memory for the necessary NTT tables
@@ -926,27 +926,7 @@ finish:
 static void small_mul_mod_ring(SINT32 *r, const SINT32 *a, const SINT16 *b_sparse,
     size_t n, UINT32 q, SINT32 *sparse)
 {
-#if 0
-    size_t i;
-    sc_complex_t a_fft[n];
-    sc_complex_t b_fft[n];
-    SINT32 b[n];
-    for (i=0; i<n; i++) {
-        b[i] = b_sparse[i];
-    }
-    sc_fft_t *ctx = create_fft(n);
-    fwd_fft_int(ctx, a_fft, a);
-    fwd_fft_int(ctx, b_fft, b);
-    for (i=0; i<n; i++) {
-        a_fft[i] *= b_fft[i];
-    }
-    inv_fft_int(ctx, r, a_fft);
-    destroy_fft(ctx);
-    while (r[i] >= q) r[i] -= q;
-    while (r[i] < 0) r[i] += q;
-#else
     size_t j, k;
-    //SINT32 sparse[2*n-1] SC_DEFAULT_ALIGNED;
 
     // Reset the output to zero
     for (j=2*n-1; j--;) {
@@ -965,7 +945,6 @@ static void small_mul_mod_ring(SINT32 *r, const SINT32 *a, const SINT16 *b_spars
     for (j=n; j--;) {
         r[j] = sparse[j] - sparse[j + n];
     }
-#endif
 }
 
 #ifdef DISABLE_SIGNATURES_SERVER
@@ -992,12 +971,80 @@ SINT32 ens_dlp_sig_sign_recovery(safecrypto_t *sc, UINT8 **m, size_t *m_len,
 
 #else
 
+static SINT32 get_gso(safecrypto_t *sc, UINT32 n, SINT32 q, gpv_t *gpv, SINT32 **b, GSO_TYPE **b_gs, GSO_TYPE **b_gs_inv_norm)
+{
+    // Obtain the Gram Scmidt orthogonalisation of the polynomial basis
+    if (0 == sc->ens_dlp_sig->keep_matrices) {
+        *b    = SC_MALLOC(sizeof(SINT32) * 4*n*n);
+        if (NULL == *b) {
+            SC_FREE(*b, sizeof(SINT32) * 4*n*n);
+            SC_LOG_ERROR(sc, SC_NULL_POINTER);
+            return SC_FUNC_FAILURE;
+        }
+        *b_gs = SC_MALLOC(sizeof(GSO_TYPE) * (4*n*n + 2*n));
+        if (NULL == *b_gs) {
+            SC_FREE(*b_gs, sizeof(GSO_TYPE) * (4*n*n + 2*n));
+            SC_LOG_ERROR(sc, SC_NULL_POINTER);
+            return SC_FUNC_FAILURE;
+        }
+        *b_gs_inv_norm = *b_gs + 4*n*n;
+        gpv->b = *b;
+
+        // Generate the polynomial basis matrix
+        gpv_expand_basis(gpv);
+
+        // Gram-Schmidt orthogonolisation of the polynomial basis
+        // and precompute the norm of each row of b_gs
+        modified_gram_schmidt(gpv, *b_gs, q);
+        gpv_precompute_inv(*b_gs, *b_gs_inv_norm, 2*n);
+    }
+    else {
+        gpv->b         = sc->ens_dlp_sig->b;
+        *b             = sc->ens_dlp_sig->b;
+        *b_gs          = sc->ens_dlp_sig->b_gs;
+        *b_gs_inv_norm = sc->ens_dlp_sig->b_gs_inv_norm;
+    }
+}
+
+static FLOAT get_std_dev(SINT32 *s, size_t n)
+{
+    size_t i;
+    FLOAT mean = 0, sd = 0;
+
+    // Calculate the mean
+    for (i=0; i<n; i++) {
+        mean += s[i];
+    }
+    mean /= n;
+
+    // Calculate the standard deviation
+    for (i=0; i<n; i++) {
+        FLOAT temp = s[i] - mean;
+        sd += temp * temp;
+    }
+    sd /= n - 1;
+
+    return sd;
+}
+
 SINT32 ens_dlp_sig_keygen(safecrypto_t *sc)
 {
     SINT32 i, iter;
     SINT32 *f, *g, *F, *G, *h, *h_ntt;
     UINT32 n, q;
     gpv_t gpv;
+    UINT32 gaussian_flags = 0;
+#if defined(ENS_DLP_SIG_USE_EFFICIENT_GAUSSIAN_SAMPLING)
+    gaussian_flags = GPV_GAUSSIAN_SAMPLE_EFFICIENT;
+#elif defined(ENS_DLP_SIG_GAUSSIAN_SAMPLE_MW_BOOTSTRAP)
+    gaussian_flags = GPV_GAUSSIAN_SAMPLE_MW_BOOTSTRAP;
+#endif
+    SINT32   *b = NULL;
+    GSO_TYPE *b_gs = NULL;
+    GSO_TYPE *b_gs_inv_norm = NULL;
+    GSO_TYPE  sig;
+    SINT32 sample_error;
+    FLOAT std_dev;
 
     if (NULL == sc) {
         SC_LOG_ERROR(sc, SC_NULL_POINTER);
@@ -1008,6 +1055,9 @@ SINT32 ens_dlp_sig_keygen(safecrypto_t *sc)
 
     n      = sc->ens_dlp_sig->params->n;
     q      = sc->ens_dlp_sig->params->q;
+
+    SINT32 s1[n] SC_DEFAULT_ALIGNED;
+    SINT32 c[n];
 
     // Allocate temporary memory
     f = sc->temp;
@@ -1027,10 +1077,14 @@ SINT32 ens_dlp_sig_keygen(safecrypto_t *sc)
     gpv.n = n;
 
     // Generate the public and private keys
-    iter = -1;
-    while (iter < 0) {
-        iter = gpv_gen_basis(sc, f, g, h, n, q,
-            sc->sc_gauss, sc->prng_ctx[0], F, G, 0);
+    iter = 0;
+restart:
+    iter += gpv_gen_basis(sc, f, g, h, n, q,
+        sc->sc_gauss, sc->prng_ctx[0], F, G, 0);
+
+    // If short basis generation is unsuccessful then restart
+    if (iter < 0) {
+        goto restart;
     }
 
     sc->stats.keygen_num++;
@@ -1057,6 +1111,46 @@ SINT32 ens_dlp_sig_keygen(safecrypto_t *sc)
         }
     }
 
+    // Create the polynomial basis matrices if they are to be maintained in memory
+    if (sc->ens_dlp_sig->keep_matrices) {
+        create_gpv_matrices(sc, &gpv, q, n);
+    }
+
+    // Obtain the Gram Scmidt orthogonalisation of the polynomial basis
+    get_gso(sc, n, q, &gpv, &b, &b_gs, &b_gs_inv_norm);
+
+    // Generate a sampled polynomial using the polynomial basis
+    sig = 2.0L / b_gs_inv_norm[0];
+    for (i=0; i<n; i++) {
+        c[i] = q >> 1;
+    }
+
+    sample_error = gaussian_lattice_sample(sc, &gpv, b_gs, b_gs_inv_norm,
+        c, s1, NULL, q, sig, gaussian_flags);
+
+    // Free memory resources associated with the polynomial basis
+    if (0 == sc->ens_dlp_sig->keep_matrices) {
+        if (b) {
+            SC_FREE(b, sizeof(SINT32) * 4*n*n);
+        }
+        if (b_gs) {
+            SC_FREE(b_gs, sizeof(GSO_TYPE) * (4*n*n + 2*n));
+        }
+    }
+
+    if (SC_FUNC_FAILURE == sample_error) {
+        SC_LOG_ERROR(sc, SC_ERROR);
+        return SC_FUNC_FAILURE;
+    }
+
+    // Verify that we can correctly sample over the lattice by checking that s1
+    // has a standard deviation of not more than 2*1.17*sqrt(q)
+    std_dev = get_std_dev(s1, n);
+    if (std_dev > n*sig)
+    {
+        goto restart;
+    }
+
     // Store the key pair in the SAFEcrypto structure for future use
     SINT32 *privkey = (SINT32*) sc->privkey->key;
     for (i=4*n; i--;) {
@@ -1069,22 +1163,20 @@ SINT32 ens_dlp_sig_keygen(safecrypto_t *sc)
     sc->privkey->len = 4 * n;
     sc->pubkey->len = n; // Actually 2n as the NTT version is also stored
 
-    // Create the polynomial basis matrices if they are to be maintained in memory
-    if (sc->ens_dlp_sig->keep_matrices) {
-        create_gpv_matrices(sc, &gpv, q, n);
-    }
-
-    for (i=0; i<2*n; i++) {
-        fprintf(stderr, "%1.0f ", sc->ens_dlp_sig->b_gs[i]);
-    }
-    fprintf(stderr, "\n");
-
     // Store an NTT domain version of the public key
+#if 0
     sc->sc_ntt->fwd_ntt_32_16_large(h_ntt, &sc->ens_dlp_sig->ntt,
         h, sc->ens_dlp_sig->params->w);
     sc->sc_ntt->normalize_32(h_ntt, n, &sc->ens_dlp_sig->ntt);
     for (i=n; i--;) {
         pubkey[i + n] = h_ntt[i];
+    }
+#endif
+
+    // Polynomial basis check
+    FLOAT sd = 0;
+    for (i=0; i<2*n; i++) {
+
     }
 
     SC_PRINT_DEBUG(sc, "Print keys\n");
@@ -1171,80 +1263,10 @@ SINT32 ens_dlp_sig_sign(safecrypto_t *sc, const UINT8 *m, size_t m_len, UINT8 **
 
     // Obtain the Gram Scmidt orthogonalisation of the polynomial basis
     SINT32 *b = NULL;
-#ifdef ENS_DLP_SIG_USE_LONGDOUBLE_PREC_FLOATS
-    LONGDOUBLE *b_gs = NULL;
-    LONGDOUBLE *b_gs_inv_norm = NULL;
-    LONGDOUBLE sig;
-#else
-#ifdef ENS_DLP_SIG_USE_DOUBLE_PREC_FLOATS
-    DOUBLE *b_gs = NULL;
-    DOUBLE *b_gs_inv_norm = NULL;
-    DOUBLE sig;
-#else
-    FLOAT *b_gs = NULL;
-    FLOAT *b_gs_inv_norm = NULL;
-    FLOAT sig;
-#endif
-#endif
-
-    if (0 == sc->ens_dlp_sig->keep_matrices) {
-        b        = SC_MALLOC(sizeof(SINT32) * 4*n*n);
-        if (NULL == b) {
-            SC_FREE(b, sizeof(SINT32) * 4*n*n);
-            SC_LOG_ERROR(sc, SC_NULL_POINTER);
-            return SC_FUNC_FAILURE;
-        }
-#ifdef ENS_DLP_SIG_USE_LONGDOUBLE_PREC_FLOATS
-        b_gs     = SC_MALLOC(sizeof(LONGDOUBLE) * (4*n*n + 2*n));
-        if (NULL == b_gs) {
-            SC_FREE(b_gs, sizeof(LONGDOUBLE) * (4*n*n + 2*n));
-            SC_LOG_ERROR(sc, SC_NULL_POINTER);
-            return SC_FUNC_FAILURE;
-        }
-#else
-#ifdef ENS_DLP_SIG_USE_DOUBLE_PREC_FLOATS
-        b_gs     = SC_MALLOC(sizeof(DOUBLE) * (4*n*n + 2*n));
-        if (NULL == b_gs) {
-            SC_FREE(b_gs, sizeof(DOUBLE) * (4*n*n + 2*n));
-            SC_LOG_ERROR(sc, SC_NULL_POINTER);
-            return SC_FUNC_FAILURE;
-        }
-#else
-        b_gs     = SC_MALLOC(sizeof(FLOAT) * (4*n*n + 2*n));
-        if (NULL == b_gs) {
-            SC_FREE(b_gs, sizeof(FLOAT) * (4*n*n + 2*n));
-            SC_LOG_ERROR(sc, SC_NULL_POINTER);
-            return SC_FUNC_FAILURE;
-        }
-#endif
-#endif
-        b_gs_inv_norm = b_gs + 4*n*n;
-        gpv.b = b;
-
-        // Generate the polynomial basis matrix
-        gpv_expand_basis(&gpv);
-
-        // Gram-Schmidt orthogonolisation of the polynomial basis
-        // and precompute the norm of each row of b_gs
-#ifdef ENS_DLP_SIG_USE_LONGDOUBLE_PREC_FLOATS
-        modified_gram_schmidt_fast_ldbl(&gpv, b_gs, q);
-        gpv_precompute_inv_ldbl(b_gs, b_gs_inv_norm, 2*n);
-#else
-#ifdef ENS_DLP_SIG_USE_DOUBLE_PREC_FLOATS
-        modified_gram_schmidt_fast_dbl(&gpv, b_gs, q);
-        gpv_precompute_inv_dbl(b_gs, b_gs_inv_norm, 2*n);
-#else
-        modified_gram_schmidt_fast_flt(&gpv, b_gs, q);
-        gpv_precompute_inv_flt(b_gs, b_gs_inv_norm, 2*n);
-#endif
-#endif
-    }
-    else {
-        gpv.b = sc->ens_dlp_sig->b;
-        b = sc->ens_dlp_sig->b;
-        b_gs = sc->ens_dlp_sig->b_gs;
-        b_gs_inv_norm = sc->ens_dlp_sig->b_gs_inv_norm;
-    }
+    GSO_TYPE *b_gs = NULL;
+    GSO_TYPE *b_gs_inv_norm = NULL;
+    GSO_TYPE sig;
+    get_gso(sc, n, q, &gpv, &b, &b_gs, &b_gs_inv_norm);
 
     // Increment the trial statistics for signature generation
     sc->stats.sig_num++;
@@ -1304,21 +1326,9 @@ finish:
         if (b) {
             SC_FREE(b, sizeof(SINT32) * 4*n*n);
         }
-#ifdef ENS_DLP_SIG_USE_LONGDOUBLE_PREC_FLOATS
         if (b_gs) {
-            SC_FREE(b_gs, sizeof(LONGDOUBLE) * (4*n*n + 2*n));
+            SC_FREE(b_gs, sizeof(GSO_TYPE) * (4*n*n + 2*n));
         }
-#else
-#ifdef ENS_DLP_SIG_USE_DOUBLE_PREC_FLOATS
-        if (b_gs) {
-            SC_FREE(b_gs, sizeof(DOUBLE) * (4*n*n + 2*n));
-        }
-#else
-        if (b_gs) {
-            SC_FREE(b_gs, sizeof(FLOAT) * (4*n*n + 2*n));
-        }
-#endif
-#endif
     }
 
     // Reset the temporary memory
@@ -1406,81 +1416,11 @@ SINT32 ens_dlp_sig_sign_recovery(safecrypto_t *sc, UINT8 **m, size_t *m_len, UIN
     add_recovery_msg(sc, *m, *m_len, c, q, q_bits, n, k);
 
     // Obtain the Gram Scmidt orthogonalisation of the polynomial basis
-    SINT32 *b = NULL;
-#ifdef ENS_DLP_SIG_USE_LONGDOUBLE_PREC_FLOATS
-    LONGDOUBLE *b_gs = NULL;
-    LONGDOUBLE *b_gs_inv_norm = NULL;
-    LONGDOUBLE sig;
-#else
-#ifdef ENS_DLP_SIG_USE_DOUBLE_PREC_FLOATS
-    DOUBLE *b_gs = NULL;
-    DOUBLE *b_gs_inv_norm = NULL;
-    DOUBLE sig;
-#else
-    FLOAT *b_gs = NULL;
-    FLOAT *b_gs_inv_norm = NULL;
-    FLOAT sig;
-#endif
-#endif
-
-    if (0 == sc->ens_dlp_sig->keep_matrices) {
-        b        = SC_MALLOC(sizeof(SINT32) * 4*n*n);
-        if (NULL == b) {
-            SC_FREE(b, sizeof(SINT32) * 4*n*n);
-            SC_LOG_ERROR(sc, SC_NULL_POINTER);
-            return SC_FUNC_FAILURE;
-        }
-#ifdef ENS_DLP_SIG_USE_LONGDOUBLE_PREC_FLOATS
-        b_gs     = SC_MALLOC(sizeof(LONGDOUBLE) * (4*n*n + 2*n));
-        if (NULL == b_gs) {
-            SC_FREE(b_gs, sizeof(LONGDOUBLE) * (4*n*n + 2*n));
-            SC_LOG_ERROR(sc, SC_NULL_POINTER);
-            return SC_FUNC_FAILURE;
-        }
-#else
-#ifdef ENS_DLP_SIG_USE_DOUBLE_PREC_FLOATS
-        b_gs     = SC_MALLOC(sizeof(DOUBLE) * (4*n*n + 2*n));
-        if (NULL == b_gs) {
-            SC_FREE(b_gs, sizeof(DOUBLE) * (4*n*n + 2*n));
-            SC_LOG_ERROR(sc, SC_NULL_POINTER);
-            return SC_FUNC_FAILURE;
-        }
-#else
-        b_gs     = SC_MALLOC(sizeof(FLOAT) * (4*n*n + 2*n));
-        if (NULL == b_gs) {
-            SC_FREE(b_gs, sizeof(FLOAT) * (4*n*n + 2*n));
-            SC_LOG_ERROR(sc, SC_NULL_POINTER);
-            return SC_FUNC_FAILURE;
-        }
-#endif
-#endif
-        b_gs_inv_norm = b_gs + 4*n*n;
-        gpv.b = b;
-
-        // Generate the polynomial basis matrix
-        gpv_expand_basis(&gpv);
-
-        // Gram-Schmidt orthogonolisation of the polynomial basis
-        // and precompute the norm of each row of b_gs
-#ifdef ENS_DLP_SIG_USE_LONGDOUBLE_PREC_FLOATS
-        modified_gram_schmidt_fast_ldbl(&gpv, b_gs, q);
-        gpv_precompute_inv_ldbl(b_gs, b_gs_inv_norm, 2*n);
-#else
-#ifdef ENS_DLP_SIG_USE_DOUBLE_PREC_FLOATS
-        modified_gram_schmidt_fast_dbl(&gpv, b_gs, q);
-        gpv_precompute_inv_dbl(b_gs, b_gs_inv_norm, 2*n);
-#else
-        modified_gram_schmidt_fast_flt(&gpv, b_gs, q);
-        gpv_precompute_inv_flt(b_gs, b_gs_inv_norm, 2*n);
-#endif
-#endif
-    }
-    else {
-        gpv.b = sc->ens_dlp_sig->b;
-        b = sc->ens_dlp_sig->b;
-        b_gs = sc->ens_dlp_sig->b_gs;
-        b_gs_inv_norm = sc->ens_dlp_sig->b_gs_inv_norm;
-    }
+    SINT32   *b             = NULL;
+    GSO_TYPE *b_gs          = NULL;
+    GSO_TYPE *b_gs_inv_norm = NULL;
+    GSO_TYPE  sig;
+    get_gso(sc, n, q, &gpv, &b, &b_gs, &b_gs_inv_norm);
 
     // Increment the trial statistics for signature generation
     sc->stats.sig_num++;
@@ -1584,21 +1524,9 @@ finish:
         if (b) {
             SC_FREE(b, sizeof(SINT32) * 4*n*n);
         }
-#ifdef ENS_DLP_SIG_USE_LONGDOUBLE_PREC_FLOATS
         if (b_gs) {
-            SC_FREE(b_gs, sizeof(LONGDOUBLE) * (4*n*n + 2*n));
+            SC_FREE(b_gs, sizeof(GSO_TYPE) * (4*n*n + 2*n));
         }
-#else
-#ifdef ENS_DLP_SIG_USE_DOUBLE_PREC_FLOATS
-        if (b_gs) {
-            SC_FREE(b_gs, sizeof(DOUBLE) * (4*n*n + 2*n));
-        }
-#else
-        if (b_gs) {
-            SC_FREE(b_gs, sizeof(FLOAT) * (4*n*n + 2*n));
-        }
-#endif
-#endif
     }
 
     // Reset the temporary memory

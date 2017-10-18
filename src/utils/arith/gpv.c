@@ -44,7 +44,9 @@ DOUBLE gram_schmidt_norm(SINT32 *f, SINT32 *g, size_t n,
         modx += f[i] * f[i] + g[i] * g[i];
     }
     modx = sqrt(modx);
-    //fprintf(stderr, "||(g, -f)|| = %3.3f\n", modx);
+#if DEBUG_GPV == 1
+    fprintf(stderr, "||(g, -f)|| = %3.3f\n", modx);
+#endif
 
     // Early termination - if ||(g,-f)|| cannot satisfy the condition
     // threshold then there's no point continuing, output the bad
@@ -108,6 +110,8 @@ DOUBLE gram_schmidt_norm(SINT32 *f, SINT32 *g, size_t n,
         F[i] = f_fft[i] / temp;
         G[i] = g_fft[i] / temp;
     }
+
+    SC_FREE(f_fft, sizeof(sc_complex_t) * 4 * n);
 #endif
 
     inv_fft_dbl(ctx_fft, f2, F);
@@ -121,9 +125,15 @@ DOUBLE gram_schmidt_norm(SINT32 *f, SINT32 *g, size_t n,
     b_N1 = (DOUBLE) q * sqrt(b_N1);
 
     SC_FREE(f2, sizeof(DOUBLE) * 2 * n);
-    SC_FREE(f_fft, sizeof(sc_complex_t) * 4 * n);
 
-    //fprintf(stderr, "||(qfb/(ggb + ffb), qgb/(ggb + ffb))|| = %3.9f\n", b_N1);
+    if (b_N1 < 0 || isnanl(b_N1)) {
+
+        return 2*bd;
+    }
+
+#if DEBUG_GPV == 1
+    fprintf(stderr, "||(qfb/(ggb + ffb), qgb/(ggb + ffb))|| = %3.9f\n", b_N1);
+#endif
     if (modx > b_N1) {
         return modx;
     }
@@ -607,8 +617,8 @@ void modified_gram_schmidt_fast_dbl(const gpv_t *gpv,
 
     DOUBLE inv_D_k = 1.0 / D_k;
     for (i=0; i<n; i++) {
-        b_gs[n*2*n + n + i] = b_gs[(n-1)*2*n + n - 1 - i] * (DOUBLE)q * inv_D_k;// / D_k;
-        b_gs[n*2*n + i]     = -b_gs[(n-1)*2*n + 2*n - 1 - i] * (DOUBLE)q * inv_D_k;/// D_k;
+        b_gs[n*2*n + n + i] = b_gs[(n-1)*2*n + n - 1 - i] * (DOUBLE)q * inv_D_k;
+        b_gs[n*2*n + i]     = -b_gs[(n-1)*2*n + 2*n - 1 - i] * (DOUBLE)q * inv_D_k;
     }
 
     for (i=0; i<n-1; i++) {
@@ -695,9 +705,10 @@ void modified_gram_schmidt_fast_ldbl(const gpv_t *gpv,
 
     // Second half
 
+    LONGDOUBLE D_k_inv = 1 / D_k;
     for (i=0; i<n; i++) {
-        b_gs[n*2*n + n + i] = b_gs[(n-1)*2*n + n - 1 - i] * (LONGDOUBLE)q / D_k;
-        b_gs[n*2*n + i]     = -b_gs[(n-1)*2*n + 2*n - 1 - i] * (LONGDOUBLE)q / D_k;
+        b_gs[n*2*n + n + i] = b_gs[(n-1)*2*n + n - 1 - i] * (LONGDOUBLE)q * D_k_inv;
+        b_gs[n*2*n + i]     = -b_gs[(n-1)*2*n + 2*n - 1 - i] * (LONGDOUBLE)q * D_k_inv;
     }
 
     for (i=0; i<n-1; i++) {
@@ -808,7 +819,7 @@ SINT32 gpv_gen_basis(safecrypto_t *sc, SINT32 *f, SINT32 *g, SINT32 *h,
     bd  = 1.17*sqrt(q);
 
     // Step 2. Obtain f, g using Gaussian Samplers
-    sigma  = sqrt((1.36 * q / 2) / n);
+    sigma  = 1.17 * sqrt(q / (2*n));
 #if DEBUG_GPV == 1
     fprintf(stderr, "n=%zu, q=%d\n", n, q);
 #endif
@@ -818,6 +829,12 @@ step2:
     if (0 == recreate_flag) {
         get_vector_32(sampling, f, n, 0);
         get_vector_32(sampling, g, n, 0);
+        /*SINT32 f_set[256] = {-7, 2, 2, -2, 3, 0, -7, 2, 4, 0, 7, -3, -1, -2, 0, 1, -2, -3, -3, -8, -8, 8, -1, -2, 3, 10, 0, -7, -5, -2, 3, 5, 4, -6, -1, -8, 2, 5, 7, 4, 3, 1, -4, -2, 3, 1, 5, 10, -2, -5, -2, 6, 1, 6, -3, -2, 2, 1, 3, 7, 3, 2, -3, -2, 1, 0, 2, 0, 6, 7, 4, -1, 0, -2, 5, -3, -3, 9, -3, -4, 6, -9, -8, -2, 3, -6, -1, 1, 1, 6, -2, 6, -3, -4, -3, -6, 4, 4, 6, 3, -1, 3, 7, 5, -4, -6, 6, 4, 3, 3, -3, -6, 2, 1, 0, -3, 0, -7, 3, 3, 2, 1, 2, -4, -11, 0, -1, 3, 8, 8, 2, -5, 3, -1, 1, -5, -8, 7, 2, -3, -1, 8, 0, -2, 2, -3, 1, -7, 5, 8, -10, 2, -4, 5, 0, 3, -1, -4, -2, -2, 1, 11, 7, -3, -2, 0, 0, 1, 3, -2, 1, -2, -2, 4, 2, 3, -3, -7, 7, 1, 2, -1, -2, -1, -2, 2, 5, 5, 4, -1, 3, -3, -1, 2, 4, -1, 2, 5, -2, 5, 1, 3, -1, -4, 0, 0, 0, -3, 9, 2, -1, 5, -1, 4, 1, 6, 1, 1, -6, 5, 3, -7, 0, 1, 1, 2, 0, 3, 0, 4, -3, -7, 3, 2, 0, -1, -6, -1, -3, -8, -3, 3, 0, 3, 4, 0, -3, 3, 6, -1, -4, -5, 5, 4, 2, 1}; 
+        SINT32 g_set[256] = {10, -1, -6, 1, -5, 2, -2, 4, -5, -3, -11, 3, -1, -1, -1, 8, 3, -7, 4, 4, -3, -3, 3, 1, -2, 12, 5, 2, -2, -1, 6, 3, -1, 2, 6, -6, -3, -2, 5, 2, 6, -13, 3, 1, 2, 9, 3, 2, -15, 0, -4, 1, -3, 0, -2, 5, -2, 6, -3, 3, -1, 1, 0, 13, -4, 8, 2, -2, -6, -12, -7, 7, 9, 4, -5, 5, 9, 4, -3, 6, -4, 3, 1, 0, 0, 5, 6, -1, -6, 0, 3, -1, 1, -2, 0, 5, -4, 2, 2, -8, 3, -3, 0, 7, 6, -1, -4, 0, 8, -4, -7, -4, -2, -5, -2, -14, 0, 7, -5, 3, 5, 1, 3, 0, 6, -3, 4, 6, -6, -5, -2, 2, -1, -3, 4, 1, -7, -1, -2, -4, 0, 0, -5, 2, -8, -2, -2, -3, -3, -2, 5, 0, 0, 0, 3, 4, -3, -3, -3, 0, -6, 1, -3, 2, -3, 3, 6, 5, 2, -4, 1, -1, 6, -1, -2, -3, 2, -1, -4, 4, -3, 2, -6, -5, 2, 2, 6, -1, 10, 2, -5, -3, -2, -5, 3, -2, -1, -4, -6, 3, -6, 0, -1, -6, -1, 4, 1, -2, 5, 3, -5, -5, 6, 0, 9, -1, -3, -2, 4, -2, -5, 5, 4, 7, 6, 0, -2, 2, 10, 8, 5, 2, -1, -11, 7, 0, 8, 6, -3, -5, 3, -3, -5, 6, 2, -6, 8, -4, 0, -2, 3, 2, 3, -15, -1, 8};
+        for (i=0; i<n; i++) {
+            f[i] = f_set[i];
+            g[i] = g_set[i];
+        }*/
     }
     else {
         // If we are recreating the private key and we require a restart then
@@ -827,7 +844,7 @@ step2:
 
     // Step 3. calculate the GramSchmidt norm
     gs_norm = gram_schmidt_norm(f, g, n, q, bd);
-    if (isnan(gs_norm)) {
+    if (isnanl(gs_norm)) {
         num_retries++;
         goto step2;
     }
@@ -985,7 +1002,7 @@ step2:
 #endif
     SINT32 deg_k = sc_poly_mpz_degree(&k);
     for (j=0; j<16; j++) {
-    //while (deg_k >= 0 && !mpi_is_zero(&k.p[0])) {
+    //while (deg_k >= 0 && !sc_mpz_is_zero(&k.p[0])) {
         sc_poly_mpz_mul(&temp, &k, &mp_f);
         sc_poly_mpz_sub(&temp, &pF, &temp);      // F = F - k*f
         sc_poly_mpz_mod_ring(&pF, n, &temp);
@@ -1073,12 +1090,8 @@ step2:
     // Don't need this as it's done above ...
     //poly_mpi_xgcd(&mp_f, &polymod, &Rg, &rho_dummy, &rho_f);
 
-
-
-
     sc_poly_mpz_xgcd(&mp_f, &polymod, &Rf, &rho_f, &rho_dummy);
     sc_mpz_invmod(&Rf, &Rf, &mp_q);
-    //poly_mpi_mod(&rho_f, &rho_f, &modulus);
     sc_poly_mpz_mul_scalar(&inv_f, &rho_f, &Rf);
 
     sc_poly_mpz_mul(&temp, &inv_f, &mp_f);
@@ -1097,7 +1110,6 @@ step2:
         }
     }
 
-    //poly_mpi_mod(&mp_f, &mp_f, &modulus);
     sc_poly_mpz_mul(&temp, &mp_g, &inv_f);
     sc_poly_mpz_mod_ring(&temp, n, &temp);
     sc_poly_mpz_mod(&temp, &temp, &modulus);
@@ -1349,6 +1361,7 @@ SINT32 gaussian_lattice_sample_flt(safecrypto_t *sc,
     size_t i, j;
     size_t n = gpv->n;
     SINT64 z;
+    SINT32 is_efficient = flags & GPV_GAUSSIAN_SAMPLE_EFFICIENT;
 
     SINT64 ci[2*n];
     for (j=n; j--;) {
@@ -1375,19 +1388,7 @@ SINT32 gaussian_lattice_sample_flt(safecrypto_t *sc,
             z = get_bootstrap_sample(gauss, sig, d);
         }
         else {
-            if (flags & GPV_GAUSSIAN_SAMPLE_EFFICIENT) {
-                if (0L == sig) {
-                    sig = s_f * b_gs_inv_norm[j];
-    
-                    gauss = create_sampler(
-                      sc->sampling, SAMPLING_64BIT, sc->blinding, 1, SAMPLING_DISABLE_BOOTSTRAP,
-                        sc->prng_ctx[0], 10, sig);
-                    if (NULL == gauss) {
-                        return SC_FUNC_FAILURE;
-                    }
-                }
-            }
-            else {
+            if ((is_efficient && (0L == sig)) || !is_efficient) {
                 sig = s_f * b_gs_inv_norm[j];
     
                 gauss = create_sampler(
@@ -1678,10 +1679,8 @@ static SINT32 gaussian_lattice_sample_debug(safecrypto_t *sc,
     sc_poly->add_32(f, n, s1, s2);
     sc_ntt->normalize_32(f, n, ntt);
     deg = poly_32_degree(f, n);
-    //fprintf(stderr, "  c. (s1-t)*f + g*s2 = %d, deg = %d\n", s1[deg], deg);
 
     if (!(0 == deg && 0 == f[deg])) {
-        fprintf(stderr, "Restarting sampling\n");
         SC_FREE(t, sizeof(SINT32) * 4 * n);
 
         sc_poly_mpz_clear(&temp);
