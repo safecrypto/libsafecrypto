@@ -635,17 +635,19 @@ extern SINT32 safecrypto_ake_init(safecrypto_t *sc_sig, safecrypto_t *sc_kem,
  *  @param sig_len The length of the signature
  *  @param md The output message digest associated with the hash of the random secret key, original message and KEM key
  *  @param md_len The length of the output message digest
- *  @param key The output KEM key
- *  @param key_len The length of the output KEM key
+ *  @param c The output public KEM key
+ *  @param c_len The length of the output public KEM key
  *  @param resp_sig The output response signature of the hash
  *  @param resp_sig_len The length of the output response signature
+ *  @param secret The shared random secret key
+ *  @param secret_len The length of the shared random secret key
  *  @param secret The shared random secret key
  *  @param secret_len The length of the shared random secret key
  *  @return Returns 1 on successful authentication
  */
 extern SINT32 safecrypto_ake_response(safecrypto_t *sc_sig, safecrypto_t *sc_kem, sc_hash_e hash_type,
     const UINT8 *kem, size_t kem_len, const UINT8 *sig, size_t sig_len,
-    UINT8 **md, size_t *md_len, UINT8 **key, size_t *key_len, UINT8 **resp_sig, size_t *resp_sig_len,
+    UINT8 **md, size_t *md_len, UINT8 **c, size_t *c_len, UINT8 **resp_sig, size_t *resp_sig_len,
     UINT8 **secret, size_t *secret_len);
 
 /** @brief Authenticate "B" and retrieve the random secret key. The response signature is first
@@ -657,8 +659,8 @@ extern SINT32 safecrypto_ake_response(safecrypto_t *sc_sig, safecrypto_t *sc_kem
  *  @param hash_type The hash to be used
  *  @param md The input message digest associated with the hash of the random secret key, original message and KEM key
  *  @param md_len The length of the input message digest
- *  @param key The input KEM key
- *  @param key_len The length of the input KEM key
+ *  @param c The output public KEM key
+ *  @param c_len The length of the output public KEM key
  *  @param resp_sig The input response signature of the hash
  *  @param resp_sig_len The length of the input response signature
  *  @param sig A signature of the input KEM encapsulation key
@@ -668,7 +670,7 @@ extern SINT32 safecrypto_ake_response(safecrypto_t *sc_sig, safecrypto_t *sc_kem
  *  @return Returns 1 on successful authentication
  */
 extern SINT32 safecrypto_ake_final(safecrypto_t *sc_sig, safecrypto_t *sc_kem, sc_hash_e hash_type,
-    const UINT8 *md, size_t md_len, const UINT8 *key, size_t key_len, const UINT8 *resp_sig, size_t resp_sig_len,
+    const UINT8 *md, size_t md_len, const UINT8 *c, size_t c_len, const UINT8 *resp_sig, size_t resp_sig_len,
     const UINT8 *sig, size_t sig_len,
     UINT8 **secret, size_t *secret_len);
 /**@}*/

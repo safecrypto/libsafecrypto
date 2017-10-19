@@ -909,13 +909,15 @@ extern SINT32 safecrypto_ake_init(safecrypto_t *sc_sig, safecrypto_t *sc_kem,
 
 extern SINT32 safecrypto_ake_response(safecrypto_t *sc_sig, safecrypto_t *sc_kem, sc_hash_e hash_type,
     const UINT8 *kem, size_t kem_len, const UINT8 *sig, size_t sig_len,
-    UINT8 **md, size_t *md_len, UINT8 **key, size_t *key_len, UINT8 **resp_sig, size_t *resp_sig_len,
+    UINT8 **md, size_t *md_len, UINT8 **c, size_t *c_len, UINT8 **resp_sig, size_t *resp_sig_len,
     UINT8 **secret, size_t *secret_len)
 {
+    UINT8 *k = NULL;
+    size_t k_len = 0;
     utils_crypto_hash_t *hash = NULL;
     UINT32 sc_allocated;
     sc_allocated  = (0 == *md_len)? 0x01 : 0x00;
-    sc_allocated |= (0 == *key_len)? 0x02 : 0x00;
+    sc_allocated |= (0 == *c_len)? 0x02 : 0x00;
     sc_allocated |= (0 == *secret_len)? 0x04 : 0x00;
 
     // Verify the signed Encapsulation Key using A's verification key
@@ -927,21 +929,20 @@ extern SINT32 safecrypto_ake_response(safecrypto_t *sc_sig, safecrypto_t *sc_kem
     if (SC_FUNC_SUCCESS != safecrypto_public_key_load(sc_kem, kem, kem_len)) {
         return SC_FUNC_FAILURE;
     }
-    if (SC_FUNC_SUCCESS != safecrypto_encapsulation(sc_kem, key, key_len, secret, secret_len)) {
+    if (SC_FUNC_SUCCESS != safecrypto_encapsulation(sc_kem, c, c_len, &k, &k_len)) {
         return SC_FUNC_FAILURE;
     }
 
     // Hash the original signed message with the Encapsulation output and Sign it
-    if (0 == md_len) {
-        /// @todo Provide memory allocation for smaller hash sizes in AKE
-        SC_MALLOC(*md, 64);
-        *md_len = 64;
-    }
     hash = utils_crypto_hash_create(hash_type);
+    if (0 == md_len) {
+        *md = SC_MALLOC(hash->length);
+        *md_len = hash->length;
+    }
     hash_init(hash);
     hash_update(hash, sig, sig_len);
-    hash_update(hash, *key, *key_len);
-    hash_update(hash, *secret, *secret_len);
+    hash_update(hash, *c, *c_len);
+    hash_update(hash, k, k_len);
     hash_final(hash, *md);
     utils_crypto_hash_destroy(hash);
 
@@ -952,21 +953,23 @@ extern SINT32 safecrypto_ake_response(safecrypto_t *sc_sig, safecrypto_t *sc_kem
             SC_FREE(*md, *md_len);
         }
         if (sc_allocated & 0x02) {
-            SC_FREE(*key, *key_len);
+            SC_FREE(*c, *c_len);
         }
         if (sc_allocated & 0x04) {
-            SC_FREE(*secret, *secret_len);
+            SC_FREE(k, k_len);
         }
         utils_crypto_hash_destroy(hash);
         return SC_FUNC_FAILURE;
     }
 
     // Form the secret key as the hash of the messages and shared secret
+    *secret = SC_MALLOC(hash->length);
+    *secret_len = hash->length;
     hash_init(hash);
     hash_update(hash, sig, sig_len);
     hash_update(hash, *resp_sig, *resp_sig_len);
-    hash_update(hash, *secret, *secret_len);
-    hash_final(hash, md);
+    hash_update(hash, k, k_len);
+    hash_final(hash, *secret);
 
     return SC_FUNC_SUCCESS;
 }
@@ -986,9 +989,9 @@ extern SINT32 safecrypto_ake_final(safecrypto_t *sc_sig, safecrypto_t *sc_kem, s
     }
 
     // Decapsulate the KEM ciphertext to obtain the shared secret
-    UINT8 *k_2;
-    size_t k_2_len = 0;
-    if (SC_FUNC_SUCCESS != safecrypto_decapsulation(sc_kem, key, key_len, &k_2, &k_2_len)) {
+    UINT8 *k;
+    size_t k_len = 0;
+    if (SC_FUNC_SUCCESS != safecrypto_decapsulation(sc_kem, key, key_len, &k, &k_len)) {
         return SC_FUNC_FAILURE;
     }
 
@@ -997,21 +1000,23 @@ extern SINT32 safecrypto_ake_final(safecrypto_t *sc_sig, safecrypto_t *sc_kem, s
     hash_init(hash);
     hash_update(hash, sig, sig_len);
     hash_update(hash, key, key_len);
-    hash_update(hash, secret, secret_len);
+    hash_update(hash, *secret, *secret_len);
     hash_final(hash, md2);
-    for (i=0; i<64; i++) {
+    for (i=0; i<hash->length; i++) {
         if (md[i] != md2[i]) {
-            SC_FREE(k_2, k_2_len);
+            SC_FREE(k, k_len);
             return SC_FUNC_FAILURE;
         }
     }
 
     // Form the secret key as the hash of the messages and shared secret
+    *secret = SC_MALLOC(hash->length);
+    *secret_len = hash->length;
     hash_init(hash);
     hash_update(hash, sig, sig_len);
-    hash_update(hash, *resp_sig, *resp_sig_len);
-    hash_update(hash, *secret, *secret_len);
-    hash_final(hash, md2); /// FIXME
+    hash_update(hash, resp_sig, resp_sig_len);
+    hash_update(hash, k, k_len);
+    hash_final(hash, *secret); /// FIXME
     utils_crypto_hash_destroy(hash);
 }
 
