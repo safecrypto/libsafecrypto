@@ -107,8 +107,8 @@ int main(void)
 #endif
 #endif
 
-    flags[0] = SC_FLAG_MORE;// | SC_FLAG_0_HASH_LENGTH_512 | SC_FLAG_0_HASH_BLAKE2;
-    flags[1] = SC_FLAG_1_CSPRNG_AES_CTR_DRBG;//SC_FLAG_1_CSPRNG_ISAAC
+    flags[0] |= SC_FLAG_MORE;// | SC_FLAG_0_HASH_LENGTH_512 | SC_FLAG_0_HASH_BLAKE2;
+    flags[1]  = SC_FLAG_1_CSPRNG_AES_CTR_DRBG;//SC_FLAG_1_CSPRNG_ISAAC
 
     SC_TIMER_INSTANCE(keygen_timer);
     SC_TIMER_INSTANCE(sign_timer);
