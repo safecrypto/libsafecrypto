@@ -28,14 +28,17 @@ START_TEST(test_entropy_small_raw)
     SINT32 pt[4];
 
     packer = create(NULL, &entropy, 128, NULL, 0, NULL, 0);
+    ck_assert_ptr_ne(packer, NULL);
     retcode = entropy_poly_encode_32(packer, 4, p, 3, SIGNED_COEFF, SC_ENTROPY_NONE, NULL);
     ck_assert_int_eq(retcode, SC_OK);
     retcode = get_buffer(packer, &buffer, &len);
+    ck_assert_int_eq(retcode, SC_FUNC_SUCCESS);
     destroy(&packer);
 
     ck_assert_int_gt(len, 0);
 
     packer = create(NULL, &entropy, 128, buffer, len, NULL, 0);
+    ck_assert_ptr_ne(packer, NULL);
     retcode = entropy_poly_decode_32(packer, 4, pt, 3, SIGNED_COEFF, SC_ENTROPY_NONE);
     ck_assert_int_eq(retcode, SC_OK);
     destroy(&packer);

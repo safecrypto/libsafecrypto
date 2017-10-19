@@ -579,6 +579,11 @@ extern SINT32 safecrypto_verify_with_recovery(safecrypto_t *sc, UINT8 **m, size_
     const UINT8 *sigbuf, size_t siglen);
 /**@}*/
 
+
+/** @name Statistics
+ *  Functions used to obtain statistical information about cryptographic processing.
+ */
+/**@{*/
 /** @brief Processing statistics in string form.
  *
  *  @param sc Object containing key pair and lattice parameters
@@ -593,7 +598,13 @@ extern const char * safecrypto_processing_stats(safecrypto_t *sc);
  *  @return Returns a pointer to an sc_statistics_t struct.
  */
 extern const sc_statistics_t * safecrypto_get_stats(safecrypto_t *sc);
+/**@}*/
 
+
+/** @name Hash
+ *  Functions used to provide message hashing functionality.
+ */
+/**@{*/
 /** @brief Create an instance of the selected hash function
  *
  *  @param type The type of hash function
@@ -631,6 +642,7 @@ extern SINT32 safecrypto_hash_update(void *hash, const UINT8 *data, size_t len);
  *  @return Returns 1 on success
  */
 extern SINT32 safecrypto_hash_final(void *hash, UINT8 *md);
+/**@}*/
 
 #ifdef __cplusplus
 }

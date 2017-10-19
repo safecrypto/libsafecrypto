@@ -20,6 +20,14 @@
 #include "safecrypto_private.h"
 #include <string.h>
 
+#ifdef HAVE_64BIT
+#define USE_64BIT_PACKER    1
+#define SCRATCH_TYPE        UINT64
+#else
+#define USE_64BIT_PACKER    0
+#define SCRATCH_TYPE        UINT32
+#endif
+
 typedef struct sc_entropy sc_entropy_t;
 
 typedef struct sc_packer sc_packer_t;
@@ -40,7 +48,7 @@ typedef struct sc_packer {
     SINT32 use_internal_buffer;
     size_t bits;
     size_t bits_left;
-    UINT32 scratch;
+    SCRATCH_TYPE scratch;
     UINT8 *buffer;
     size_t buffer_alloc;
     size_t head;

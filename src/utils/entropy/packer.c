@@ -44,6 +44,38 @@ uint32_t ntohl(uint32_t netlong)
 #endif
 }
 
+uint64_t htobe64(uint64_t hostlong)
+{
+#if __BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__
+    return hostlong;
+#else
+    return ((hostlong & 0xff                ) << 56) |
+           ((hostlong & 0xff00              ) << 40) |
+           ((hostlong & 0xff0000UL          ) << 24) |
+           ((hostlong & 0xff000000UL        ) <<  8) |
+           ((hostlong & 0xff00000000UL      ) >>  8) |
+           ((hostlong & 0xff0000000000UL    ) >> 24) |
+           ((hostlong & 0xff000000000000UL  ) >> 40) |
+           ((hostlong & 0xff00000000000000UL) >> 56);
+#endif
+}
+
+uint64_t be64toh(uint64_t netlong)
+{
+#if __BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__
+    return netlong;
+#else
+    return ((netlong & 0xff                ) << 56) |
+           ((netlong & 0xff00              ) << 40) |
+           ((netlong & 0xff0000UL          ) << 24) |
+           ((netlong & 0xff000000UL        ) <<  8) |
+           ((netlong & 0xff00000000UL      ) >>  8) |
+           ((netlong & 0xff0000000000UL    ) >> 24) |
+           ((netlong & 0xff000000000000UL  ) >> 40) |
+           ((netlong & 0xff00000000000000UL) >> 56);
+#endif
+}
+
 #endif
 
 
@@ -52,8 +84,37 @@ static SINT32 peek_bits(sc_packer_t *packer, UINT32 *value, size_t bits);
 static SINT32 read_bits(sc_packer_t *packer, UINT32 *value, size_t bits);
 static SINT32 write_bits(sc_packer_t *packer, UINT32 value, size_t bits);
 
+#if USE_64BIT_PACKER == 1
 
-static inline UINT32 u8_to_u32(void *network)
+#define HOST_PACKER_BITS          64
+#define HOST_PACKER_BYTES         8
+#define HOST_PACKER_BYTES_SHIFT   3
+
+static inline UINT64 u8_to_host(void *network)
+{
+    UINT8 *unaligned = (UINT8*) network;
+    UINT64 tmp;
+
+    memcpy(&tmp, unaligned, sizeof(tmp));
+    return be64toh(tmp);
+}
+
+static inline SINT32 host_to_u8(void *network, UINT64 host)
+{
+    UINT8 *unaligned = (UINT8*) network;
+
+    host = htobe64(host);
+    memcpy((UINT8 *) unaligned, &host, sizeof(host));
+    return SC_FUNC_SUCCESS;
+}
+
+#else
+
+#define HOST_PACKER_BITS          32
+#define HOST_PACKER_BYTES         4
+#define HOST_PACKER_BYTES_SHIFT   2
+
+static inline UINT32 u8_to_host(void *network)
 {
     UINT8 *unaligned = (UINT8*) network;
     UINT32 tmp;
@@ -62,7 +123,7 @@ static inline UINT32 u8_to_u32(void *network)
     return ntohl(tmp);
 }
 
-static inline UINT32 u32_to_u8(void *network, UINT32 host)
+static inline SINT32 host_to_u8(void *network, UINT32 host)
 {
     UINT8 *unaligned = (UINT8*) network;
 
@@ -71,6 +132,8 @@ static inline UINT32 u32_to_u8(void *network, UINT32 host)
     return SC_FUNC_SUCCESS;
 }
 
+#endif
+
 static sc_packer_t * create(safecrypto_t *sc, sc_entropy_t *coder,
     size_t max_bits, const UINT8 *ibuffer, size_t ilen,
     UINT8 **obuffer, size_t *olen)
@@ -78,12 +141,12 @@ static sc_packer_t * create(safecrypto_t *sc, sc_entropy_t *coder,
     (void) coder;
     SINT32 use_internal_buffer = (NULL == obuffer) || (0 == *olen);
 
-    // Allocate the maximum number of bits rounded up to the nearest factor of 32
+    // Allocate the maximum number of bits rounded up to the nearest factor of 32/64
     size_t max_bytes;
     if (use_internal_buffer) {
         max_bytes = (max_bits + 7) >> 3;
         if (ilen > max_bytes) max_bytes = ilen;
-        max_bytes = ((max_bytes + 3) >> 2) << 2;
+        max_bytes = ((max_bytes + HOST_PACKER_BYTES - 1) >> HOST_PACKER_BYTES_SHIFT) << HOST_PACKER_BYTES_SHIFT;
     }
     else {
         // If the fixed length buffer is too small then return NULL
@@ -118,7 +181,7 @@ static sc_packer_t * create(safecrypto_t *sc, sc_entropy_t *coder,
     // buffer initialised as empty.
     if (NULL == ibuffer || 0 == ilen) {
         packer->bits        = max_bytes << 3;
-        packer->bits_left   = 32; // i.e. 32 bits left to fill
+        packer->bits_left   = HOST_PACKER_BITS; // i.e. 32/64 bits left to fill
         packer->scratch     = 0;
         packer->head        = 0;
         packer->tail        = 0;
@@ -175,18 +238,27 @@ static SINT32 peek_bits(sc_packer_t *packer, UINT32 *value, size_t bits)
         return SC_FUNC_SUCCESS;
     }
 
-    if (packer->tail > ((packer->bits >> 3) - 4)) {
-        return SC_FUNC_FAILURE;
-    }
-
     size_t bits_left = packer->bits_left;
+#if USE_64BIT_PACKER == 1
+    UINT64 scratch   = packer->scratch;
+#else
     UINT32 scratch   = packer->scratch;
-    if (bits > bits_left) {
-        scratch = (scratch << (bits - bits_left)) | (u8_to_u32(packer->buffer + packer->tail) >> (bits_left - bits));
-        bits_left = 32;
+#endif
+
+    if (0 == bits_left) {
+        scratch     = u8_to_host(packer->buffer + packer->tail);
+        bits_left   = HOST_PACKER_BITS;
     }
 
-    *value = scratch >> (bits_left - bits);
+    if (bits <= bits_left) {
+       *value = scratch >> (bits_left - bits);
+       return SC_FUNC_SUCCESS;
+    }
+
+    *value = scratch << (bits - bits_left);
+    bits -= bits_left;
+    scratch = u8_to_host(packer->buffer + packer->tail);
+    *value |= scratch >> (HOST_PACKER_BITS - bits);
     return SC_FUNC_SUCCESS;
 }
 
@@ -199,20 +271,20 @@ static SINT32 read_bits(sc_packer_t *packer, UINT32 *value, size_t bits)
     }
 
     for(;;) {
-        if (packer->bits_left == 0) {
-            if (packer->tail > ((packer->bits >> 3) - 4)) {
+        if (0 == packer->bits_left) {
+            if (packer->tail > ((packer->bits >> 3) - HOST_PACKER_BYTES)) {
                 return SC_FUNC_FAILURE;
             }
 
-            packer->scratch     = u8_to_u32(packer->buffer + packer->tail);
-            packer->tail       += 4;
-            packer->head       -= 4;
-            packer->bits_left   = 32;
+            packer->scratch     = u8_to_host(packer->buffer + packer->tail);
+            packer->tail       += HOST_PACKER_BYTES;
+            packer->head       -= HOST_PACKER_BYTES;
+            packer->bits_left   = HOST_PACKER_BITS;
         }
 
         if (bits <= packer->bits_left) {
             *value |= packer->scratch >> (packer->bits_left - bits);
-            packer->scratch &= (1 << (packer->bits_left - bits)) - 1;
+            packer->scratch &= (1L << (packer->bits_left - bits)) - 1;
             packer->bits_left -= bits;
             packer->bits_out += bits;
             return SC_FUNC_SUCCESS;
@@ -227,7 +299,7 @@ static SINT32 read_bits(sc_packer_t *packer, UINT32 *value, size_t bits)
 static SINT32 write_bits(sc_packer_t *packer, UINT32 value, size_t bits)
 {
     // Verify that there is sufficient space in the output buffer to continue
-    if (packer->head > ((packer->bits >> 3) - 4)) {
+    if (packer->head > ((packer->bits >> 3) - HOST_PACKER_BYTES)) {
         return SC_FUNC_FAILURE;
     }
 
@@ -239,7 +311,7 @@ static SINT32 write_bits(sc_packer_t *packer, UINT32 value, size_t bits)
     // If the number of bits to be written is less than that available in the
     // scratch buffer then write the data and return
     if (bits <= packer->bits_left) {
-        packer->scratch   |= value << (packer->bits_left - bits);
+        packer->scratch   |= (SCRATCH_TYPE)value << (packer->bits_left - bits);
         packer->bits_left -= bits;
         packer->bits_in   += bits;
         return SC_FUNC_SUCCESS;
@@ -248,12 +320,12 @@ static SINT32 write_bits(sc_packer_t *packer, UINT32 value, size_t bits)
     // Update the scratch buffer to fill it and update the input data
     packer->scratch |= value >> (bits - packer->bits_left);
 
-    // Copy the 32-bit scratch buffer contents to the output buffer
-    u32_to_u8(packer->buffer + packer->head, packer->scratch);
-    packer->head       += 4;
+    // Copy the 32/64-bit scratch buffer contents to the output buffer
+    host_to_u8(packer->buffer + packer->head, packer->scratch);
+    packer->head       += HOST_PACKER_BYTES;
     packer->bits_in    += bits;
-    bits                = 32 - bits + packer->bits_left;
-    packer->scratch     = value << bits;
+    bits                = HOST_PACKER_BITS - bits + packer->bits_left;
+    packer->scratch     = (SCRATCH_TYPE)value << bits;
     packer->bits_left   = bits;
     return SC_FUNC_SUCCESS;
 }
@@ -261,18 +333,18 @@ static SINT32 write_bits(sc_packer_t *packer, UINT32 value, size_t bits)
 static SINT32 flush(sc_packer_t *packer)
 {
     // Flush any outstanding bits in the flash buffer to the output buffer
-    if (packer->bits_left < 32) {
-        SINT32 num_bytes = (32 - packer->bits_left + 7) >> 3;
+    if (packer->bits_left < HOST_PACKER_BITS) {
+        SINT32 num_bytes = (HOST_PACKER_BITS - packer->bits_left + 7) >> 3;
         packer->bits_out += num_bytes << 3;
 
         if (packer->head > ((packer->bits >> 3) - num_bytes)) {
             return SC_FUNC_FAILURE;
         }
 
-        u32_to_u8(packer->buffer + packer->head, packer->scratch);
+        host_to_u8(packer->buffer + packer->head, packer->scratch);
         packer->head       += num_bytes;
         packer->scratch     = 0;
-        packer->bits_left   = 32;
+        packer->bits_left   = HOST_PACKER_BITS;
     }
 
     return SC_FUNC_SUCCESS;
@@ -280,7 +352,7 @@ static SINT32 flush(sc_packer_t *packer)
 
 static size_t is_data_avail(sc_packer_t *packer)
 {
-    return packer->tail <= ((packer->bits >> 3) - 4);
+    return packer->tail <= ((packer->bits >> 3) - HOST_PACKER_BYTES);
 }
 
 static size_t get_bits(sc_packer_t *packer)
@@ -308,7 +380,7 @@ static SINT32 get_buffer(sc_packer_t *packer, UINT8 **buffer, size_t *len)
         }
     }
 
-    packer->bits_left  = 32;
+    packer->bits_left  = HOST_PACKER_BITS;
     packer->scratch    = 0;
     packer->head       = 0;
     packer->tail       = 0;

@@ -284,6 +284,24 @@ huffman_table_t * create_huffman_gaussian(SINT32 bits, FLOAT sigma)
     // generating the encoder's code table
     huffman_tree(tree.q[1], (huffman_node_t*)table->nodes, 0);
 
+    // Set the maximum number of bits
+    table->max_bits = 0;
+    if (table->codes) {
+        for (i = 0; i < n; i++) {
+            if (table->max_bits < table->codes[i].bits) {
+                table->max_bits = table->codes[i].bits;
+            }
+        }
+    }
+    else if (table->codes_64) {
+        for (i = 0; i < n; i++) {
+            if (table->max_bits < table->codes_64[i].bits) {
+                table->max_bits = table->codes_64[i].bits;
+            }
+        }
+    }
+
+
     // Free resources associated with intermediate storage
 finish:
     SC_FREE(p, n * sizeof(UINT64));
@@ -386,17 +404,41 @@ SINT32 encode_huffman(sc_packer_t *packer, const huffman_table_t *table, UINT32 
 
 SINT32 decode_huffman(sc_packer_t *packer, const huffman_table_t *table, UINT32 *value)
 {
+#if 0
     UINT32 bit;
-
     const huffman_node_t *node = table->nodes;
     while (node->left != -1) {
         if (!packer->read(packer, &bit, 1)) {
             return SC_OUT_OF_BOUNDS;
         }
+        node = &table->nodes[bit ? node->right : node->left];
+     }
+#else
+    const huffman_node_t *node = table->nodes;
+    const UINT32 max_bits = table->max_bits;
+    UINT32 bit, bits = 0, codes;
 
+    // Read the maximum number of coded bits but don't extract from the buffer
+    if (!packer->peek(packer, &codes, max_bits)) {
+        return SC_OUT_OF_BOUNDS;
+    }
+
+    // Left shift to align with the mask
+    codes <<= (32 - max_bits);
+
+    // Walk the tree, counting used bits as we go
+    while (node->left != -1) {
+        bit = codes & 0x80000000;
+        codes <<= 1;
+        bits++;
         node = &table->nodes[bit ? node->right : node->left];
     }
 
+    // Actually read the correct number of bits from the buffer and discard
+    if (!packer->read(packer, &bit, bits)) {
+        return SC_OUT_OF_BOUNDS;
+    }
+#endif
     *value = node->right;
 
     return SC_OK;
