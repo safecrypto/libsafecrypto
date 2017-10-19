@@ -601,6 +601,79 @@ extern const sc_statistics_t * safecrypto_get_stats(safecrypto_t *sc);
 /**@}*/
 
 
+/** @name Authenticated Key Exchange
+ *  An interface used to generate and authenticate messages for AKE. This interface
+ *  requires SAFEcrypto instances of the necessary type to be provided as inputs
+ *  and messages to be transmitted/received as necessary.
+ */
+/**@{*/
+/** @brief Generate KEM encapsulation and decapsulation keys, sign the encapsulation key
+ *  and create a message for the "B" composed of the encapsulation key and signature.
+ *
+ *  @param sc_sig The SAFEcrypto signature scheme
+ *  @param sc_kem The SAFEcrypto KEM scheme
+ *  @param kem The output KEM encapsulation key
+ *  @param kem_len The length of the output KEM encapsulation key
+ *  @param sig A signature of the output KEM encapsulation key
+ *  @param sig_len The length of the signature
+ *  @return Returns 1 on success
+ */
+extern SINT32 safecrypto_ake_init(safecrypto_t *sc_sig, safecrypto_t *sc_kem,
+    UINT8 **kem, size_t *kem_len, UINT8 **sig, size_t *sig_len);
+
+/** @brief Verify the encapsulation key to authenticate "A" and use it to encapsulate a random
+ *  secret key, sign the original message and the public/private key encapsulation fields using the
+ *  specified hash. Finally create the public component of the key encapsulation, the hash and the
+ *  signature to be sent to "A".
+ *
+ *  @param sc_sig The SAFEcrypto signature scheme
+ *  @param sc_kem The SAFEcrypto KEM scheme
+ *  @param hash_type The hash to be used
+ *  @param kem The input KEM encapsulation key
+ *  @param kem_len The length of the input KEM encapsulation key
+ *  @param sig A signature of the input KEM encapsulation key
+ *  @param sig_len The length of the signature
+ *  @param md The output message digest associated with the hash of the random secret key, original message and KEM key
+ *  @param md_len The length of the output message digest
+ *  @param key The output KEM key
+ *  @param key_len The length of the output KEM key
+ *  @param resp_sig The output response signature of the hash
+ *  @param resp_sig_len The length of the output response signature
+ *  @param secret The shared random secret key
+ *  @param secret_len The length of the shared random secret key
+ *  @return Returns 1 on successful authentication
+ */
+extern SINT32 safecrypto_ake_response(safecrypto_t *sc_sig, safecrypto_t *sc_kem, sc_hash_e hash_type,
+    const UINT8 *kem, size_t kem_len, const UINT8 *sig, size_t sig_len,
+    UINT8 **md, size_t *md_len, UINT8 **key, size_t *key_len, UINT8 **resp_sig, size_t *resp_sig_len,
+    UINT8 **secret, size_t *secret_len);
+
+/** @brief Authenticate "B" and retrieve the random secret key. The response signature is first
+ *  authenticated, then the encapsulation key is used to retrieve the random secret key. The hash
+ *  is then re-created and compared to the received hash to authenticate "B".
+ *
+ *  @param sc_sig The SAFEcrypto signature scheme
+ *  @param sc_kem The SAFEcrypto KEM scheme
+ *  @param hash_type The hash to be used
+ *  @param md The input message digest associated with the hash of the random secret key, original message and KEM key
+ *  @param md_len The length of the input message digest
+ *  @param key The input KEM key
+ *  @param key_len The length of the input KEM key
+ *  @param resp_sig The input response signature of the hash
+ *  @param resp_sig_len The length of the input response signature
+ *  @param sig A signature of the input KEM encapsulation key
+ *  @param sig_len The length of the signature
+ *  @param secret The shared random secret key
+ *  @param secret_len The length of the shared random secret key
+ *  @return Returns 1 on successful authentication
+ */
+extern SINT32 safecrypto_ake_final(safecrypto_t *sc_sig, safecrypto_t *sc_kem, sc_hash_e hash_type,
+    const UINT8 *md, size_t md_len, const UINT8 *key, size_t key_len, const UINT8 *resp_sig, size_t resp_sig_len,
+    const UINT8 *sig, size_t sig_len,
+    UINT8 **secret, size_t *secret_len);
+/**@}*/
+
+
 /** @name Hash
  *  Functions used to provide message hashing functionality.
  */
