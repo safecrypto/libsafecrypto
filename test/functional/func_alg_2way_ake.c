@@ -76,6 +76,7 @@ int main(void)
     UINT8 md[64], md2[64];
     UINT8 *c = NULL, *k = NULL;
     size_t c_len, k_len;
+    UINT8 *kem_e = NULL, *sig_1 = NULL, *sig_2 = NULL, *a_secret = NULL, *b_secret = NULL, *b_md = NULL;
     utils_crypto_hash_t *hash = NULL;
     prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM,
         SC_PRNG_THREADING_NONE, 0x00100000);
@@ -229,97 +230,69 @@ int main(void)
 
         for (i=0; i<MAX_ITER; i++) {
 
-            // Party 1 - Generate KEM Encapsulation and Decapsulation keys
-            if (SC_FUNC_SUCCESS != safecrypto_keygen(sc_kem_1)) {
-                fprintf(stderr, "ERROR! safecrypto_keygen() failed\n");
-                goto error_return;
-            }
-            UINT8 *kem_e;
-            size_t kem_e_len = 0;
-            if (SC_FUNC_SUCCESS != safecrypto_public_key_encode(sc_kem_1, &kem_e, &kem_e_len)) {
-                fprintf(stderr, "ERROR! safecrypto_public_key_encode() failed\n");
+            size_t kem_e_len    = 0;
+            size_t sig_1_len    = 0;
+            size_t sig_2_len    = 0;
+            size_t a_secret_len = 0;
+            size_t b_secret_len = 0;
+            size_t b_md_len     = 0;
+
+            if (SC_FUNC_SUCCESS != safecrypto_ake_2way_init(sc_sig_1, sc_kem_1, &kem_e, &kem_e_len, &sig_1, &sig_1_len)) {
+                fprintf(stderr, "ERROR! safecrypto_ake_init() failed\n");
                 goto error_return;
             }
 
-            // Party 1 - Sign the Encapsulation key
-            UINT8 *msg_1;
-            size_t msg_1_len = 0;
-            if (SC_FUNC_SUCCESS != safecrypto_sign(sc_sig_1, kem_e, kem_e_len, &msg_1, &msg_1_len)) {
-                fprintf(stderr, "ERROR! safecrypto_sign() failed\n");
-                goto error_return;
-            }
-
-            // Party 2 - Verify the signed Encapsulation Key using Party 1's verification key
-            if (SC_FUNC_SUCCESS != safecrypto_verify(sc_sig_2, kem_e, kem_e_len, msg_1, msg_1_len)) {
-                fprintf(stderr, "ERROR! 1 safecrypto_verify() failed\n");
-                goto error_return;
-            }
-
-            // Party 2 - Use the verified Encapsulation Key to encapsulate a random secret key
-            if (SC_FUNC_SUCCESS != safecrypto_public_key_load(sc_kem_2, kem_e, kem_e_len)) {
-                fprintf(stderr, "ERROR! safecrypto_public_key_load() failed\n");
-                goto error_return;
-            }
             c_len = 0, k_len = 0;
-            if (SC_FUNC_SUCCESS != safecrypto_encapsulation(sc_kem_2, &c, &c_len, &k, &k_len)) {
-                fprintf(stderr, "ERROR! safecrypto_sign() failed\n");
+            if (SC_FUNC_SUCCESS != safecrypto_ake_2way_response(sc_sig_2, sc_kem_2,
+                SC_AKE_FORWARD_SECURE, SC_HASH_SHA2_512,
+                kem_e, kem_e_len, sig_1, sig_1_len,
+                &b_md, &b_md_len, &c, &c_len, &sig_2, &sig_2_len, &b_secret, &b_secret_len)) {
+                fprintf(stderr, "ERROR! safecrypto_ake_response() failed\n");
+                goto error_return;
+            }
+            for (j=0; j<b_md_len; j++) {
+                md[j] = b_md[j];
+            }
+
+            if (SC_FUNC_SUCCESS != safecrypto_ake_2way_final(sc_sig_1, sc_kem_1,
+                SC_AKE_FORWARD_SECURE, SC_HASH_SHA2_512,
+                b_md, b_md_len, c, c_len, sig_2, sig_2_len,
+                sig_1, sig_1_len, &a_secret, &a_secret_len)) {
+                fprintf(stderr, "ERROR! safecrypto_ake_final() failed\n");
                 goto error_return;
             }
 
-            // Party 2 - Hash the Original Signed message with the Encapsulation output and Sign it
-            hash_init(hash);
-            hash_update(hash, msg_1, msg_1_len);
-            hash_update(hash, c, c_len);
-            hash_update(hash, k, k_len);
-            hash_final(hash, md);
-
-            UINT8 *msg_2;
-            size_t msg_2_len = 0;
-            if (SC_FUNC_SUCCESS != safecrypto_sign(sc_sig_2, md, 64, &msg_2, &msg_2_len)) {
-                fprintf(stderr, "ERROR! safecrypto_sign() failed\n");
+            // Verify that the secret keys are the same length
+            if (a_secret_len != b_secret_len) {
+                fprintf(stderr, "ERROR! a_secret_len != b_secret_len\n");
                 goto error_return;
             }
 
-            // Party 1 - Verify the message from Party 2 and obtain (c,Auth)
-            if (SC_FUNC_SUCCESS != safecrypto_verify(sc_sig_1, md, 64, msg_2, msg_2_len)) {
-                fprintf(stderr, "ERROR! 2 safecrypto_verify() failed\n");
-                goto error_return;
-            }
-
-            // Party 1 - Decapsulate the KEM ciphertext to obtain the shared secret
-            UINT8 *k_2;
-            size_t k_2_len = 0;
-            if (SC_FUNC_SUCCESS != safecrypto_decapsulation(sc_kem_1, c, c_len, &k_2, &k_2_len)) {
-                fprintf(stderr, "ERROR! safecrypto_sign() failed\n");
-                goto error_return;
-            }
-
-            // Party 1 - Check that Auth is correct
-            hash_init(hash);
-            hash_update(hash, msg_1, msg_1_len);
-            hash_update(hash, c, c_len);
-            hash_update(hash, k_2, k_2_len);
-            hash_final(hash, md2);
-            for (j=0; j<64; j++) {
-                if (md[j] != md2[j]) {
-                    fprintf(stderr, "ERROR! Auth mismatch\n");
+            // Verify that the secret keys are identical
+            for (j=0; j<a_secret_len; j++) {
+                if (a_secret[j] != b_secret[j]) {
+                    fprintf(stderr, "ERROR! Shared key mismatch\n");
                     goto error_return;
                 }
             }
 
-            // Party 1/2 - Form the secret key as the hash of the messages and shared secret
-            hash_init(hash);
-            hash_update(hash, msg_1, msg_1_len);
-            hash_update(hash, msg_2, msg_2_len);
-            hash_update(hash, k, k_len);
-            hash_final(hash, md);
-
-            free(c);
-            free(k);
+            // Release memory resources
             free(kem_e);
-            free(msg_1);
-            free(msg_2);
-            free(k_2);
+            free(sig_1);
+            free(b_md);
+            free(c);
+            free(sig_2);
+            free(b_secret);
+            free(a_secret);
+            free(k);
+            kem_e    = NULL;
+            sig_1    = NULL;
+            b_md     = NULL;
+            c        = NULL;
+            sig_2    = NULL;
+            b_secret = NULL;
+            a_secret = NULL;
+            k        = NULL;
 
             if ((i & 0x1F) == 0x1F) show_progress(disp_msg, i, MAX_ITER);
         }
@@ -328,6 +301,15 @@ int main(void)
     }
 
 error_return:
+    if (kem_e)    free(kem_e);
+    if (sig_1)    free(sig_1);
+    if (b_md)     free(b_md);
+    if (c)        free(c);
+    if (sig_2)    free(sig_2);
+    if (b_secret) free(b_secret);
+    if (a_secret) free(a_secret);
+    if (k)        free(k);
+
     for (i = 0; i<4; i++) {
         safecrypto_t *sc = (i==0)? sc_sig_1 :
                            (i==1)? sc_sig_2 :

@@ -26,6 +26,10 @@ __top_builddir__libs_libsafecrypto_la_SOURCES = \
                            ../include/safecrypto_types.h \
                            safecrypto.c \
                            safecrypto_version.h \
+                           safecrypto_ake.h \
+                           safecrypto_ake.c \
+                           safecrypto_check.h \
+                           safecrypto_check.c \
                            safecrypto_private.h \
                            safecrypto_private.c \
                            safecrypto_debug.h \

@@ -34,6 +34,9 @@
 /// Definitions for the maximum permited length of a filename
 #define SC_MAX_FILENAME_LEN   128
 
+// The maximum number of entries in the algorithm table
+#define ALG_TABLE_MAX   14
+
 // Globally define the reduction method
 #ifdef HAVE_AVX2
 #ifndef NEEDS_NTT_AVX
@@ -96,6 +99,9 @@ GENERATE_ENUM_NAMES(sc_sampler_names, SAMPLING_LIST, SAMPLING_MAX);
 
 
 
+/// Check if the SAFEcrypto struct is valid
+/// @return Returns 1 if successful, 0 otherwise
+extern SINT32 check_safecrypto(safecrypto_t *sc);
 
 
 
