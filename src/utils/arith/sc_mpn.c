@@ -330,22 +330,35 @@ static void mpn_div_qr_2_preinv(sc_ulimb_t *q_limbs, sc_ulimb_t *r_limbs,
     r_limbs[0] = r0;
 }
 
-sc_ulimb_t mpn_div_qr_1(sc_ulimb_t *q_limbs, const sc_ulimb_t *n_limbs,
+sc_ulimb_t mpn_div_qr_1(sc_ulimb_t *q_limbs, sc_ulimb_t *qh, const sc_ulimb_t *n_limbs,
     size_t n, sc_ulimb_t d)
 {
+    sc_ulimb_t r;
+
     // Detect a power of 2 and right-shift, otherwise perform a division
     if (d > 1 && (d & (d-1)) == 0) {
-        sc_ulimb_t r = n_limbs[0] & (d - 1);
-        UINT32 shift = limb_ctz(d);
+        UINT32 shift;
+        shift = limb_ctz(d);
+        r     = n_limbs[0] & (d - 1);
+        *qh   = (d & SC_LIMB_HIGHBIT)? (d <= n_limbs[n-1]) : n_limbs[n-1] >> shift;
+
         if (q_limbs) {
             mpn_rshift(q_limbs, n_limbs, n, shift);
         }
         return r;
     }
     else {
+        sc_ulimb_t dummy = 0;
         sc_mod_t mod;
         limb_mod_init(&mod, d);
-        return mpn_div_qr_1_preinv(q_limbs, n_limbs, n, &mod);
+        if (d & SC_LIMB_HIGHBIT) {
+            *qh = (d <= n_limbs[n-1]);
+        }
+        else {
+            udiv_qrnnd_preinv(qh, &dummy, dummy, n_limbs[n-1], mod.m << mod.norm, mod.m_inv);
+        }
+        r = mpn_div_qr_1_preinv(q_limbs, n_limbs, n, &mod);
+        return r;
     }
 }
 

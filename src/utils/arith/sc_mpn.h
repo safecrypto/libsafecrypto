@@ -45,7 +45,7 @@ sc_ulimb_t mpn_mul(sc_ulimb_t *out, const sc_ulimb_t *in1, size_t in1_n, const s
 sc_ulimb_t mpn_sqr(sc_ulimb_t *out, const sc_ulimb_t *in, size_t n);
 void mpn_div_qr(sc_ulimb_t *q_limbs, sc_ulimb_t *n_limbs,
     size_t n, const sc_ulimb_t *d_limbs, size_t dn);
-sc_ulimb_t mpn_div_qr_1(sc_ulimb_t *q_limbs, const sc_ulimb_t *n_limbs,
+sc_ulimb_t mpn_div_qr_1(sc_ulimb_t *q_limbs, sc_ulimb_t *qh, const sc_ulimb_t *n_limbs,
     size_t n, sc_ulimb_t d);
 #endif
 

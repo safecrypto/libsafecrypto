@@ -108,6 +108,41 @@ START_TEST(test_mpf_cmp)
 }
 END_TEST
 
+START_TEST(test_mpf_cmp_ui)
+{
+    SINT32 retval;
+    sc_mpf_t a, nan, inf;
+    sc_mpf_set_precision(128);
+    sc_mpf_init(&a);
+    sc_mpf_init(&nan);
+    sc_mpf_init(&inf);
+    sc_mpf_set_si(&a, 1);
+    sc_mpf_div_ui(&inf, &a, 0);
+
+    sc_mpf_set_si(&a, SC_LIMB_SMIN);
+    retval = sc_mpf_cmp_ui(&a, SC_LIMB_UMAX);
+    ck_assert_int_eq(retval, -1);
+    retval = sc_mpf_cmp_ui(&a, 0);
+    ck_assert_int_eq(retval, -1);
+    sc_mpf_set_ui(&a, SC_LIMB_UMAX);
+    retval = sc_mpf_cmp_ui(&a, 0);
+    ck_assert_int_eq(retval, 1);
+    retval = sc_mpf_cmp_ui(&a, SC_LIMB_UMAX);
+    ck_assert_int_eq(retval, 0);
+    retval = sc_mpf_cmp_ui(&inf, SC_LIMB_UMAX);
+    ck_assert_int_eq(retval, 1);
+    sc_mpf_negate(&inf, &inf);
+    retval = sc_mpf_cmp_ui(&inf, SC_LIMB_UMAX);
+    ck_assert_int_eq(retval, -1);
+    retval = sc_mpf_cmp_ui(&nan, SC_LIMB_UMAX);
+    ck_assert_int_eq(retval, 0);
+
+    sc_mpf_clear(&a);
+    sc_mpf_clear(&nan);
+    sc_mpf_clear(&inf);
+}
+END_TEST
+
 START_TEST(test_mpf_fits_long)
 {
     SINT32 retval;
@@ -1077,6 +1112,7 @@ Suite *sc_mpf_suite(void)
     tcase_add_test(tc_mpf, test_mpf_set_get_ui);
     tcase_add_test(tc_mpf, test_mpf_set_get_si);
     tcase_add_test(tc_mpf, test_mpf_cmp);
+    tcase_add_test(tc_mpf, test_mpf_cmp_ui);
     tcase_add_test(tc_mpf, test_mpf_fits_long);
     tcase_add_test(tc_mpf, test_mpf_fits_int);
     tcase_add_test(tc_mpf, test_mpf_fits_short);

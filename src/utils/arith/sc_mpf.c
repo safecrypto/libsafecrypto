@@ -246,7 +246,7 @@ static void iround(sc_mpf_t *out, const sc_mpf_t *in)
 	// Determine if |in| can be represented by the mantissa without truncation
 	n_words = in->alloc;
 	n_bits  = 0;
-	if (((in->exponent - 1) / SC_LIMB_BITS) < in->alloc) {
+	if (((in->exponent - 1) >> SC_LIMB_BITS_SHIFT) < in->alloc) {
 		size_t lsw;
 		n_words = ((in->exponent - 1) >> SC_LIMB_BITS_SHIFT) + 1;
 		lsw     = in->alloc - n_words;
@@ -334,7 +334,7 @@ sc_ulimb_t sc_mpf_get_ui(const sc_mpf_t *in)
 		return 0;
 	}
 	else if (!sc_mpf_fits_ulong(in)) {
-		return (SC_MPF_EXP_NAN == in->exponent || in->sign)? 0 : SC_LIMB_UMAX;
+		return (SC_MPF_EXP_NAN == in->exponent || (in->sign < 0))? 0 : SC_LIMB_UMAX;
 	}
 	else {
 		sc_mpf_t temp;
@@ -433,6 +433,7 @@ void sc_mpf_set_ui(sc_mpf_t *inout, sc_ulimb_t value)
 		inout->mantissa[inout->alloc - 1] = value << clz;
 		mpn_zero(inout->mantissa, inout->alloc - 1);
 		inout->exponent = SC_LIMB_BITS - clz;
+		inout->sign     = 1;
 	}
 #else
 	mpfr_set_ui(inout, value, MPFR_DEFAULT_ROUNDING);
@@ -458,7 +459,7 @@ void sc_mpf_set_si(sc_mpf_t *inout, sc_slimb_t value)
 		inout->mantissa[inout->alloc - 1] = abs_value << clz;
 		mpn_zero(inout->mantissa, inout->alloc - 1);
 		inout->exponent = SC_LIMB_BITS - clz;
-		inout->sign     = value < 0;
+		inout->sign     = (value < 0)? -1 : 1;
 	}
 #else
 	mpfr_set_si(inout, value, MPFR_DEFAULT_ROUNDING);
@@ -476,6 +477,72 @@ void sc_mpf_set_d(sc_mpf_t *inout, DOUBLE value)
 SINT32 sc_mpf_cmp(const sc_mpf_t *a, const sc_mpf_t *b)
 {
 #ifdef USE_SAFECRYPTO_FLOAT_MP
+	SINT32 na, nb;
+
+	// Deal with singluar inputs
+	if (SC_MPF_IS_SINGULAR(a) || SC_MPF_IS_SINGULAR(b)) {
+		if (SC_MPF_EXP_NAN == a->exponent || SC_MPF_EXP_NAN == b->exponent) {
+			return 0;  // If a or b is NaN then result is 0
+		}
+		else if (SC_MPF_EXP_INF == a->exponent) {
+			// Return 0 if both infinite and same sign, otherwise a->sign is
+			// the comparison result
+			if (SC_MPF_EXP_INF == b->exponent) {
+				return (a->sign == b->sign)? 0 : a->sign;
+			}
+			// If only a is infinite then simply return it's sign as the result
+			return a->sign;
+		}
+		else if (SC_MPF_EXP_INF == b->exponent) {
+			// Return the inverted sign of b if only it is infinite (it is on RHS of comparison)
+			return -b->sign;
+		}
+		else if (SC_MPF_EXP_ZERO == a->exponent) {
+			return (SC_MPF_EXP_ZERO == b->exponent)? 0 : -b->sign;
+		}
+		else {
+			return a->sign;
+		}
+	}
+
+	// Not singular and the signs are different
+	if (a->sign != b->sign) {
+		fprintf(stderr, "a->sign is %d, b->sign is %d\n", a->sign, b->sign);
+		return a->sign;
+	}
+
+	// Check the exponents to quickly compare the magnitude (both signs are identical)
+	if (a->exponent > b->exponent) {
+		return a->sign; // e.g. a=-2^10, b=-2^9 => a<b = sign(a), a=2^10, b=2^9 => a>b = sign(a)
+	}
+	else if (a->exponent < b->exponent) {
+		return -a->sign; // e.g. a=-2^9, b=-2^10 => a>b = -sign(a), a=2^9, b=2^10 => a<b = -sign(a), 
+	}
+
+	// All is equal except the mantissa so iteratively compare them until one or both
+	// are exhausted of limbs
+	na = a->alloc - 1;
+	nb = b->alloc - 1;
+	for (; na>=0, nb>=0; na--, nb--) {
+		if (a->mantissa[na] != b->mantissa[nb]) {
+			return (a->mantissa[na] > b->mantissa[nb])? a->sign : -a->sign;
+		}
+	}
+
+	// na and/or nb are now negative so iterate over them until a non-zero limb is discovered
+	for (; na>=0; na--) {
+		if (a->mantissa[na]) {
+			return a->sign;
+		}
+	}
+	for (; nb>=0; nb--) {
+		if (b->mantissa[nb]) {
+			return -b->sign;
+		}
+	}
+
+	// If the sign, exponent and mantissa are equal then both values are identical
+	return 0;
 #else
 	return mpfr_cmp(a, b);
 #endif
@@ -492,6 +559,75 @@ SINT32 sc_mpf_cmp_d(const sc_mpf_t *a, DOUBLE b)
 SINT32 sc_mpf_cmp_ui(const sc_mpf_t *a, sc_ulimb_t b)
 {
 #ifdef USE_SAFECRYPTO_FLOAT_MP
+	SINT32 na, nb;
+	SINT32 i;
+	SINT32 bits;
+
+	// Deal with singluar inputs - ZERO, INF and NaN
+	if (SC_MPF_IS_SINGULAR(a)) {
+		if (SC_MPF_EXP_NAN == a->exponent) {
+			// If a is NaN then result is 0
+			return 0;
+		}
+		else if (SC_MPF_EXP_INF == a->exponent) {
+			// If a is infinite then simply return it's sign as the result
+			return a->sign;
+		}
+		else {
+			// If a is zero then a<=b as b is unsigned
+			return (b)? -1 : 0;
+		}
+	}
+
+	// As b is unsigned then negative a will always be smaller
+	if (a->sign < 0) {
+		return -1;
+	}
+
+	// If a>0 (non-singular and sign is NOT negative) then quickly check if b is zero
+	if (0 == b) {
+		return 1;
+	}
+
+	// At this stage both the MP float and the unisgned integer are greater than 0, so
+	// if the exponent is negative then the 'a' is less than 1, so b must be larger
+	if (a->exponent < 0) {
+		return -1;
+	}
+
+	// If the exponent is larger than SC_LIMB_BITS then b is smaller
+	if (a->exponent > SC_LIMB_BITS) {
+		return 1;
+	}
+
+	// If the bitsize of b is smaller/larger than the exponent then a is correspondingly larger/smaller
+	bits = limb_clz(b);
+	if ((SC_LIMB_BITS - bits) < a->exponent) {
+		return 1;
+	}
+	if ((SC_LIMB_BITS - bits) > a->exponent) {
+		return -1;
+	}
+
+	// At this stage both numbers are greater than zero with the same exponent, so 'b' is
+	// normalised to the MSB and directly compared to the most significant limb of the mantissa
+	b <<= bits;
+	if (b < a->mantissa[a->alloc-1]) {
+		return 1;
+	}
+	if (b > a->mantissa[a->alloc-1]) {
+		return -1;
+	}
+
+	// The lower order limbs of a's mantissa must now be compared to determine if it is larger than b
+	for (i=a->alloc-2; i>=0; i--) {
+		if (a->mantissa[i]) {
+			return 1;
+		}
+	}
+
+	// The values are identical
+	return 0;
 #else
 	return mpfr_cmp_ui(a, b);
 #endif

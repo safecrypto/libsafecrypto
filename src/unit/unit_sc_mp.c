@@ -394,14 +394,56 @@ END_TEST
 
 START_TEST(test_mpn_div_qr_1)
 {
-    sc_ulimb_t q[4], qh, r, n[4] = {8, 16, 32, 64};
+    {
+        sc_ulimb_t q[4], qh, r, n[4] = {8, 16, 32, 64};
 
-    r = mpn_div_qr_1(q, &qh, n, 4, SC_LIMB_HIGHBIT);
-    ck_assert_uint_eq(q[0], 32);
-    ck_assert_uint_eq(q[1], 64);
-    ck_assert_uint_eq(q[2], 128);
-    ck_assert_uint_eq(qh, 0);
-    ck_assert_uint_eq(r, 8);
+        r = mpn_div_qr_1(q, &qh, n, 4, SC_LIMB_HIGHBIT);
+        ck_assert_uint_eq(q[0], 32);
+        ck_assert_uint_eq(q[1], 64);
+        ck_assert_uint_eq(q[2], 128);
+        ck_assert_uint_eq(qh, 0);
+        ck_assert_uint_eq(r, 8);
+    }
+    {
+        sc_ulimb_t q[4], qh, r, n[4] = {8, 16, 32, SC_LIMB_HIGHBIT};
+
+        r = mpn_div_qr_1(q, &qh, n, 4, SC_LIMB_HIGHBIT);
+        ck_assert_uint_eq(q[0], 32);
+        ck_assert_uint_eq(q[1], 64);
+        ck_assert_uint_eq(q[2], 0);
+        ck_assert_uint_eq(qh, 1);
+        ck_assert_uint_eq(r, 8);
+    }
+    {
+        sc_ulimb_t q[4], qh, r, n[4] = {8, 16, 32, SC_LIMB_HIGHBIT+1};
+
+        r = mpn_div_qr_1(q, &qh, n, 4, SC_LIMB_HIGHBIT);
+        ck_assert_uint_eq(q[0], 32);
+        ck_assert_uint_eq(q[1], 64);
+        ck_assert_uint_eq(q[2], 2);
+        ck_assert_uint_eq(qh, 1);
+        ck_assert_uint_eq(r, 8);
+    }
+    {
+        sc_ulimb_t q[4], qh, r, n[4] = {8, 16, 32, 64};
+
+        r = mpn_div_qr_1(q, &qh, n, 4, SC_LIMB_HIGHBIT+1);
+        ck_assert_uint_eq(q[0], 0x019F);
+        ck_assert_uint_eq(q[1], SC_LIMB_WORD(-1) - 192 + 1);
+        ck_assert_uint_eq(q[2], 0x7F);
+        ck_assert_uint_eq(qh, 0);
+        ck_assert_uint_eq(r, SC_LIMB_SMAX - 0x196);
+    }
+    {
+        sc_ulimb_t q[4], qh, r, n[4] = {8, 16, 32, SC_LIMB_HIGHBIT};
+
+        r = mpn_div_qr_1(q, &qh, n, 4, SC_LIMB_HIGHBIT+1);
+        ck_assert_uint_eq(q[0], SC_LIMB_WORD(-1) - 103);
+        ck_assert_uint_eq(q[1], 0x43);
+        ck_assert_uint_eq(q[2], SC_LIMB_WORD(-2));
+        ck_assert_uint_eq(qh, 0);
+        ck_assert_uint_eq(r, 112);
+    }
 }
 END_TEST
 

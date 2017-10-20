@@ -1258,6 +1258,7 @@ static sc_ulimb_t mpz_div_qr_ui(sc_mpz_t *q, sc_mpz_t *r, const sc_mpz_t *n,
     sc_ulimb_t *q_limbs;
     sc_ulimb_t *n_limbs;
     sc_ulimb_t r_lsw;
+    sc_ulimb_t dummy;
 
     // If the numerator is zero set the output quotient and remainder to zero
     // and return 0
@@ -1282,7 +1283,7 @@ static sc_ulimb_t mpz_div_qr_ui(sc_mpz_t *q, sc_mpz_t *r, const sc_mpz_t *n,
 
     // Obtain the result of q / d
     n_limbs = n->limbs;
-    r_lsw   = mpn_div_qr_1(q_limbs, n_limbs, q_used, d);
+    r_lsw   = mpn_div_qr_1(q_limbs, &dummy, n_limbs, q_used, d);
     r_used  = r_lsw > 0;
     r_used  = (n_used < 0)? -r_used : r_used;
 
