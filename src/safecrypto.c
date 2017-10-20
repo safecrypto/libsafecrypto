@@ -54,12 +54,8 @@
 #include "schemes/ibe/dlp/dlp_ibe.h"
 #endif
 
-//#include <stdio.h>
 #include <string.h>
 
-
-// The maximum number of entries in the algorithm table
-#define ALG_TABLE_MAX   14
 
 // The number of PRNG instances maintained by an instance of the library
 #if !defined(ENABLE_BAREMETAL)
@@ -233,25 +229,6 @@ static size_t get_alg_index(sc_scheme_e scheme)
     }
 
     return 0;
-}
-
-/// Check if the SAFEcrypto struct is valid
-/// @return Returns 1 if successful, 0 otherwise
-static SINT32 check_safecrypto(safecrypto_t *sc)
-{
-    if (NULL == sc) {
-        return SC_FUNC_FAILURE;
-    }
-    if (0 == sc->temp_ready) {
-        SC_LOG_ERROR(sc, SC_ERROR);
-        return SC_FUNC_FAILURE;
-    }
-    if (sc->alg_index < 0 || sc->alg_index >= ALG_TABLE_MAX) {
-        SC_LOG_ERROR(sc, SC_OUT_OF_BOUNDS);
-        return SC_FUNC_FAILURE;
-    }
-
-    return SC_FUNC_SUCCESS;
 }
 
 /// Free memory resources associated with the given SAFEcrypto object
@@ -874,6 +851,7 @@ SINT32 safecrypto_verify_with_recovery(safecrypto_t *sc, UINT8 **m, size_t *mlen
     return safecrypto_algorithms[sc->alg_index].verification_recovery(sc, m, mlen, sigbuf, siglen);
 }
 
+
 const char * safecrypto_processing_stats(safecrypto_t *sc)
 {
     if (check_safecrypto(sc) != SC_FUNC_SUCCESS)
@@ -894,6 +872,7 @@ const sc_statistics_t * safecrypto_get_stats(safecrypto_t *sc)
 
     return &sc->stats;
 }
+
 
 void * safecrypto_hash_create(sc_hash_e type)
 {

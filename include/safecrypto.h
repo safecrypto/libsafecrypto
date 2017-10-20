@@ -51,11 +51,11 @@ typedef enum sc_debug_level {
 
 /// A list of the lossless compression coding types to be used
 #define ENTROPY_LIST(m) \
-   m(SC_ENTROPY_NONE) \
-   m(SC_ENTROPY_BAC) \
-   m(SC_ENTROPY_BAC_RLE) \
-   m(SC_ENTROPY_HUFFMAN_STATIC) \
-   m(SC_ENTROPY_STRONGSWAN)
+    m(SC_ENTROPY_NONE) \
+    m(SC_ENTROPY_BAC) \
+    m(SC_ENTROPY_BAC_RLE) \
+    m(SC_ENTROPY_HUFFMAN_STATIC) \
+    m(SC_ENTROPY_STRONGSWAN)
 
 /// An enumerated type for the choice of entropy coding scheme
 GENERATE_ENUM(sc_entropy_type_e, ENTROPY_LIST, SC_ENTROPY_SCHEME_MAX);
@@ -67,44 +67,52 @@ GENERATE_ENUM_NAMES(sc_entropy_names, ENTROPY_LIST, SC_ENTROPY_SCHEME_MAX);
 
 /// A list of the available hash functions
 #define HASH_LIST(m) \
-   m(SC_HASH_SHA3_512) \
-   m(SC_HASH_SHA3_384) \
-   m(SC_HASH_SHA3_256) \
-   m(SC_HASH_SHA3_224) \
-   m(SC_HASH_SHA2_512) \
-   m(SC_HASH_SHA2_384) \
-   m(SC_HASH_SHA2_256) \
-   m(SC_HASH_SHA2_224) \
-   m(SC_HASH_BLAKE2_512) \
-   m(SC_HASH_BLAKE2_384) \
-   m(SC_HASH_BLAKE2_256) \
-   m(SC_HASH_BLAKE2_224) \
-   m(SC_HASH_WHIRLPOOL_512) \
-   m(SC_HASH_SHAKE128_256) \
-   m(SC_HASH_SHAKE256_512)
+    m(SC_HASH_SHA3_512) \
+    m(SC_HASH_SHA3_384) \
+    m(SC_HASH_SHA3_256) \
+    m(SC_HASH_SHA3_224) \
+    m(SC_HASH_SHA2_512) \
+    m(SC_HASH_SHA2_384) \
+    m(SC_HASH_SHA2_256) \
+    m(SC_HASH_SHA2_224) \
+    m(SC_HASH_BLAKE2_512) \
+    m(SC_HASH_BLAKE2_384) \
+    m(SC_HASH_BLAKE2_256) \
+    m(SC_HASH_BLAKE2_224) \
+    m(SC_HASH_WHIRLPOOL_512) \
+    m(SC_HASH_SHAKE128_256) \
+    m(SC_HASH_SHAKE256_512)
 
 /// An enumerated type for the choice of hash algorithm
 GENERATE_ENUM(sc_hash_e, HASH_LIST, SC_HASH_MAX);
 
 
+/// A list of the available AKE types
+#define AKE_LIST(m) \
+    m(SC_AKE_FORWARD_SECURE)
+
+/// An enumerated type for the choice of hash algorithm
+GENERATE_ENUM(sc_ake_e, AKE_LIST, SC_AKE_MAX);
+
+
 /// A list of the available schemes
 #define SCHEME_LIST(m) \
-   m(SC_SCHEME_NONE) \
-   m(SC_SCHEME_SIG_HELLO_WORLD) \
-   m(SC_SCHEME_SIG_BLISS) \
-   m(SC_SCHEME_SIG_RING_TESLA) \
-   m(SC_SCHEME_ENC_RLWE) \
-   m(SC_SCHEME_KEM_ENS) \
-   m(SC_SCHEME_SIG_ENS) \
-   m(SC_SCHEME_SIG_ENS_WITH_RECOVERY) \
-   m(SC_SCHEME_IBE_DLP) \
-   m(SC_SCHEME_SIG_DLP) \
-   m(SC_SCHEME_SIG_DLP_WITH_RECOVERY) \
-   m(SC_SCHEME_SIG_DILITHIUM) \
-   m(SC_SCHEME_SIG_DILITHIUM_G) \
-   m(SC_SCHEME_KEM_KYBER) \
-   m(SC_SCHEME_ENC_KYBER_CPA) \
-   m(SC_SCHEME_ENC_KYBER_HYBRID)
+    m(SC_SCHEME_NONE) \
+    m(SC_SCHEME_SIG_HELLO_WORLD) \
+    m(SC_SCHEME_SIG_BLISS) \
+    m(SC_SCHEME_SIG_RING_TESLA) \
+    m(SC_SCHEME_ENC_RLWE) \
+    m(SC_SCHEME_KEM_ENS) \
+    m(SC_SCHEME_SIG_ENS) \
+    m(SC_SCHEME_SIG_ENS_WITH_RECOVERY) \
+    m(SC_SCHEME_IBE_DLP) \
+    m(SC_SCHEME_SIG_DLP) \
+    m(SC_SCHEME_SIG_DLP_WITH_RECOVERY) \
+    m(SC_SCHEME_SIG_DILITHIUM) \
+    m(SC_SCHEME_SIG_DILITHIUM_G) \
+    m(SC_SCHEME_KEM_KYBER) \
+    m(SC_SCHEME_ENC_KYBER_CPA) \
+    m(SC_SCHEME_ENC_KYBER_HYBRID)
 
 /// An enumerated type for the choice of scheme
 GENERATE_ENUM(sc_scheme_e, SCHEME_LIST, SC_SCHEME_MAX);
@@ -598,6 +606,83 @@ extern const char * safecrypto_processing_stats(safecrypto_t *sc);
  *  @return Returns a pointer to an sc_statistics_t struct.
  */
 extern const sc_statistics_t * safecrypto_get_stats(safecrypto_t *sc);
+/**@}*/
+
+
+/** @name Authenticated Key Exchange
+ *  An interface used to generate and authenticate messages for AKE. This interface
+ *  requires SAFEcrypto instances of the necessary type to be provided as inputs
+ *  and messages to be transmitted/received as necessary.
+ */
+/**@{*/
+/** @brief Generate KEM encapsulation and decapsulation keys, sign the encapsulation key
+ *  and create a message for the "B" composed of the encapsulation key and signature.
+ *
+ *  @param sc_sig The SAFEcrypto signature scheme
+ *  @param sc_kem The SAFEcrypto KEM scheme
+ *  @param kem The output KEM encapsulation key
+ *  @param kem_len The length of the output KEM encapsulation key
+ *  @param sig A signature of the output KEM encapsulation key
+ *  @param sig_len The length of the signature
+ *  @return Returns 1 on success
+ */
+extern SINT32 safecrypto_ake_2way_init(safecrypto_t *sc_sig, safecrypto_t *sc_kem,
+    UINT8 **kem, size_t *kem_len, UINT8 **sig, size_t *sig_len);
+
+/** @brief Verify the encapsulation key to authenticate "A" and use it to encapsulate a random
+ *  secret key, sign the original message and the public/private key encapsulation fields using the
+ *  specified hash. Finally create the public component of the key encapsulation, the hash and the
+ *  signature to be sent to "A".
+ *
+ *  @param sc_sig The SAFEcrypto signature scheme
+ *  @param sc_kem The SAFEcrypto KEM scheme
+ *  @param hash_type The hash to be used
+ *  @param kem The input KEM encapsulation key
+ *  @param kem_len The length of the input KEM encapsulation key
+ *  @param sig A signature of the input KEM encapsulation key
+ *  @param sig_len The length of the signature
+ *  @param md The output message digest associated with the hash of the random secret key, original message and KEM key
+ *  @param md_len The length of the output message digest
+ *  @param c The output public KEM key
+ *  @param c_len The length of the output public KEM key
+ *  @param resp_sig The output response signature of the hash
+ *  @param resp_sig_len The length of the output response signature
+ *  @param secret The shared random secret key
+ *  @param secret_len The length of the shared random secret key
+ *  @param secret The shared random secret key
+ *  @param secret_len The length of the shared random secret key
+ *  @return Returns 1 on successful authentication
+ */
+extern SINT32 safecrypto_ake_2way_response(safecrypto_t *sc_sig, safecrypto_t *sc_kem,
+    sc_ake_e ake_type, sc_hash_e hash_type,
+    const UINT8 *kem, size_t kem_len, const UINT8 *sig, size_t sig_len,
+    UINT8 **md, size_t *md_len, UINT8 **c, size_t *c_len, UINT8 **resp_sig, size_t *resp_sig_len,
+    UINT8 **secret, size_t *secret_len);
+
+/** @brief Authenticate "B" and retrieve the random secret key. The response signature is first
+ *  authenticated, then the encapsulation key is used to retrieve the random secret key. The hash
+ *  is then re-created and compared to the received hash to authenticate "B".
+ *
+ *  @param sc_sig The SAFEcrypto signature scheme
+ *  @param sc_kem The SAFEcrypto KEM scheme
+ *  @param hash_type The hash to be used
+ *  @param md The input message digest associated with the hash of the random secret key, original message and KEM key
+ *  @param md_len The length of the input message digest
+ *  @param c The output public KEM key
+ *  @param c_len The length of the output public KEM key
+ *  @param resp_sig The input response signature of the hash
+ *  @param resp_sig_len The length of the input response signature
+ *  @param sig A signature of the input KEM encapsulation key
+ *  @param sig_len The length of the signature
+ *  @param secret The shared random secret key
+ *  @param secret_len The length of the shared random secret key
+ *  @return Returns 1 on successful authentication
+ */
+extern SINT32 safecrypto_ake_2way_final(safecrypto_t *sc_sig, safecrypto_t *sc_kem,
+    sc_ake_e ake_type, sc_hash_e hash_type,
+    const UINT8 *md, size_t md_len, const UINT8 *c, size_t c_len, const UINT8 *resp_sig, size_t resp_sig_len,
+    const UINT8 *sig, size_t sig_len,
+    UINT8 **secret, size_t *secret_len);
 /**@}*/
 
 
