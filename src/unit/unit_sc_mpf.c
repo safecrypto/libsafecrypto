@@ -143,7 +143,7 @@ START_TEST(test_mpf_cmp_ui)
 }
 END_TEST
 
-START_TEST(test_mpf_fits_long)
+START_TEST(test_mpf_fits_limb)
 {
     SINT32 retval;
     sc_mpf_t a;
@@ -151,74 +151,20 @@ START_TEST(test_mpf_fits_long)
 
     sc_mpf_init(&a);
     sc_mpf_set_si(&a, SC_LIMB_SMIN);
-    retval = sc_mpf_fits_slong(&a);
+    retval = sc_mpf_fits_slimb(&a);
     ck_assert_int_ne(retval, 0);
     sc_mpf_set_si(&a, SC_LIMB_SMAX);
-    retval = sc_mpf_fits_slong(&a);
+    retval = sc_mpf_fits_slimb(&a);
     ck_assert_int_ne(retval, 0);
     sc_mpf_set_ui(&a, SC_LIMB_UMIN);
-    retval = sc_mpf_fits_slong(&a);
+    retval = sc_mpf_fits_slimb(&a);
     ck_assert_int_ne(retval, 0);
-    retval = sc_mpf_fits_ulong(&a);
+    retval = sc_mpf_fits_ulimb(&a);
     ck_assert_int_ne(retval, 0);
     sc_mpf_set_ui(&a, SC_LIMB_UMAX);
-    retval = sc_mpf_fits_slong(&a);
+    retval = sc_mpf_fits_slimb(&a);
     ck_assert_int_eq(retval, 0);
-    retval = sc_mpf_fits_ulong(&a);
-    ck_assert_int_ne(retval, 0);
-    sc_mpf_clear(&a);
-}
-END_TEST
-
-START_TEST(test_mpf_fits_int)
-{
-    SINT32 retval;
-    sc_mpf_t a;
-    sc_mpf_set_precision(128);
-
-    sc_mpf_init(&a);
-    sc_mpf_set_si(&a, INT_MIN);
-    retval = sc_mpf_fits_sint(&a);
-    ck_assert_int_ne(retval, 0);
-    sc_mpf_set_si(&a, INT_MAX);
-    retval = sc_mpf_fits_sint(&a);
-    ck_assert_int_ne(retval, 0);
-    sc_mpf_set_ui(&a, 0);
-    retval = sc_mpf_fits_sint(&a);
-    ck_assert_int_ne(retval, 0);
-    retval = sc_mpf_fits_uint(&a);
-    ck_assert_int_ne(retval, 0);
-    sc_mpf_set_ui(&a, UINT_MAX);
-    retval = sc_mpf_fits_sint(&a);
-    ck_assert_int_eq(retval, 0);
-    retval = sc_mpf_fits_uint(&a);
-    ck_assert_int_ne(retval, 0);
-    sc_mpf_clear(&a);
-}
-END_TEST
-
-START_TEST(test_mpf_fits_short)
-{
-    SINT32 retval;
-    sc_mpf_t a;
-    sc_mpf_set_precision(128);
-
-    sc_mpf_init(&a);
-    sc_mpf_set_si(&a, SHRT_MIN);
-    retval = sc_mpf_fits_sshort(&a);
-    ck_assert_int_ne(retval, 0);
-    sc_mpf_set_si(&a, SHRT_MAX);
-    retval = sc_mpf_fits_sshort(&a);
-    ck_assert_int_ne(retval, 0);
-    sc_mpf_set_ui(&a, 0);
-    retval = sc_mpf_fits_sshort(&a);
-    ck_assert_int_ne(retval, 0);
-    retval = sc_mpf_fits_ushort(&a);
-    ck_assert_int_ne(retval, 0);
-    sc_mpf_set_ui(&a, USHRT_MAX);
-    retval = sc_mpf_fits_sshort(&a);
-    ck_assert_int_eq(retval, 0);
-    retval = sc_mpf_fits_ushort(&a);
+    retval = sc_mpf_fits_ulimb(&a);
     ck_assert_int_ne(retval, 0);
     sc_mpf_clear(&a);
 }
@@ -1113,9 +1059,7 @@ Suite *sc_mpf_suite(void)
     tcase_add_test(tc_mpf, test_mpf_set_get_si);
     tcase_add_test(tc_mpf, test_mpf_cmp);
     tcase_add_test(tc_mpf, test_mpf_cmp_ui);
-    tcase_add_test(tc_mpf, test_mpf_fits_long);
-    tcase_add_test(tc_mpf, test_mpf_fits_int);
-    tcase_add_test(tc_mpf, test_mpf_fits_short);
+    tcase_add_test(tc_mpf, test_mpf_fits_limb);
     tcase_add_test(tc_mpf, test_mpf_abs);
     tcase_add_test(tc_mpf, test_mpf_negate);
     tcase_add_test(tc_mpf, test_mpf_is_zero);

@@ -93,14 +93,10 @@ SINT32 sc_mpf_cmp_ui(const sc_mpf_t *a, sc_ulimb_t b);
 SINT32 sc_mpf_cmp_si(const sc_mpf_t *a, sc_slimb_t b);
 /// @}
 
-/// Determine if a MP floating-point variable can fit in various standard C types
+/// Determine if a MP floating-point variable can fit in a limb type
 /// @{
-SINT32 sc_mpf_fits_slong(const sc_mpf_t *in);
-SINT32 sc_mpf_fits_sint(const sc_mpf_t *in);
-SINT32 sc_mpf_fits_sshort(const sc_mpf_t *in);
-SINT32 sc_mpf_fits_ulong(const sc_mpf_t *in);
-SINT32 sc_mpf_fits_uint(const sc_mpf_t *in);
-SINT32 sc_mpf_fits_ushort(const sc_mpf_t *in);
+SINT32 sc_mpf_fits_slimb(const sc_mpf_t *in);
+SINT32 sc_mpf_fits_ulimb(const sc_mpf_t *in);
 /// @}
 
 /// Singular and sign query functions

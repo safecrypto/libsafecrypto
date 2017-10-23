@@ -113,10 +113,10 @@ void sc_mpf_clear_constants(void)
 #endif
 }
 
-void sc_mpf_set(sc_mpf_t *out, const sc_mpf_t *in)
-{
 #ifdef USE_SAFECRYPTO_FLOAT_MP
-	out->sign     = in->sign;
+static void sc_mpf_set_with_negate(sc_mpf_t *out, const sc_mpf_t *in, SINT32 negate)
+{
+	out->sign     = (negate)? (0 == in->sign)? 0 : -in->sign : in->sign;
 	out->exponent = in->exponent;
 	if (SC_MPF_IS_SINGULAR(in)) {
 		// Only the exponent and sign are relevant
@@ -175,6 +175,13 @@ void sc_mpf_set(sc_mpf_t *out, const sc_mpf_t *in)
 		mpn_copy(out->mantissa, in->mantissa + offset, out->alloc);
 		out->mantissa[0] &= ~(guard - 1);
 	}
+}
+#endif
+
+void sc_mpf_set(sc_mpf_t *out, const sc_mpf_t *in)
+{
+#ifdef USE_SAFECRYPTO_FLOAT_MP
+	sc_mpf_set_with_negate(out, in, 0);
 #else
 	(void)mpfr_set(out, in, MPFR_DEFAULT_ROUNDING);
 #endif
@@ -333,7 +340,7 @@ sc_ulimb_t sc_mpf_get_ui(const sc_mpf_t *in)
 	if (SC_MPF_EXP_ZERO == in->exponent) {
 		return 0;
 	}
-	else if (!sc_mpf_fits_ulong(in)) {
+	else if (!sc_mpf_fits_ulimb(in)) {
 		return (SC_MPF_EXP_NAN == in->exponent || (in->sign < 0))? 0 : SC_LIMB_UMAX;
 	}
 	else {
@@ -363,8 +370,8 @@ sc_slimb_t sc_mpf_get_si(const sc_mpf_t *in)
 	if (SC_MPF_EXP_ZERO == in->exponent) {
 		return 0;
 	}
-	else if (!sc_mpf_fits_slong(in)) {
-		return (SC_MPF_EXP_NAN == in->exponent || in->sign)? SC_LIMB_SMIN : SC_LIMB_SMAX;
+	else if (!sc_mpf_fits_slimb(in)) {
+		return (SC_MPF_EXP_NAN == in->exponent || in->sign < 0)? SC_LIMB_SMIN : SC_LIMB_SMAX;
 	}
 	else {
 		sc_mpf_t temp;
@@ -377,7 +384,7 @@ sc_slimb_t sc_mpf_get_si(const sc_mpf_t *in)
 		}
 		else {
 			retval = temp.mantissa[temp.alloc-1] >> (SC_LIMB_BITS - temp.exponent);
-			retval = (in->sign)? (retval <= SC_LIMB_SMAX)? -(sc_slimb_t)retval : SC_LIMB_SMIN : retval;
+			retval = (in->sign < 0)? (retval <= SC_LIMB_SMAX)? -(sc_slimb_t)retval : SC_LIMB_SMIN : retval;
 		}
 		sc_mpf_clear(&temp);
 
@@ -417,9 +424,9 @@ sc_slimb_t sc_mpf_get_exp(const sc_mpf_t *in)
 void sc_mpf_set_ui(sc_mpf_t *inout, sc_ulimb_t value)
 {
 #ifdef USE_SAFECRYPTO_FLOAT_MP
-	inout->sign = 0;
 	if (0 == value) {
 		inout->exponent = SC_MPF_EXP_ZERO;
+		inout->sign     = 0;
 	}
 	else {
 		// Set the most significant limb of the mantissa to the normalised integer,
@@ -444,8 +451,8 @@ void sc_mpf_set_si(sc_mpf_t *inout, sc_slimb_t value)
 {
 #ifdef USE_SAFECRYPTO_FLOAT_MP
 	if (0 == value) {
-		inout->sign     = 0;
 		inout->exponent = SC_MPF_EXP_ZERO;
+		inout->sign     = 0;
 	}
 	else {
 		// Set the most significant limb of the mantissa to the normalised integer,
@@ -641,19 +648,26 @@ SINT32 sc_mpf_cmp_si(const sc_mpf_t *a, sc_slimb_t b)
 #endif
 }
 
-SINT32 sc_mpf_fits_slong(const sc_mpf_t *in)
+SINT32 sc_mpf_fits_slimb(const sc_mpf_t *in)
 {
 #ifdef USE_SAFECRYPTO_FLOAT_MP
+	sc_ulimb_t abs_max;
+	SINT32 bits;
+
 	if (SC_MPF_IS_SINGULAR(in)) {
 		return in->exponent == SC_MPF_EXP_ZERO;
 	}
-	else if (in->sign) {
-		return 0;
-	}
-	else if (in->exponent <= (SC_LIMB_BITS - 2)) {
+	else if (in->exponent < 1) {
 		return 1;
 	}
-	else if (in->exponent >= (SC_LIMB_BITS)) {
+	
+	abs_max = (in->sign >= 0)? SC_LIMB_SMAX : -(sc_ulimb_t)SC_LIMB_SMIN;
+	bits    = SC_LIMB_BITS - limb_clz(abs_max);
+
+	if (in->exponent <= (bits - 1)) {
+		return 1;
+	}
+	else if (in->exponent >= (bits + 1)) {
 		return 0;
 	}
 
@@ -670,29 +684,13 @@ SINT32 sc_mpf_fits_slong(const sc_mpf_t *in)
 #endif
 }
 
-SINT32 sc_mpf_fits_sint(const sc_mpf_t *in)
-{
-#ifdef USE_SAFECRYPTO_FLOAT_MP
-#else
-	return mpfr_fits_sint_p(in, MPFR_DEFAULT_ROUNDING);
-#endif
-}
-
-SINT32 sc_mpf_fits_sshort(const sc_mpf_t *in)
-{
-#ifdef USE_SAFECRYPTO_FLOAT_MP
-#else
-	return mpfr_fits_sshort_p(in, MPFR_DEFAULT_ROUNDING);
-#endif
-}
-
-SINT32 sc_mpf_fits_ulong(const sc_mpf_t *in)
+SINT32 sc_mpf_fits_ulimb(const sc_mpf_t *in)
 {
 #ifdef USE_SAFECRYPTO_FLOAT_MP
 	if (SC_MPF_IS_SINGULAR(in)) {
 		return in->exponent == SC_MPF_EXP_ZERO;
 	}
-	else if (in->sign) {
+	else if (in->sign < 0) {
 		return 0;
 	}
 	else if (in->exponent <= (SC_LIMB_BITS - 1)) {
@@ -715,25 +713,10 @@ SINT32 sc_mpf_fits_ulong(const sc_mpf_t *in)
 #endif
 }
 
-SINT32 sc_mpf_fits_uint(const sc_mpf_t *in)
-{
-#ifdef USE_SAFECRYPTO_FLOAT_MP
-#else
-	return mpfr_fits_uint_p(in, MPFR_DEFAULT_ROUNDING);
-#endif
-}
-
-SINT32 sc_mpf_fits_ushort(const sc_mpf_t *in)
-{
-#ifdef USE_SAFECRYPTO_FLOAT_MP
-#else
-	return mpfr_fits_ushort_p(in, MPFR_DEFAULT_ROUNDING);
-#endif
-}
-
 void sc_mpf_abs(sc_mpf_t *out, const sc_mpf_t *in)
 {
 #ifdef USE_SAFECRYPTO_FLOAT_MP
+	sc_mpf_set_with_negate(out, in, (in->sign < 0)? 1 : 0);
 #else
 	mpfr_abs(out, in, MPFR_DEFAULT_ROUNDING);
 #endif
@@ -742,6 +725,12 @@ void sc_mpf_abs(sc_mpf_t *out, const sc_mpf_t *in)
 void sc_mpf_negate(sc_mpf_t *out, const sc_mpf_t *in)
 {
 #ifdef USE_SAFECRYPTO_FLOAT_MP
+	if (out == in) {
+		out->sign = (0 == out->sign)? 0 : -out->sign;
+	}
+	else {
+		sc_mpf_set_with_negate(out, in, 1);
+	}
 #else
 	mpfr_neg(out, in, MPFR_DEFAULT_ROUNDING);
 #endif
@@ -750,6 +739,7 @@ void sc_mpf_negate(sc_mpf_t *out, const sc_mpf_t *in)
 SINT32 sc_mpf_is_zero(const sc_mpf_t *in)
 {
 #ifdef USE_SAFECRYPTO_FLOAT_MP
+	return SC_MPF_EXP_ZERO == in->exponent;
 #else
 	return mpfr_zero_p(in);
 #endif
@@ -758,6 +748,7 @@ SINT32 sc_mpf_is_zero(const sc_mpf_t *in)
 SINT32 sc_mpf_is_nan(const sc_mpf_t *in)
 {
 #ifdef USE_SAFECRYPTO_FLOAT_MP
+	return SC_MPF_EXP_NAN == in->exponent;
 #else
 	return mpfr_nan_p(in);
 #endif
@@ -766,6 +757,7 @@ SINT32 sc_mpf_is_nan(const sc_mpf_t *in)
 SINT32 sc_mpf_is_inf(const sc_mpf_t *in)
 {
 #ifdef USE_SAFECRYPTO_FLOAT_MP
+	return SC_MPF_EXP_INF == in->exponent;
 #else
 	return mpfr_inf_p(in);
 #endif
@@ -774,6 +766,7 @@ SINT32 sc_mpf_is_inf(const sc_mpf_t *in)
 SINT32 sc_mpf_is_neg(const sc_mpf_t *in)
 {
 #ifdef USE_SAFECRYPTO_FLOAT_MP
+	return in->sign < 0;
 #else
 	return mpfr_signbit(in);
 #endif
@@ -782,14 +775,67 @@ SINT32 sc_mpf_is_neg(const sc_mpf_t *in)
 SINT32 sc_mpf_sign(const sc_mpf_t *in)
 {
 #ifdef USE_SAFECRYPTO_FLOAT_MP
+	return in->sign;
 #else
 	return mpfr_sgn(in);
 #endif
 }
 
+static void sc_mpf_add_normal(sc_mpf_t *out, const sc_mpf_t *in1, const sc_mpf_t *in2)
+{
+}
+
+static void sc_mpf_sub_normal(sc_mpf_t *out, const sc_mpf_t *in1, const sc_mpf_t *in2)
+{
+}
+
 void sc_mpf_add(sc_mpf_t *out, const sc_mpf_t *in1, const sc_mpf_t *in2)
 {
 #ifdef USE_SAFECRYPTO_FLOAT_MP
+	if (SC_MPF_IS_SINGULAR(in1) || SC_MPF_IS_SINGULAR(in2)) {
+		if (SC_MPF_EXP_NAN == in1->exponent || SC_MPF_EXP_NAN == in2->exponent) {
+			// If either input is NaN then the result is NaN
+			out->exponent = SC_MPF_EXP_NAN;
+		}
+		else if (SC_MPF_EXP_INF == in1->exponent) {
+			if (SC_MPF_EXP_INF != in2->exponent || in1->sign == in2->sign) {
+				// If both are infinite with the same sign (inf+inf, -inf-inf) OR in2 is a finite number
+				// then the result is infinite with the same sign is in1
+				out->exponent = SC_MPF_EXP_INF;
+				out->sign     = in1->sign;
+			}
+			else {
+				// inf - inf is indeterminate so return a NaN
+				out->exponent = SC_MPF_EXP_NAN;
+			}
+		}
+		else if (SC_MPF_EXP_INF == in2->exponent) {
+			// in1 is a finite number so the result is the same as in2
+			out->exponent = SC_MPF_EXP_INF;
+			out->sign     = in1->sign;
+		}
+		else if (SC_MPF_EXP_ZERO == in1->exponent && SC_MPF_EXP_ZERO == in2->exponent) {
+			// We need to ensure that -0 + -0 results in -0 if both inputs are zero
+			out->sign     = (in1->sign < 0 && in2->sign < 0)? -1 : 1;
+			out->exponent = SC_MPF_EXP_ZERO;
+		}
+		else if (SC_MPF_EXP_ZERO == in1->exponent) {
+			sc_mpf_set(out, in1);
+		}
+		else if (SC_MPF_EXP_ZERO == in2->exponent) {
+			sc_mpf_set(out, in2);
+		}
+		return;
+	}
+
+	// Now simply add or subtract based on the difference in signs of the finite numbers
+	if (in1->sign != in2->sign) {
+		sc_mpf_sub_normal(out, in1, in2);
+	}
+	else {
+		sc_mpf_add_normal(out, in1, in2);
+	}
+
 #else
 	mpfr_add(out, in1, in2, MPFR_DEFAULT_ROUNDING);
 #endif
@@ -883,9 +929,122 @@ void sc_mpf_div_2exp(sc_mpf_t *out, const sc_mpf_t *n, sc_ulimb_t exp)
 #endif
 }
 
+#ifdef USE_SAFECRYPTO_FLOAT_MP
+static void sc_mpf_div_ui_normal(sc_mpf_t *out, const sc_mpf_t *n, sc_ulimb_t d)
+{
+	// All special cases and singular values are exhausted, we must perform a division
+	size_t len_n = n->alloc;
+	size_t len_q = out->alloc;
+	SINT32 dist  = (SINT32)len_q - (SINT32)len_n + 1;
+	SINT32 exact = 0;
+	SINT32 lsb_sh, lsb;
+	sc_slimb_t exponent = n->exponent;
+	sc_ulimb_t temp[dist + len_n];
+	sc_ulimb_t est_carry;
+
+	// First estimate the quotient before we try to correct
+	if (dist < 0) {
+		est_carry = mpn_divrem_1(temp, 0, n->mantissa - dist, len_q + 1, d);
+		exact     = 0 == est_carry;
+
+		// Verify that the estimated remainder is not dependent on the unused lower limbs
+		// of the mantissa
+		if (exact) {
+			size_t i;
+			for (i=0; i < -dist; i++) {
+				if (n->mantissa[i]) {
+					exact = 0;
+					break;
+				}
+			}
+		}
+	}
+	else {
+		est_carry = mpn_divrem_1(temp, dist, n->mantissa, len_n, d);
+		exact     = 0 == est_carry;
+	}
+
+	// Transfer the temporary quotient to the output quotient with normalization.
+	if (temp[len_q]) {
+		// If the leading limb is zero then simply copy to the output and reduce the exponent.
+		mpn_copy(out->mantissa, temp, len_q);
+		exponent -= SC_LIMB_BITS;
+	}
+	else {
+		// Normalize by left shifting by the number of leading zeros in the significant word
+		SINT32 clz;
+		clz = limb_clz(temp[len_q]);
+		if (clz) {
+			sc_ulimb_t lost_bits = temp[0] << clz;
+			mpn_lshift(out->mantissa, temp + 1, len_q, clz);
+			out->mantissa[0] |= temp[0] >> (SC_LIMB_BITS - clz);
+			exact  |= 0 == lost_bits;
+			exponent -= clz;
+		}
+		else {
+			mpn_copy(out->mantissa, temp + 1, len_q);
+		}
+	}
+
+	// Determine how many remaining bits of the quotient must be calculated
+	if (out->precision & (out->precision - 1)) {
+		lsb_sh = out->precision & SC_LIMB_BITS_MASK;
+		if (lsb_sh) {
+			lsb_sh = SC_LIMB_BITS - lsb_sh;
+		}
+	}
+	else {
+		lsb_sh = (-(sc_ulimb_t)out->precision) & SC_LIMB_BITS_MASK;
+	}
+
+	// Mask off the least significant bits from the quotient but save them for analysis
+	out->mantissa[0] &= ~(((sc_ulimb_t)1 << lsb_sh) - 1);
+
+	out->exponent = exponent;
+}
+#endif
+
 void sc_mpf_div_ui(sc_mpf_t *out, const sc_mpf_t *n, sc_ulimb_t d)
 {
 #ifdef USE_SAFECRYPTO_FLOAT_MP
+	// Deal with singluar inputs - ZERO, INF and NaN
+	if (SC_MPF_IS_SINGULAR(n)) {
+		if (SC_MPF_EXP_NAN == n->exponent) {
+			// If the numerator is NaN then quotient is also a NaN
+    		out->exponent  = SC_MPF_EXP_NAN;
+		}
+		else if (SC_MPF_EXP_INF == n->exponent) {
+			// If numerator is infinite then the quotient is infinite with the same sign
+			out->sign      = n->sign;
+    		out->exponent  = SC_MPF_EXP_INF;
+    	}
+		else if (0 == d) {
+			// If numerator and denominator are zero then quotient is NaN
+			out->exponent  = SC_MPF_EXP_NAN;
+		}
+		else {
+			// 0/d is zero
+			out->sign      = n->sign;
+			out->exponent  = SC_MPF_EXP_ZERO;
+		}
+		return;
+	}
+	else if (0 == d) {
+		// If numerator is non-zero and denominator is zero then quotient is infinite
+		// with the same sign as the numerator
+		out->sign      = n->sign;
+		out->exponent  = SC_MPF_EXP_INF;
+		return;
+	}
+	else if (!(d & (d-1))) {
+		return sc_mpf_div_2exp(out, n, limb_ctz(d));
+	}
+	else if (1 == d) {
+		sc_mpf_set(out, n);
+		return;
+	}
+
+	return sc_mpf_div_ui_normal(out, n, d);
 #else
 	mpfr_div_ui(out, n, d, MPFR_DEFAULT_ROUNDING);
 #endif

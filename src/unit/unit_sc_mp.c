@@ -392,6 +392,71 @@ START_TEST(test_mpn_mul)
 }
 END_TEST
 
+START_TEST(test_mpn_divrem_1)
+{
+    {
+        sc_ulimb_t q[6], r, n[4] = {8, 16, 32, 64};
+
+        r = mpn_divrem_1(q, 3, n, 4, SC_LIMB_HIGHBIT);
+        ck_assert_uint_eq(q[3+0], 32);
+        ck_assert_uint_eq(q[3+1], 64);
+        ck_assert_uint_eq(q[3+2], 128);
+        ck_assert_uint_eq(q[0], 0);
+        ck_assert_uint_eq(q[1], 0);
+        ck_assert_uint_eq(q[2], 16);
+        ck_assert_uint_eq(r, 0);
+    }
+    {
+        sc_ulimb_t q[6], r, n[4] = {8, 16, 32, SC_LIMB_HIGHBIT};
+
+        r = mpn_divrem_1(q, 3, n, 4, SC_LIMB_HIGHBIT);
+        ck_assert_uint_eq(q[3+0], 32);
+        ck_assert_uint_eq(q[3+1], 64);
+        ck_assert_uint_eq(q[3+2], 0);
+        ck_assert_uint_eq(q[0], 0);
+        ck_assert_uint_eq(q[1], 0);
+        ck_assert_uint_eq(q[2], 16);
+        ck_assert_uint_eq(r, 0);
+    }
+    {
+        sc_ulimb_t q[6], r, n[4] = {8, 16, 32, SC_LIMB_HIGHBIT+1};
+
+        r = mpn_divrem_1(q, 3, n, 4, SC_LIMB_HIGHBIT);
+        ck_assert_uint_eq(q[3+0], 32);
+        ck_assert_uint_eq(q[3+1], 64);
+        ck_assert_uint_eq(q[3+2], 2);
+        ck_assert_uint_eq(q[0], 0);
+        ck_assert_uint_eq(q[1], 0);
+        ck_assert_uint_eq(q[2], 16);
+        ck_assert_uint_eq(r, 0);
+    }
+    {
+        sc_ulimb_t q[6], r, n[4] = {8, 16, 32, 64};
+
+        r = mpn_divrem_1(q, 3, n, 4, SC_LIMB_HIGHBIT+1);
+        ck_assert_uint_eq(q[3+0], 0x019F);
+        ck_assert_uint_eq(q[3+1], SC_LIMB_WORD(-1) - 192 + 1);
+        ck_assert_uint_eq(q[3+2], 0x7F);
+        ck_assert_uint_eq(q[0], SC_LIMB_UMAX - 3264 + 1);
+        ck_assert_uint_eq(q[1], 1631);
+        ck_assert_uint_eq(q[2], SC_LIMB_UMAX - 816 + 1);
+        ck_assert_uint_eq(r, 3264);
+    }
+    {
+        sc_ulimb_t q[6], r, n[4] = {8, 16, 32, SC_LIMB_HIGHBIT};
+
+        r = mpn_divrem_1(q, 3, n, 4, SC_LIMB_HIGHBIT+1);
+        ck_assert_uint_eq(q[3+0], SC_LIMB_WORD(-1) - 103);
+        ck_assert_uint_eq(q[3+1], 0x43);
+        ck_assert_uint_eq(q[3+2], SC_LIMB_WORD(-2));
+        ck_assert_uint_eq(q[0], 895);
+        ck_assert_uint_eq(q[1], SC_LIMB_WORD(-1) - 447);
+        ck_assert_uint_eq(q[2], 223);
+        ck_assert_uint_eq(r, SC_LIMB_SMAX - 894);
+    }
+}
+END_TEST
+
 START_TEST(test_mpn_div_qr_1)
 {
     {
@@ -515,6 +580,7 @@ Suite *sc_mp_suite(void)
     tcase_add_test(tc_mpn, test_mpn_mul_1);
     tcase_add_test(tc_mpn, test_mpn_mul_n);
     tcase_add_test(tc_mpn, test_mpn_mul);
+    tcase_add_test(tc_mpn, test_mpn_divrem_1);
     tcase_add_test(tc_mpn, test_mpn_div_qr_1);
 #ifdef USE_SAFECRYPTO_INTEGER_MP    
     tcase_add_test(tc_mpn, test_mpn_div_qr);

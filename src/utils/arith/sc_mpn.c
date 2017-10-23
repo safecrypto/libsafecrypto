@@ -259,6 +259,7 @@ sc_ulimb_t mpn_submul_1(sc_ulimb_t *out, const sc_ulimb_t *in1, size_t n, sc_uli
 static sc_ulimb_t mpn_div_qr_1_preinv(sc_ulimb_t *q_limbs, const sc_ulimb_t *n_limbs,
     size_t n, const sc_mod_t *mod)
 {
+    size_t i;
     sc_ulimb_t rem = 0;
     sc_ulimb_t *temp = NULL;
 
@@ -270,11 +271,12 @@ static sc_ulimb_t mpn_div_qr_1_preinv(sc_ulimb_t *q_limbs, const sc_ulimb_t *n_l
     }
 
     // Iteratively divide each limb of the numerator, storing the result
-    while (n--) {
+    i = n;
+    while (i--) {
         sc_ulimb_t quo;
-        udiv_qrnnd_preinv(&quo, &rem, rem, n_limbs[n], mod->m << mod->norm, mod->m_inv);
+        udiv_qrnnd_preinv(&quo, &rem, rem, n_limbs[i], mod->m << mod->norm, mod->m_inv);
         if (q_limbs) {
-            q_limbs[n] = quo;
+            q_limbs[i] = quo;
         }
     }
 
@@ -443,6 +445,52 @@ static void mpn_div_qr_preinv(sc_ulimb_t *q_limbs, sc_ulimb_t *n_limbs,
         // The general case
         mpn_div_qr_general(q_limbs, n_limbs, n, d_limbs, dn, mod);
     }
+}
+
+sc_ulimb_t mpn_divrem_1(sc_ulimb_t *q_limbs, size_t q_frac_n, const sc_ulimb_t *n_limbs, size_t n, sc_ulimb_t d)
+{
+    // The remainder is returned while a fractional quotient is written to q_limbs
+    // with q_frac_n fractional limbs and n integer limbs
+    size_t i;
+    sc_mod_t mod;
+    limb_mod_init(&mod, d);
+
+    sc_ulimb_t rem = 0;
+    sc_ulimb_t *temp = NULL;
+
+    // Normalise the numerator
+    if (mod.norm > 0) {
+        temp = SC_MALLOC(n * sizeof(sc_ulimb_t));
+        rem = mpn_lshift(temp, n_limbs, n, mod.norm);
+        n_limbs = temp;
+    }
+
+    // Iteratively divide each integer limb of the numerator, storing the result
+    i = n;
+    while (i--) {
+        sc_ulimb_t quo;
+        udiv_qrnnd_preinv(&quo, &rem, rem, n_limbs[i], mod.m << mod.norm, mod.m_inv);
+        if (q_limbs) {
+            q_limbs[i + q_frac_n] = quo;
+        }
+    }
+
+    // Release intermediate memory
+    if (mod.norm > 0) {
+        SC_FREE(temp, n * sizeof(sc_ulimb_t));
+    }
+
+    // Iteratively divide each fractional limb of the numerator, storing the result
+    i = q_frac_n;
+    while (i--) {
+        sc_ulimb_t quo;
+        udiv_qrnnd_preinv(&quo, &rem, rem, SC_LIMB_WORD(0), mod.m << mod.norm, mod.m_inv);
+        if (q_limbs) {
+            q_limbs[i] = quo;
+        }
+    }
+
+    return rem >> mod.norm;
 }
 
 // NOTE: The numerator will be overwritten
