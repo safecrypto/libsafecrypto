@@ -30,6 +30,9 @@ AC_CANONICAL_HOST
 AC_CANONICAL_HOST
 
 # Enable support for Valgrind
+AX_VALGRIND_DFLT([sgcheck], [off])
+AX_VALGRIND_DFLT([helgrind], [off])
+AX_VALGRIND_DFLT([drd], [off])
 AX_VALGRIND_CHECK
 
 # Detect the distribution. This is used for the default configuration and
