@@ -29,6 +29,8 @@ AC_CANONICAL_HOST
 # AC_CANONICAL_HOST is needed to access the 'host_os' variable    
 AC_CANONICAL_HOST
 
+# Enable support for Valgrind
+AX_VALGRIND_CHECK
 
 # Detect the distribution. This is used for the default configuration and
 # for some distro-specific build options.
