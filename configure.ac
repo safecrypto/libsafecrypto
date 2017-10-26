@@ -465,7 +465,7 @@ AM_CONDITIONAL([SIMD_POWERPC], [test "x$simd_arch" = "xpowerpc"])
 
 
 ###############################################################################
-#                                  GNU GMP
+#                             GNU GMP and MPFR
 ###############################################################################
 
 # Check for the presence of libgmp
@@ -475,17 +475,40 @@ AC_CHECK_LIB(gmp, __gmpz_init,
   [AC_MSG_WARN([GNU MP not found, disabling all applicable features!])])
 AM_CONDITIONAL([HAVE_GNUGMP], test "x${gnugmp_present}" != "xno")
 
+# Check for the presence of libmpfr
+gnumpfr_present=no
+AC_CHECK_LIB(mpfr, mpfr_init2,
+  [gnumpfr_present=yes],
+  [AC_MSG_WARN([GNU MPFR not found, disabling all applicable features!])])
+AM_CONDITIONAL([HAVE_GNUMPFR], test "x${gnumpfr_present}" != "xno")
 
 AC_ARG_ENABLE([gmp],
     AC_HELP_STRING([--enable-gmp], [Enable support for multiple-precision arithmetic using GNU GMP (default: [yes - IF INSTALLED])]),
     [enable_gmp=$enableval],
     [enable_gmp=$gnugmp_present])
 
+AC_ARG_ENABLE([mpfr],
+    AC_HELP_STRING([--enable-mpfr], [Enable support for GNU MPFR (default: [yes - IF INSTALLED])]),
+    [enable_mpfr=$enableval],
+    [enable_mpfr=$gnumpfr_present])
+
+if test "x${enable_mpfr}" = "xyes"; then
+    if test "x${enable_gmp}" != "xyes"; then
+        AC_MSG_ERROR([GNU MPFR cannot be used without GNU GMP.])
+    fi
+fi
+
 AM_CONDITIONAL([WITH_GMP], [test "x${enable_gmp}" = "xyes"])
+AM_CONDITIONAL([WITH_MPFR], [test "x${enable_mpfr}" = "xyes"])
 if test "x${enable_gmp}" = "xyes"; then
     AC_SUBST([AM_CPPFLAGS], ["$AM_CPPFLAGS -DUSE_GMP_MULTIPLE_PRECISION"])
 else
-    AC_SUBST([AM_CPPFLAGS], ["$AM_CPPFLAGS -DUSE_SAFECRYPTO_MULTIPLE_PRECISION"])
+    AC_SUBST([AM_CPPFLAGS], ["$AM_CPPFLAGS -DUSE_SAFECRYPTO_INTEGER_MP"])
+fi
+if test "x${enable_mpfr}" = "xyes"; then
+    AC_SUBST([AM_CPPFLAGS], ["$AM_CPPFLAGS -DUSE_MPFR_MULTIPLE_PRECISION"])
+else
+    AC_SUBST([AM_CPPFLAGS], ["$AM_CPPFLAGS -DUSE_SAFECRYPTO_FLOAT_MP"])
 fi
 
 

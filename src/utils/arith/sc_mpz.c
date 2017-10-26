@@ -69,7 +69,7 @@ DOUBLE sc_mpz_get_d(const sc_mpz_t *in)
 
 sc_ulimb_t * sc_mpz_get_limbs(const sc_mpz_t *in)
 {
-#ifdef USE_SAFECRYPTO_INTEGER_MP
+#ifdef USE_SAFECRYPTO_MULTIPLE_PRECISION
     return in->limbs;
 #else
     return in->_mp_d;
@@ -78,7 +78,7 @@ sc_ulimb_t * sc_mpz_get_limbs(const sc_mpz_t *in)
 
 SINT32 sc_mpz_get_size(const sc_mpz_t *in)
 {
-#ifdef USE_SAFECRYPTO_INTEGER_MP
+#ifdef USE_SAFECRYPTO_MULTIPLE_PRECISION
     return in->used;
 #else
     __mpz_struct *z = (__mpz_struct *) in;
@@ -88,7 +88,7 @@ SINT32 sc_mpz_get_size(const sc_mpz_t *in)
 
 void sc_mpz_set_size(sc_mpz_t *inout, SINT32 size)
 {
-#ifdef USE_SAFECRYPTO_INTEGER_MP
+#ifdef USE_SAFECRYPTO_MULTIPLE_PRECISION
     inout->used = size;
 #else
     __mpz_struct *z = (__mpz_struct *) inout;
@@ -156,7 +156,7 @@ SINT32 sc_mpz_is_one(const sc_mpz_t *in)
 
 SINT32 sc_mpz_is_neg(const sc_mpz_t *in)
 {
-#ifdef USE_SAFECRYPTO_INTEGER_MP
+#ifdef USE_SAFECRYPTO_MULTIPLE_PRECISION
     if (in->used < 0) {
         return 1;
     }
@@ -172,7 +172,7 @@ SINT32 sc_mpz_is_neg(const sc_mpz_t *in)
 
 void sc_mpz_max_bits(const sc_mpz_t *in, sc_ulimb_t *mask, size_t *max_limbs)
 {
-#ifdef USE_SAFECRYPTO_INTEGER_MP
+#ifdef USE_SAFECRYPTO_MULTIPLE_PRECISION
     SINT32 limbs = SC_ABS(in->used);
 
     if (limbs == *max_limbs) {
