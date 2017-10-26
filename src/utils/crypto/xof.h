@@ -25,7 +25,9 @@
 /// A list of the available schemes
 #define CRYPTO_XOF_LIST(m) \
    m(CRYPTO_XOF_SHAKE256) \
-   m(CRYPTO_XOF_SHAKE128)
+   m(CRYPTO_XOF_SHAKE128) \
+   m(CRYPTO_XOF_SHAKE256_4X) \
+   m(CRYPTO_XOF_SHAKE128_4X)
 
 /// An enumerated type for the choice of XOF algorithm
 GENERATE_ENUM(crypto_xof_e, CRYPTO_XOF_LIST, CRYPTO_XOF_MAX);

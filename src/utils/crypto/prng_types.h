@@ -146,10 +146,10 @@ typedef unsigned __int128 uint128_t;
 /**@{*/
 #if defined(_MSC_VER)
 #define PRNG_ALIGNED(n)       __declspec(align(n))
-#define PRNG_DEFAULT_ALIGNED  __declspec(align(16))
+#define PRNG_DEFAULT_ALIGNED  __declspec(align(32))
 #else
 #define PRNG_ALIGNED(n)       __attribute__((aligned(n)))
-#define PRNG_DEFAULT_ALIGNED  __attribute__((aligned))
+#define PRNG_DEFAULT_ALIGNED  __attribute__((aligned(32)))
 #endif
 
 #define PRNG_RESTRICT         restrict

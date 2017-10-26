@@ -17,52 +17,7 @@
 
 #include "xof.h"
 #include "sha3/tinysha3.h"
-#include "sha3/fips202.h"
 
-
-PRNG_STRUCT_PACK_START
-typedef struct fips202_sha3_ctx_t {
-    uint64_t state[25];
-    uint8_t outbuf[SHAKE128_RATE];
-    size_t len;
-} PRNG_STRUCT_PACKED fips202_sha3_ctx_t;
-PRNG_STRUCT_PACK_END
-
-
-static int fips202_shake128_init(void *c, int mdlen)
-{
-    fips202_sha3_ctx_t *ctx = (fips202_sha3_ctx_t *) c;
-    ctx->len = SHAKE128_RATE;
-    return 1;
-}
-
-static int fips202_shake128_absorb(void *c, const void *data, size_t len)
-{
-    fips202_sha3_ctx_t *ctx = (fips202_sha3_ctx_t*) c;
-    const uint8_t *in = (const uint8_t *) data;
-    shake128_absorb(ctx->state, in, len);
-    return 1;
-}
-
-static int fips202_shake128_squeeze(void *c, void *out, size_t len)
-{
-    fips202_sha3_ctx_t *ctx = (fips202_sha3_ctx_t*) c;
-
-    size_t n = 0;
-    while (n < len) {
-        if (SHAKE128_RATE == ctx->len) {
-            shake128_squeezeblocks(ctx->outbuf, 1, ctx->state);
-            ctx->len = 0;
-        }
-
-        size_t l = ((SHAKE128_RATE - ctx->len) > len)? (SHAKE128_RATE - ctx->len) : SHAKE128_RATE;
-        PRNG_MEMCOPY(out + n, ctx->outbuf + ctx->len, l);
-        ctx->len += l;
-        n += l;
-    }
-
-    return 1;
-}
 
 utils_crypto_xof_t * utils_crypto_xof_create(crypto_xof_e type)
 {
@@ -86,12 +41,36 @@ utils_crypto_xof_t * utils_crypto_xof_create(crypto_xof_e type)
         {
             crypto_xof->type    = CRYPTO_XOF_SHAKE128;
             crypto_xof->length  = 16;
-            crypto_xof->init    = tinysha3_init;//fips202_shake128_init;
-            crypto_xof->absorb  = tinysha3_update;//fips202_shake128_absorb;
+            crypto_xof->init    = tinysha3_init;
+            crypto_xof->absorb  = tinysha3_update;
             crypto_xof->final   = tinysha3_xof_final;
-            crypto_xof->squeeze = tinysha3_xof;//fips202_shake128_squeeze;
-            crypto_xof->ctx     = PRNG_MALLOC(sizeof(sha3_ctx_t));//PRNG_MALLOC(sizeof(fips202_sha3_ctx_t));
+            crypto_xof->squeeze = tinysha3_xof;
+            crypto_xof->ctx     = PRNG_MALLOC(sizeof(sha3_ctx_t));
         } break;
+
+#ifdef HAVE_AVX2
+        case CRYPTO_XOF_SHAKE256_4X:
+        {
+            crypto_xof->type    = CRYPTO_XOF_SHAKE256_4X;
+            crypto_xof->length  = 128;
+            crypto_xof->init    = tinysha3_init_4x;
+            crypto_xof->absorb  = tinysha3_update_4x;
+            crypto_xof->final   = tinysha3_xof_final_4x;
+            crypto_xof->squeeze = tinysha3_xof_4x;
+            crypto_xof->ctx     = PRNG_MALLOC(sizeof(sha3_4x_ctx_t));
+        } break;
+
+        case CRYPTO_XOF_SHAKE128_4X:
+        {
+            crypto_xof->type    = CRYPTO_XOF_SHAKE128_4X;
+            crypto_xof->length  = 64;
+            crypto_xof->init    = tinysha3_init_4x;
+            crypto_xof->absorb  = tinysha3_update_4x;
+            crypto_xof->final   = tinysha3_xof_final_4x;
+            crypto_xof->squeeze = tinysha3_xof_4x;
+            crypto_xof->ctx     = PRNG_MALLOC(sizeof(sha3_4x_ctx_t));
+        } break;
+#endif
 #endif
 
         default:
@@ -115,6 +94,10 @@ SINT32 utils_crypto_xof_destroy(utils_crypto_xof_t *xof)
 #ifdef ENABLE_SHA3
         case CRYPTO_XOF_SHAKE256:
         case CRYPTO_XOF_SHAKE128:
+#ifdef HAVE_AVX2
+        case CRYPTO_XOF_SHAKE256_4X:
+        case CRYPTO_XOF_SHAKE128_4X:
+#endif
         {
             PRNG_FREE(xof->ctx, sizeof(sha3_ctx_t));
         } break;

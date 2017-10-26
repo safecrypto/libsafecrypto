@@ -5,9 +5,6 @@
  * from https://twitter.com/tweetfips202
  * by Gilles Van Assche, Daniel J. Bernstein, and Peter Schwabe */
 
-/* Modified to allow absorb to be called multiple times between calls to
- * setup and squeezeblocks. - NS */
-
 #include <stdint.h>
 #include <assert.h>
 #include "fips202.h"
@@ -342,9 +339,7 @@ static void keccak_absorb(uint64_t *s,
   unsigned long long i;
   unsigned char t[200];
 
-  for (i = 0; i < 25; ++i)
-    s[i] = 0;
-
+ 
   while (mlen >= r) 
   {
     for (i = 0; i < r / 8; ++i)
@@ -384,63 +379,94 @@ static void keccak_squeezeblocks(unsigned char *h, unsigned long long int nblock
 }
 
 
-void shake128_absorb(uint64_t *s, const unsigned char *input, unsigned int inputByteLen)
+/*
+static void shake128_absorb(uint64_t *s, const unsigned char *input, unsigned int inputByteLen)
 {
   keccak_absorb(s, SHAKE128_RATE, input, inputByteLen, 0x1F);
 }
+*/
 
-void shake128_squeezeblocks(unsigned char *output, unsigned long long nblocks, uint64_t *s)
+
+void shake128(unsigned char *output, unsigned long long outlen, 
+              const unsigned char *input,  unsigned long long inlen)
+{
+  uint64_t s[25];
+  unsigned char t[SHAKE128_RATE];
+  unsigned long long nblocks = outlen/SHAKE128_RATE;
+  size_t i;
+
+  for (i = 0; i < 25; ++i)
+    s[i] = 0;
+  
+  /* Absorb input */
+  keccak_absorb(s, SHAKE128_RATE, input, inlen, 0x1F);
+
+  /* Squeeze output */
+  keccak_squeezeblocks(output, nblocks, s, SHAKE128_RATE);
+
+  output+=nblocks*SHAKE128_RATE;
+  outlen-=nblocks*SHAKE128_RATE;
+
+  if(outlen) 
+  {
+    keccak_squeezeblocks(t, 1, s, SHAKE128_RATE);
+    for(i=0;i<outlen;i++)
+      output[i] = t[i];
+  }
+}
+
+
+void cshake128_simple_absorb(uint64_t s[25],
+                             uint16_t cstm, // 2-byte domain separator
+                             const unsigned char *in, unsigned long long inlen)
+{
+  unsigned char *sep = (unsigned char *)s;
+  unsigned int i;
+
+  for(i=0;i<25;i++)
+    s[i] = 0;
+
+  /* Absorb customization (domain-separation) string */
+  sep[0] = 0x01;
+  sep[1] = 0xa8;
+  sep[2] = 0x01;
+  sep[3] = 0x00;
+  sep[4] = 0x01;
+  sep[5] = 16; // fixed bitlen of cstm
+  sep[6] = cstm & 0xff;
+  sep[7] = cstm >> 8;
+
+  KeccakF1600_StatePermute(s);
+
+  /* Absorb input */
+  keccak_absorb(s, SHAKE128_RATE, in, inlen, 0x04);
+}
+
+
+void cshake128_simple_squeezeblocks(unsigned char *output, unsigned long long nblocks, uint64_t *s)
 {
   keccak_squeezeblocks(output, nblocks, s, SHAKE128_RATE);
 }
 
 
-void sha3256(unsigned char *output, const unsigned char *input, unsigned int inputByteLen)
+void cshake128_simple(unsigned char *output, unsigned long long outlen, 
+                      uint16_t cstm, // 2-byte domain separator
+                      const unsigned char *in, unsigned long long inlen)
 {
   uint64_t s[25];
-  unsigned char t[SHA3_256_RATE];
-  int i;
+  unsigned char t[SHAKE128_RATE];
+  unsigned int i;
 
-  keccak_absorb(s, SHA3_256_RATE, input, inputByteLen, 0x06);
-  keccak_squeezeblocks(t, 1, s, SHA3_256_RATE);
-  for(i=0;i<32;i++)
-    output[i] = t[i];
-}
+  cshake128_simple_absorb(s,cstm,in,inlen);
 
-void sha3512(unsigned char *output, const unsigned char *input, unsigned int inputByteLen)
-{
-  uint64_t s[25];
-  unsigned char t[SHA3_512_RATE];
-  int i;
-
-  keccak_absorb(s, SHA3_512_RATE, input, inputByteLen, 0x06);
-  keccak_squeezeblocks(t, 1, s, SHA3_512_RATE);
-  for(i=0;i<64;i++)
-    output[i] = t[i];
-}
-
-int crypto_stream_shake128(unsigned char *output, unsigned long long outlen, const unsigned char *nonce, const unsigned char *key)
-{
-  unsigned char t[SHAKE128_STREAM_NONCEBYTES+SHAKE128_STREAM_KEYBYTES];
-  unsigned char d[SHAKE128_RATE];
-  uint64_t s[25];
-  size_t i;
-
-  for(i=0;i<SHAKE128_STREAM_KEYBYTES;i++)
-    t[i] = key[i];
-  for(i=0;i<SHAKE128_STREAM_NONCEBYTES;i++)
-    t[i+SHAKE128_STREAM_KEYBYTES] = nonce[i];
-
-  keccak_absorb(s, SHAKE128_RATE, t, SHAKE128_STREAM_KEYBYTES+SHAKE128_STREAM_NONCEBYTES, 0x1F);
-
+  /* Squeeze output */
   keccak_squeezeblocks(output, outlen/SHAKE128_RATE, s, SHAKE128_RATE);
   output+=(outlen/SHAKE128_RATE)*SHAKE128_RATE;
 
   if(outlen%SHAKE128_RATE)
   {
-    keccak_squeezeblocks(d, 1, s, SHAKE128_RATE);
+    keccak_squeezeblocks(t, 1, s, SHAKE128_RATE);
     for(i=0;i<outlen%SHAKE128_RATE;i++)
-      output[i] = d[i];
+      output[i] = t[i];
   }
-  return 0;
 }
