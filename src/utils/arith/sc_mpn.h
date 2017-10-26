@@ -48,5 +48,10 @@ void mpn_div_qr(sc_ulimb_t *q_limbs, sc_ulimb_t *n_limbs,
     size_t n, const sc_ulimb_t *d_limbs, size_t dn);
 sc_ulimb_t mpn_div_qr_1(sc_ulimb_t *q_limbs, sc_ulimb_t *qh, const sc_ulimb_t *n_limbs,
     size_t n, sc_ulimb_t d);
+
+#else
+
+#define mpn_copy mpn_copyi
+
 #endif
 

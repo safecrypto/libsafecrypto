@@ -19,21 +19,16 @@
 
 #include "safecrypto_types.h"
 
-#if defined(USE_SAFECRYPTO_MULTIPLE_PRECISION)
-#define USE_SAFECRYPTO_INTEGER_MP
-#define USE_SAFECRYPTO_FLOAT_MP
+#if defined(USE_SAFECRYPTO_INTEGER_MP) && defined(USE_SAFECRYPTO_FLOAT_MP)
+#define USE_SAFECRYPTO_MULTIPLE_PRECISION
 #endif
 
 
-#if defined(USE_SAFECRYPTO_MULTIPLE_PRECISION) || !defined(USE_GMP_MULTIPLE_PRECISION)
 #include <limits.h>
 #define NATIVE_WORD_SIZE   __WORDSIZE
-#else
-#if defined(USE_GMP_MULTIPLE_PRECISION)
+
+#if !defined(USE_SAFECRYPTO_MULTIPLE_PRECISION)
 #include <gmp.h>
-#include <mpfr.h>
-#define NATIVE_WORD_SIZE   GMP_LIMB_BITS
-#endif
 #endif
 
 
@@ -102,7 +97,7 @@ typedef enum _round_mode_e {
 } round_mode_e;
 
 
-#if defined(USE_SAFECRYPTO_INTEGER_MP) || !defined(USE_GMP_MULTIPLE_PRECISION)
+#ifdef USE_SAFECRYPTO_MULTIPLE_PRECISION
 /// A struct used to store a signed multiple-precision integer variable
 typedef struct _sc_mpz_t
 {
@@ -111,13 +106,11 @@ typedef struct _sc_mpz_t
    sc_ulimb_t *limbs;  ///< Pointer to the limbs
 } sc_mpz_t;
 #else
-#if defined(USE_GMP_MULTIPLE_PRECISION)
 typedef __mpz_struct sc_mpz_t;
 #endif
-#endif
 
 
-#ifdef USE_SAFECRYPTO_INTEGER_MP
+#ifdef USE_SAFECRYPTO_MULTIPLE_PRECISION
 
 sc_ulimb_t * mpz_realloc(sc_mpz_t *inout, size_t size);
 void mpz_init(sc_mpz_t *inout);

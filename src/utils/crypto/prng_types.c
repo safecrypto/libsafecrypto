@@ -46,7 +46,7 @@ void *prng_malloc(size_t len)
 {
 #if defined(__linux__)
     void *ptr;
-    if (0 != posix_memalign(&ptr, 16, len)) {
+    if (0 != posix_memalign(&ptr, 32, len)) {
         return NULL;
     }
     memset(ptr, 0, len);

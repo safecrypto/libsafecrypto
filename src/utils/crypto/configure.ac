@@ -402,6 +402,7 @@ AC_SUBST(CFLAGS_AVX2)
 AM_CONDITIONAL([WITH_SIMD], [test "x$enable_simd" != "xno"])
 AM_CONDITIONAL([SIMD_I386], [test "x$simd_arch" = "xi386"])
 AM_CONDITIONAL([SIMD_X86_64], [test "x$simd_arch" = "xx86_64"])
+AM_CONDITIONAL([WITH_AVX2], [test "x$have_avx2" = "xyes"])
 AM_CONDITIONAL([SIMD_ARM], [test "x$simd_arch" = "xarm"])
 AM_CONDITIONAL([SIMD_ARM_64], [test "x$simd_arch" = "xaarch64"])
 AM_CONDITIONAL([SIMD_MIPS], [test "x$simd_arch" = "xmips"])
@@ -676,5 +677,5 @@ AM_CONDITIONAL([HAVE_SPLINT], [test -n "$SPLINT"])
 ###############################################################################
 
 AC_CONFIG_HEADERS([config.h])
-AC_CONFIG_FILES([Makefile test/Makefile])
+AC_CONFIG_FILES([Makefile unit/Makefile])
 AC_OUTPUT

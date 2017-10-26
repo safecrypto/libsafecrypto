@@ -1,13 +1,14 @@
 ACLOCAL_AMFLAGS = -I m4 -I /usr/share/aclocal
 
-SUBDIRS     = . test
+SUBDIRS     = . unit
 
 ###############################################################################
 #                      SAFEcrypto Third Party TOOLBOX
 ###############################################################################
 
 # C preprocessor flags
-AM_CPPFLAGS              += -I$(top_srcdir)
+AM_CPPFLAGS              += -I$(top_srcdir) \
+                            -DECRYPT_API="ecrypt-sync.h"
 
 # Convenience libraries
 noinst_LTLIBRARIES        = libcrypto.la lib_3rd_crypto.la lib_3rd_isaac.la
@@ -22,7 +23,6 @@ lib_3rd_isaac_la_SOURCES  = isaac/rand.c \
 endif
 lib_3rd_isaac_la_LIBADD   = 
 
-lib_3rd_crypto_la_CFLAGS  = -DECRYPT_API="ecrypt-sync.h"
 if CONSTRAINED_SYSTEM
 lib_3rd_crypto_la_SOURCES = aes/aes.h \
                             aes/aescrypt.c \
@@ -73,8 +73,6 @@ lib_3rd_crypto_la_SOURCES = aes/aes.h \
                             sha3/fips202.h \
                             sha3/tinysha3.c \
                             sha3/tinysha3.h \
-                            sha3/sha3.c \
-                            sha3/sha3.h \
                             sha2/sha2.c \
                             sha2/sha2.h \
                             sha2/brg_endian.h \

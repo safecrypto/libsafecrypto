@@ -12,6 +12,7 @@
 #include "prng_types.h"
 #include "xof.c"
 
+#include <stdio.h>
 
 START_TEST(test_create_destroy)
 {
@@ -27,6 +28,17 @@ START_TEST(test_create_destroy)
             (crypto_xof_e)i == CRYPTO_XOF_SHAKE128) {
             ck_assert_ptr_ne(xof, NULL);
         }
+#ifdef HAVE_AVX2
+        if ((crypto_xof_e)i == CRYPTO_XOF_SHAKE256_4X ||
+            (crypto_xof_e)i == CRYPTO_XOF_SHAKE128_4X) {
+            ck_assert_ptr_ne(xof, NULL);
+        }
+#else
+        if ((crypto_xof_e)i == CRYPTO_XOF_SHAKE256_4X ||
+            (crypto_xof_e)i == CRYPTO_XOF_SHAKE128_4X) {
+            ck_assert_ptr_eq(xof, NULL);
+        }
+#endif
 #endif
 
         if (xof) {
@@ -82,6 +94,28 @@ START_TEST(test_create_destroy_init)
     ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
     retval = utils_crypto_xof_destroy(xof);
     ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+
+#ifdef HAVE_AVX2
+    xof = utils_crypto_xof_create(CRYPTO_XOF_SHAKE256_4X);
+    ck_assert_ptr_ne(xof, NULL);
+    retval = xof_init(xof);
+    ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+    retval = utils_crypto_xof_destroy(xof);
+    ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+
+    xof = utils_crypto_xof_create(CRYPTO_XOF_SHAKE128_4X);
+    ck_assert_ptr_ne(xof, NULL);
+    retval = xof_init(xof);
+    ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+    retval = utils_crypto_xof_destroy(xof);
+    ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+#else
+    xof = utils_crypto_xof_create(CRYPTO_XOF_SHAKE256_4X);
+    ck_assert_ptr_eq(xof, NULL);
+
+    xof = utils_crypto_xof_create(CRYPTO_XOF_SHAKE128_4X);
+    ck_assert_ptr_eq(xof, NULL);
+#endif
 #endif
 }
 END_TEST
@@ -152,8 +186,8 @@ START_TEST(test_full)
         0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14
     };
 
-    // Create an instance of every type of hash, perform a small
-    // hash operation and then destroy the instance
+    // Create an instance of every type of XOF, perform a small
+    // operation and then destroy the instance
     for (i=0; i<(size_t)CRYPTO_XOF_MAX; i++) {
         xof = utils_crypto_xof_create((crypto_xof_e)i);
 
@@ -166,11 +200,23 @@ START_TEST(test_full)
             retval = xof_absorb(xof, msg, 127);
             ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
 
+            retval = xof_absorb(xof, msg, 127);
+            ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+
+            retval = xof_final(xof);
+            ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+
             retval = xof_squeeze(xof, md, 256);
             ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
 
             retval = xof_squeeze(xof, md+256, 256);
             ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+
+            fprintf(stderr, "output[%zu] = ", i);
+            for (j=0; j<512; j++) {
+                fprintf(stderr, "%02X ", md[j]);
+            }
+            fprintf(stderr, "\n");
 
             for (j=0; j<256; j++) {
                 if (md[j] != md[j+256]) equal = 0;
