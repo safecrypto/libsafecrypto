@@ -162,7 +162,7 @@ int main(void)
                 goto error_return;
             }
 
-#if 1
+#if 0
             // Destroy and re-create a SAFEcrypto object
             if (SC_FUNC_SUCCESS != safecrypto_destroy(sc)) {
                 goto error_return;

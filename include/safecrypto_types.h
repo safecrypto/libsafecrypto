@@ -151,7 +151,7 @@ typedef unsigned __int128 uint128_t;
 #define SC_DEFAULT_ALIGNED __declspec(align(32))
 #else
 #define SC_ALIGNED(n)      __attribute__((aligned(n)))
-#define SC_DEFAULT_ALIGNED __attribute__((aligned))
+#define SC_DEFAULT_ALIGNED __attribute__((aligned(32)))
 #endif
 
 #define SC_RESTRICT        __restrict__

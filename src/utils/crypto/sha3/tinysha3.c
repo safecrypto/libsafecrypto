@@ -14,37 +14,38 @@
 
 #include "tinysha3.h"
 
+static const uint64_t keccakf_rndc[24] = {
+    0x0000000000000001, 0x0000000000008082, 0x800000000000808a,
+    0x8000000080008000, 0x000000000000808b, 0x0000000080000001,
+    0x8000000080008081, 0x8000000000008009, 0x000000000000008a,
+    0x0000000000000088, 0x0000000080008009, 0x000000008000000a,
+    0x000000008000808b, 0x800000000000008b, 0x8000000000008089,
+    0x8000000000008003, 0x8000000000008002, 0x8000000000000080,
+    0x000000000000800a, 0x800000008000000a, 0x8000000080008081,
+    0x8000000000008080, 0x0000000080000001, 0x8000000080008008
+};
+
+static const int keccakf_rotc[24] = {
+    1,  3,  6,  10, 15, 21, 28, 36, 45, 55, 2,  14,
+    27, 41, 56, 8,  25, 43, 62, 18, 39, 61, 20, 44
+};
+
+static const int keccakf_piln[24] = {
+    10, 7,  11, 17, 18, 3, 5,  16, 8,  21, 24, 4,
+    15, 23, 19, 13, 12, 2, 20, 14, 22, 9,  6,  1
+};
+
+static const int i4mod5[5] = {4, 0, 1, 2, 3};
+static const int i2mod5[5] = {2, 3, 4, 0, 1};
+static const int i1mod5[5] = {1, 2, 3, 4, 0};
+
+
 // update the state with given number of rounds
 
 static void sha3_keccakf(uint64_t st[25], int rounds)
 {
-    // constants
-    const uint64_t keccakf_rndc[24] = {
-        0x0000000000000001, 0x0000000000008082, 0x800000000000808a,
-        0x8000000080008000, 0x000000000000808b, 0x0000000080000001,
-        0x8000000080008081, 0x8000000000008009, 0x000000000000008a,
-        0x0000000000000088, 0x0000000080008009, 0x000000008000000a,
-        0x000000008000808b, 0x800000000000008b, 0x8000000000008089,
-        0x8000000000008003, 0x8000000000008002, 0x8000000000000080,
-        0x000000000000800a, 0x800000008000000a, 0x8000000080008081,
-        0x8000000000008080, 0x0000000080000001, 0x8000000080008008
-    };
-    const int keccakf_rotc[24] = {
-        1,  3,  6,  10, 15, 21, 28, 36, 45, 55, 2,  14,
-        27, 41, 56, 8,  25, 43, 62, 18, 39, 61, 20, 44
-    };
-    const int keccakf_piln[24] = {
-        10, 7,  11, 17, 18, 3, 5,  16, 8,  21, 24, 4,
-        15, 23, 19, 13, 12, 2, 20, 14, 22, 9,  6,  1
-    };
-
     // variables
     int i, j, r;
-#ifndef SHA3_UNROLLED
-    int i4mod5[5] = {4, 0, 1, 2, 3};
-    int i2mod5[5] = {2, 3, 4, 0, 1};
-    int i1mod5[5] = {1, 2, 3, 4, 0};
-#endif
     uint64_t t, bc[5];
 
 #if __BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__
@@ -391,4 +392,297 @@ void shake_out(sha3_ctx_t *c, void *out, size_t len)
     }
     c->pt = j;
 }
+
+
+#if KECCAK_PARALLEL_NUM != 0
+
+#include <immintrin.h>
+
+static void sha3_keccakf_4x(__m256i *st256, int rounds)
+{
+    // variables
+    int i, j, r;
+    __m256i t256, bc256[5];
+    uint64_t *t, *bc, *st PRNG_DEFAULT_ALIGNED;
+    t  = (uint64_t*)&t256;
+    bc = (uint64_t*)bc256;
+    st = (uint64_t*)st256;
+
+#if __BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__
+    // endianess conversion. this is redundant on little-endian targets
+    for (i = 0; i < 4*25; i++) {
+        st[i] = ((st[i] & 0xFF00000000000000L) >> 56) |
+                ((st[i] & 0x00FF000000000000L) >> 40) |
+                ((st[i] & 0x0000FF0000000000L) >> 24) |
+                ((st[i] & 0x000000FF00000000L) >>  8) |
+                ((st[i] & 0x00000000FF000000L) <<  8) |
+                ((st[i] & 0x0000000000FF0000L) << 24) |
+                ((st[i] & 0x000000000000FF00L) << 40) |
+                ((st[i] & 0x00000000000000FFL) << 56);
+    }
+#endif
+
+    // actual iteration
+    for (r = 0; r < rounds; r++) {
+
+#ifdef HAVE_AVX2
+        // Theta
+        for (i = 0; i < 5; i++) {
+            bc256[i] = _mm256_xor_si256(st256[i],
+                       _mm256_xor_si256(st256[i+5], 
+                       _mm256_xor_si256(st256[i+10],
+                       _mm256_xor_si256(st256[i+15],
+                                        st256[i+20]))));
+        }
+
+        for (i = 0; i < 5; i++) {
+            t256 = _mm256_or_si256(_mm256_slli_epi64(bc256[i1mod5[i]], 1), 
+                                   _mm256_srli_epi64(bc256[i1mod5[i]], 1));
+            t256 = _mm256_xor_si256(t256, bc256[i4mod5[i]]);
+            for (j = 0; j < 25; j += 5) {
+                st256[j+i] = _mm256_xor_si256(st256[j+i], t256);
+            }
+        }
+
+        // Rho Pi
+        t256 = st256[1];
+        for (i = 0; i < 24; i++) {
+            j = keccakf_piln[i];
+            bc256[0] = st256[j];
+            st256[j] = _mm256_or_si256(_mm256_slli_epi64(t256, keccakf_rotc[i]),
+                                       _mm256_srli_epi64(t256, keccakf_rotc[i]));
+            t256 = bc256[0];
+        }
+
+        //  Chi
+        for (j = 0; j < 25; j += 5) {
+            for (i = 0; i < 5; i++) {
+                bc256[i] = st256[j+i];
+            }
+            for (i = 0; i < 5; i++) {
+                __m256i bc1 = bc256[i1mod5[i]];
+                __m256i bc2 = bc256[i2mod5[i]];
+                st256[i+j] = _mm256_xor_si256(st256[j+i],
+                                              _mm256_and_si256(_mm256_xor_si256(bc1,
+                                                               _mm256_cmpeq_epi32(bc1, bc1)),
+                                              bc2));
+            }
+        }
+#else
+        // Theta
+        for (i = 0; i < 5; i++) {
+            bc[4*i    ] = st[4*i    ] ^ st[4*i + 4*5    ] ^ st[4*i + 4*10    ] ^ st[4*i + 4*15    ] ^ st[4*i + 4*20    ];
+            bc[4*i + 1] = st[4*i + 1] ^ st[4*i + 4*5 + 1] ^ st[4*i + 4*10 + 1] ^ st[4*i + 4*15 + 1] ^ st[4*i + 4*20 + 1];
+            bc[4*i + 2] = st[4*i + 2] ^ st[4*i + 4*5 + 2] ^ st[4*i + 4*10 + 2] ^ st[4*i + 4*15 + 2] ^ st[4*i + 4*20 + 2];
+            bc[4*i + 3] = st[4*i + 3] ^ st[4*i + 4*5 + 3] ^ st[4*i + 4*10 + 3] ^ st[4*i + 4*15 + 3] ^ st[4*i + 4*20 + 3];
+        }
+
+        for (i = 0; i < 5; i++) {
+            t[0] = bc[4*i4mod5[i]    ] ^ ROTL64(bc[4*i1mod5[i]    ], 1);
+            t[1] = bc[4*i4mod5[i] + 1] ^ ROTL64(bc[4*i1mod5[i] + 1], 1);
+            t[2] = bc[4*i4mod5[i] + 2] ^ ROTL64(bc[4*i1mod5[i] + 2], 1);
+            t[3] = bc[4*i4mod5[i] + 3] ^ ROTL64(bc[4*i1mod5[i] + 3], 1);
+            for (j = 0; j < 25; j += 5) {
+                st[4*(j + i)    ] ^= t[0];
+                st[4*(j + i) + 1] ^= t[1];
+                st[4*(j + i) + 2] ^= t[2];
+                st[4*(j + i) + 3] ^= t[3];
+            }
+        }
+
+        // Rho Pi
+        t[0] = st[1*4  ];
+        t[1] = st[1*4+1];
+        t[2] = st[1*4+2];
+        t[3] = st[1*4+3];
+        for (i = 0; i < 24; i++) {
+            j = keccakf_piln[i];
+            bc[0] = st[4*j    ];
+            bc[1] = st[4*j + 1];
+            bc[2] = st[4*j + 2];
+            bc[3] = st[4*j + 3];
+            st[4*j    ] = ROTL64(t[0], keccakf_rotc[i]);
+            st[4*j + 1] = ROTL64(t[1], keccakf_rotc[i]);
+            st[4*j + 2] = ROTL64(t[2], keccakf_rotc[i]);
+            st[4*j + 3] = ROTL64(t[3], keccakf_rotc[i]);
+            t[0] = bc[0];
+            t[1] = bc[1];
+            t[2] = bc[2];
+            t[3] = bc[3];
+        }
+
+        //  Chi
+        for (j = 0; j < 25; j += 5) {
+            for (i = 0; i < 5; i++) {
+                bc[4*i    ] = st[4*(j + i)    ];
+                bc[4*i + 1] = st[4*(j + i) + 1];
+                bc[4*i + 2] = st[4*(j + i) + 2];
+                bc[4*i + 3] = st[4*(j + i) + 3];
+            }
+            for (i = 0; i < 5; i++) {
+                st[4*(j + i)    ] ^= (~bc[4*i1mod5[i]    ]) & bc[4*i2mod5[i]    ];
+                st[4*(j + i) + 1] ^= (~bc[4*i1mod5[i] + 1]) & bc[4*i2mod5[i] + 1];
+                st[4*(j + i) + 2] ^= (~bc[4*i1mod5[i] + 2]) & bc[4*i2mod5[i] + 2];
+                st[4*(j + i) + 3] ^= (~bc[4*i1mod5[i] + 3]) & bc[4*i2mod5[i] + 3];
+            }
+        }
+#endif
+
+        //  Iota
+        st[0] ^= keccakf_rndc[r];
+        st[1] ^= keccakf_rndc[r];
+        st[2] ^= keccakf_rndc[r];
+        st[3] ^= keccakf_rndc[r];
+    }
+
+#if __BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__
+    // endianess conversion. this is redundant on little-endian targets
+    for (i = 0; i < 4*25; i++) {
+        st[i] = ((st[i] & 0xFF00000000000000L) >> 56) |
+                ((st[i] & 0x00FF000000000000L) >> 40) |
+                ((st[i] & 0x0000FF0000000000L) >> 24) |
+                ((st[i] & 0x000000FF00000000L) >>  8) |
+                ((st[i] & 0x00000000FF000000L) <<  8) |
+                ((st[i] & 0x0000000000FF0000L) << 24) |
+                ((st[i] & 0x000000000000FF00L) << 40) |
+                ((st[i] & 0x00000000000000FFL) << 56);
+    }
+#endif
+}
+
+void shake_xof_4x(sha3_4x_ctx_t *c)
+{
+    size_t i;
+    c->st.b[c->pt  ] ^= 0x1F;
+    c->st.b[c->pt-1] ^= 0x1F;
+    c->st.b[c->pt-2] ^= 0x1F;
+    c->st.b[c->pt-3] ^= 0x1F;
+    c->st.b[c->rsiz - 1] ^= 0x80;
+    c->st.b[c->rsiz - 2] ^= 0x80;
+    c->st.b[c->rsiz - 3] ^= 0x80;
+    c->st.b[c->rsiz - 4] ^= 0x80;
+    for (i=0; i<25; i++) {
+        c->q[i] = _mm256_loadu_si256((__m256i*)(c->st.b + 32*i));
+    }
+    sha3_keccakf_4x(c->q, KECCAKF_ROUNDS);
+    c->pt = 0;
+
+    for (i=0; i<25; i++) {
+        _mm256_storeu_si256((__m256i*)(c->st.b + 32*i), c->q[i]);
+    }
+}
+
+void shake_out_4x(sha3_4x_ctx_t *c, void *out, size_t len)
+{
+    size_t i, j;
+    int k;
+
+    k = c->pt;
+    for (i = 0; i < len; i++) {
+        if (k >= c->rsiz) {
+            for (j=0; j<25; j++) {
+                c->q[j] = _mm256_loadu_si256((__m256i*)(c->st.b + 32*j));
+            }
+            sha3_keccakf_4x(c->q, KECCAKF_ROUNDS);
+            for (j=0; j<25; j++) {
+                _mm256_storeu_si256((__m256i*)(c->st.b + 32*j), c->q[j]);
+            }
+            k = 0;
+        }
+        ((uint8_t *) out)[i] = c->st.b[k++];
+    }
+    c->pt = k;
+}
+
+int tinysha3_init_4x(void *c, int mdlen)
+{
+    int i;
+    sha3_4x_ctx_t *ctx = (sha3_4x_ctx_t *) c;
+
+    memset(ctx->st.b, 800, 0);
+    /*for (i = 0; i<25; i++) {
+        ctx->q[i] = _mm256_set_epi64x(0, 0, 0, 0);
+    }*/
+    ctx->mdlen = mdlen;
+    ctx->rsiz = 800 - 2 * mdlen;
+    ctx->pt = 0;
+
+    return 1;
+}
+
+int tinysha3_update_4x(void *c, const void *data, size_t len)
+{
+    size_t i, j;
+    int k;
+    const uint8_t *in = (const uint8_t *) data;
+    sha3_4x_ctx_t *ctx = (sha3_4x_ctx_t *) c;
+
+    k = ctx->pt;
+    for (i = len; i--;) {
+        ctx->st.b[k++] ^= *in++;
+        if (k >= ctx->rsiz) {
+            for (j=0; j<25; j++) {
+                ctx->q[j] = _mm256_loadu_si256((__m256i*)(ctx->st.b + 32*j));
+            }
+            sha3_keccakf_4x(ctx->q, KECCAKF_ROUNDS);
+            for (j=0; j<25; j++) {
+                _mm256_storeu_si256((__m256i*)(ctx->st.b + 32*j), ctx->q[j]);
+            }
+            k = 0;
+        }
+    }
+    ctx->pt = k;
+
+    return 1;
+}
+
+int tinysha3_final_4x(void *c, void *md)
+{
+    int i, j, k;
+    sha3_4x_ctx_t *ctx = (sha3_4x_ctx_t *) c;
+
+    ctx->st.b[ctx->pt  ] ^= 0x06;
+    ctx->st.b[ctx->pt-1] ^= 0x06;
+    ctx->st.b[ctx->pt-2] ^= 0x06;
+    ctx->st.b[ctx->pt-3] ^= 0x06;
+    ctx->st.b[ctx->rsiz - 1] ^= 0x80;
+    ctx->st.b[ctx->rsiz - 2] ^= 0x80;
+    ctx->st.b[ctx->rsiz - 3] ^= 0x80;
+    ctx->st.b[ctx->rsiz - 4] ^= 0x80;
+
+    for (i=0; i<25; i++) {
+        ctx->q[i] = _mm256_loadu_si256((__m256i*)(ctx->st.b + 32*i));
+    }
+    sha3_keccakf_4x(ctx->q, KECCAKF_ROUNDS);
+    for (i=0; i<25; i++) {
+        _mm256_storeu_si256((__m256i*)(ctx->st.b + 32*j), ctx->q[j]);
+    }
+
+    for (i = ctx->mdlen; i--;) {
+        ((uint8_t *) md)[i] = ctx->st.b[i];
+    }
+
+    return 1;
+}
+
+int tinysha3_xof_final_4x(void *c)
+{
+    sha3_4x_ctx_t *ctx = (sha3_4x_ctx_t *) c;
+
+    shake_xof_4x(ctx);
+
+    return 1;
+}
+
+int tinysha3_xof_4x(void *c, void *out, size_t len)
+{
+    sha3_4x_ctx_t *ctx = (sha3_4x_ctx_t *) c;
+
+    shake_out_4x(ctx, out, len);
+
+    return 1;
+}
+
+
+#endif
 

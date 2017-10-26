@@ -272,7 +272,7 @@ void binomial_rand_sample_csprng(prng_ctx_t *csprng, SINT32 q, SINT32 eta,
 #ifndef CONSTRAINED_RAM
     size_t i, j, idx;
     static const size_t log2_blks = 6;
-    static const size_t blks      = 1 << log2_blks;
+    size_t blks = 1 << log2_blks;
 
     for (i=0; i<(m*n)>>(2+log2_blks); i++) {
         UINT8 t[5*blks];

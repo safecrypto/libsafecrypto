@@ -1901,6 +1901,7 @@ SINT32 dilithium_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
     for (i=0; i<n; i++) {
         if (temp[i] != c[i]) {
             SC_LOG_ERROR(sc, SC_ERROR);
+            SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Received c was", c, n);
             goto finish_free;
         }
     }
