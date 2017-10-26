@@ -32,11 +32,11 @@
 // in the now deprecated poly_mpf.c functions).
 
 
-#if defined(USE_SAFECRYPTO_MULTIPLE_PRECISION) || !defined(USE_GMP_MULTIPLE_PRECISION)
+#if defined(USE_SAFECRYPTO_FLOAT_MP) || !defined(USE_MPFR_MULTIPLE_PRECISION)
 #include <limits.h>
 #define NATIVE_WORD_SIZE   __WORDSIZE
 #else
-#if defined(USE_GMP_MULTIPLE_PRECISION)
+#if defined(USE_MPFR_MULTIPLE_PRECISION)
 #include <gmp.h>
 #define NATIVE_WORD_SIZE   GMP_LIMB_BITS
 #endif

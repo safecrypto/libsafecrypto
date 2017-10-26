@@ -23,12 +23,16 @@
 #include <string.h>
 
 
+#if defined(USE_MPFR_MULTIPLE_PRECISION)
+#include <mpfr.h>
+#endif
+
 #ifdef USE_SAFECRYPTO_FLOAT_MP
 #define SC_MPF_DEFAULT_PRECISION   128
 #endif
 
 
-#if defined(USE_SAFECRYPTO_FLOAT_MP) || !defined(USE_GMP_MULTIPLE_PRECISION)
+#if defined(USE_SAFECRYPTO_FLOAT_MP) || !defined(USE_MPFR_MULTIPLE_PRECISION)
 /// A struct used to store a signed multiple-precision floating-point variable
 typedef struct _sc_mpf_t
 {
@@ -39,7 +43,7 @@ typedef struct _sc_mpf_t
    sc_slimb_t exponent;  ///< Exponent
 } sc_mpf_t;
 #else
-#if defined(USE_GMP_MULTIPLE_PRECISION)
+#if defined(USE_MPFR_MULTIPLE_PRECISION)
 typedef __mpfr_struct sc_mpf_t;
 #endif
 #endif

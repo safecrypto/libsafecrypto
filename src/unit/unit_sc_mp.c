@@ -392,7 +392,7 @@ START_TEST(test_mpn_mul)
 }
 END_TEST
 
-START_TEST(test_mpn_div_qr_1)
+/*START_TEST(test_mpn_div_qr_1)
 {
     sc_ulimb_t q[4], qh, r, n[4] = {8, 16, 32, 64};
 
@@ -403,7 +403,7 @@ START_TEST(test_mpn_div_qr_1)
     ck_assert_uint_eq(qh, 0);
     ck_assert_uint_eq(r, 8);
 }
-END_TEST
+END_TEST*/
 
 #ifdef USE_SAFECRYPTO_INTEGER_MP    
 
@@ -473,7 +473,7 @@ Suite *sc_mp_suite(void)
     tcase_add_test(tc_mpn, test_mpn_mul_1);
     tcase_add_test(tc_mpn, test_mpn_mul_n);
     tcase_add_test(tc_mpn, test_mpn_mul);
-    tcase_add_test(tc_mpn, test_mpn_div_qr_1);
+    //tcase_add_test(tc_mpn, test_mpn_div_qr_1);
 #ifdef USE_SAFECRYPTO_INTEGER_MP    
     tcase_add_test(tc_mpn, test_mpn_div_qr);
     tcase_add_test(tc_mpn, test_mpn_mul_karatsuba);
