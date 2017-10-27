@@ -973,7 +973,6 @@ static void sc_mpf_sub_normal(sc_mpf_t *out, const sc_mpf_t *in1, const sc_mpf_t
 	
 	// Determine the distance between the input exponents
 	dist = in1->exponent - in2->exponent;
-	fprintf(stderr, "dist = %d, exp1=%d, exp2=%d\n", dist, in1->exponent, in2->exponent);
 
 	// Initialise the output exponent equal to the larger in1 input exponent
 	exponent = in1->exponent;
@@ -1199,7 +1198,7 @@ void sc_mpf_add(sc_mpf_t *out, const sc_mpf_t *in1, const sc_mpf_t *in2)
 		else if (SC_MPF_EXP_INF == in2->exponent) {
 			// in1 is a finite number so the result is the same as in2
 			out->exponent = SC_MPF_EXP_INF;
-			out->sign     = in1->sign;
+			out->sign     = in2->sign;
 		}
 		else if (SC_MPF_EXP_ZERO == in1->exponent && SC_MPF_EXP_ZERO == in2->exponent) {
 			// We need to ensure that -0 + -0 results in -0 if both inputs are zero
@@ -1231,7 +1230,7 @@ void sc_mpf_add(sc_mpf_t *out, const sc_mpf_t *in1, const sc_mpf_t *in2)
 void sc_mpf_add_ui(sc_mpf_t *out, const sc_mpf_t *in1, sc_ulimb_t in2)
 {
 #ifdef USE_SAFECRYPTO_FLOAT_MP
-	sc_mpf_t   mpf_in2;
+	sc_mpf_t mpf_in2;
 
 	if (0 == in2) {
 		return sc_mpf_set(out, in1);
@@ -1263,7 +1262,7 @@ void sc_mpf_add_ui(sc_mpf_t *out, const sc_mpf_t *in1, sc_ulimb_t in2)
 void sc_mpf_add_si(sc_mpf_t *out, const sc_mpf_t *in1, sc_slimb_t in2)
 {
 #ifdef USE_SAFECRYPTO_FLOAT_MP
-	sc_mpf_t   mpf_in2;
+	sc_mpf_t mpf_in2;
 
 	if (0 == in2) {
 		return sc_mpf_set(out, in1);
@@ -1295,6 +1294,57 @@ void sc_mpf_add_si(sc_mpf_t *out, const sc_mpf_t *in1, sc_slimb_t in2)
 void sc_mpf_sub(sc_mpf_t *out, const sc_mpf_t *in1, const sc_mpf_t *in2)
 {
 #ifdef USE_SAFECRYPTO_FLOAT_MP
+	if (SC_MPF_IS_SINGULAR(in1) || SC_MPF_IS_SINGULAR(in2)) {
+		if (SC_MPF_EXP_NAN == in1->exponent || SC_MPF_EXP_NAN == in2->exponent) {
+			// If either input is NaN then the result is NaN
+			out->exponent = SC_MPF_EXP_NAN;
+		}
+		else if (SC_MPF_EXP_INF == in1->exponent) {
+			if (SC_MPF_EXP_INF != in2->exponent || in1->sign != in2->sign) {
+				// If both are infinite with different sign ((inf)-(-inf), (-inf)-(inf) OR in2 is a finite number
+				// then the result is infinite with the same sign is in1
+				out->exponent = SC_MPF_EXP_INF;
+				out->sign     = in1->sign;
+			}
+			else {
+				// inf - inf is indeterminate so return a NaN
+				out->exponent = SC_MPF_EXP_NAN;
+			}
+		}
+		else if (SC_MPF_EXP_INF == in2->exponent) {
+			// in1 is a finite number so the result is the same as in2 negated
+			out->exponent = SC_MPF_EXP_INF;
+			out->sign     = -in2->sign;
+		}
+		else if (SC_MPF_EXP_ZERO == in1->exponent && SC_MPF_EXP_ZERO == in2->exponent) {
+			// We need to ensure that -0 - +0 results in -0 if both inputs are zero
+			out->sign     = (in1->sign < 0 && in2->sign > 0)? -1 : 1;
+			out->exponent = SC_MPF_EXP_ZERO;
+		}
+		else if (SC_MPF_EXP_ZERO == in1->exponent) {
+			sc_mpf_negate(out, in2);
+		}
+		else if (SC_MPF_EXP_ZERO == in2->exponent) {
+			sc_mpf_set(out, in1);
+		}
+		return;
+	}
+
+	if (in1->sign == in2->sign) {
+		sc_mpf_sub_normal(out, in1, in2, 0);
+	}
+	else {
+		// If the sign's are different we must perform an addition instead.
+		if (in1->exponent < in2->exponent) {
+			// We must ensure that |in1|>|in2| in sc_mpf_add_normal() and that 
+			// the sign is appropriately negated to compensate for the operand swap.
+			sc_mpf_add_normal(out, in2, in1);
+			out->sign = -out->sign;
+		}
+		else {
+			sc_mpf_add_normal(out, in1, in2);
+		}
+	}
 #else
 	mpfr_sub(out, in1, in2, MPFR_DEFAULT_ROUNDING);
 #endif
@@ -1303,6 +1353,31 @@ void sc_mpf_sub(sc_mpf_t *out, const sc_mpf_t *in1, const sc_mpf_t *in2)
 void sc_mpf_sub_ui(sc_mpf_t *out, const sc_mpf_t *in1, sc_ulimb_t in2)
 {
 #ifdef USE_SAFECRYPTO_FLOAT_MP
+	sc_mpf_t mpf_in2;
+
+	if (0 == in2) {
+		return sc_mpf_set(out, in1);
+	}
+	else if (SC_MPF_IS_SINGULAR(in1)) {
+		if (SC_MPF_EXP_NAN == in1->exponent) {
+			out->exponent = SC_MPF_EXP_NAN;
+		}
+		else if(SC_MPF_EXP_INF == in1->exponent) {
+			out->exponent = SC_MPF_EXP_INF;
+			out->sign     = in1->sign;
+		}
+		else {
+			sc_mpf_set_ui(out, in2);
+			out->sign = -out->sign;
+		}
+		return;
+	}
+
+	// Manufacture an SC_LIMB_BITS precision floating point number using in2
+	sc_mpf_init2(&mpf_in2, g_mpf_precision);
+	sc_mpf_set_ui(&mpf_in2, in2);
+	sc_mpf_sub(out, in1, &mpf_in2);
+	sc_mpf_clear(&mpf_in2);
 #else
 	mpfr_sub_ui(out, in1, in2, MPFR_DEFAULT_ROUNDING);
 #endif
@@ -1311,6 +1386,31 @@ void sc_mpf_sub_ui(sc_mpf_t *out, const sc_mpf_t *in1, sc_ulimb_t in2)
 void sc_mpf_sub_si(sc_mpf_t *out, const sc_mpf_t *in1, sc_slimb_t in2)
 {
 #ifdef USE_SAFECRYPTO_FLOAT_MP
+	sc_mpf_t mpf_in2;
+
+	if (0 == in2) {
+		return sc_mpf_set(out, in1);
+	}
+	else if (SC_MPF_IS_SINGULAR(in1)) {
+		if (SC_MPF_EXP_NAN == in1->exponent) {
+			out->exponent = SC_MPF_EXP_NAN;
+		}
+		else if(SC_MPF_EXP_INF == in1->exponent) {
+			out->exponent = SC_MPF_EXP_INF;
+			out->sign     = in1->sign;
+		}
+		else {
+			sc_mpf_set_si(out, in2);
+			out->sign = -out->sign;
+		}
+		return;
+	}
+
+	// Manufacture an SC_LIMB_BITS precision floating point number using in2
+	sc_mpf_init2(&mpf_in2, g_mpf_precision);
+	sc_mpf_set_si(&mpf_in2, in2);
+	sc_mpf_sub(out, in1, &mpf_in2);
+	sc_mpf_clear(&mpf_in2);
 #else
 	mpfr_sub_si(out, in1, in2, MPFR_DEFAULT_ROUNDING);
 #endif
