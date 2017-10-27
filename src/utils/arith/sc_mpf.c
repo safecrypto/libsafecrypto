@@ -947,11 +947,13 @@ static void sc_mpf_sub_normal(sc_mpf_t *out, const sc_mpf_t *in1, const sc_mpf_t
 			// Scan through the mantissa to determine which input is larger
 			size_t i = in1->alloc;
 			while (i--) {
-				if (in1->mantissa[i] == in2->mantissa[i] && 0 == i) {
-					// The exponent and mantissa's are identical so set the result to zero
-					out->sign = 1;
-					out->exponent = SC_MPF_EXP_ZERO;
-					return;
+				if (in1->mantissa[i] == in2->mantissa[i]) {
+					if (0 == i) {
+						// The exponent and mantissa's are identical so set the result to zero
+						out->sign = 1;
+						out->exponent = SC_MPF_EXP_ZERO;
+						return;
+					}
 				}
 				else if (in1->mantissa[i] < in2->mantissa[i]) {
 					return sc_mpf_sub_normal(out, in2, in1, 1);
@@ -971,6 +973,7 @@ static void sc_mpf_sub_normal(sc_mpf_t *out, const sc_mpf_t *in1, const sc_mpf_t
 	
 	// Determine the distance between the input exponents
 	dist = in1->exponent - in2->exponent;
+	fprintf(stderr, "dist = %d, exp1=%d, exp2=%d\n", dist, in1->exponent, in2->exponent);
 
 	// Initialise the output exponent equal to the larger in1 input exponent
 	exponent = in1->exponent;
@@ -1228,6 +1231,30 @@ void sc_mpf_add(sc_mpf_t *out, const sc_mpf_t *in1, const sc_mpf_t *in2)
 void sc_mpf_add_ui(sc_mpf_t *out, const sc_mpf_t *in1, sc_ulimb_t in2)
 {
 #ifdef USE_SAFECRYPTO_FLOAT_MP
+	sc_mpf_t   mpf_in2;
+
+	if (0 == in2) {
+		return sc_mpf_set(out, in1);
+	}
+	else if (SC_MPF_IS_SINGULAR(in1)) {
+		if (SC_MPF_EXP_NAN == in1->exponent) {
+			out->exponent = SC_MPF_EXP_NAN;
+		}
+		else if(SC_MPF_EXP_INF == in1->exponent) {
+			out->exponent = SC_MPF_EXP_INF;
+			out->sign     = in1->sign;
+		}
+		else {
+			sc_mpf_set_ui(out, in2);
+		}
+		return;
+	}
+
+	// Manufacture an SC_LIMB_BITS precision floating point number using in2
+	sc_mpf_init2(&mpf_in2, g_mpf_precision);
+	sc_mpf_set_ui(&mpf_in2, in2);
+	sc_mpf_add(out, in1, &mpf_in2);
+	sc_mpf_clear(&mpf_in2);
 #else
 	mpfr_add_ui(out, in1, in2, MPFR_DEFAULT_ROUNDING);
 #endif
@@ -1236,6 +1263,30 @@ void sc_mpf_add_ui(sc_mpf_t *out, const sc_mpf_t *in1, sc_ulimb_t in2)
 void sc_mpf_add_si(sc_mpf_t *out, const sc_mpf_t *in1, sc_slimb_t in2)
 {
 #ifdef USE_SAFECRYPTO_FLOAT_MP
+	sc_mpf_t   mpf_in2;
+
+	if (0 == in2) {
+		return sc_mpf_set(out, in1);
+	}
+	else if (SC_MPF_IS_SINGULAR(in1)) {
+		if (SC_MPF_EXP_NAN == in1->exponent) {
+			out->exponent = SC_MPF_EXP_NAN;
+		}
+		else if(SC_MPF_EXP_INF == in1->exponent) {
+			out->exponent = SC_MPF_EXP_INF;
+			out->sign     = in1->sign;
+		}
+		else {
+			sc_mpf_set_si(out, in2);
+		}
+		return;
+	}
+
+	// Manufacture an SC_LIMB_BITS precision floating point number using in2
+	sc_mpf_init2(&mpf_in2, g_mpf_precision);
+	sc_mpf_set_si(&mpf_in2, in2);
+	sc_mpf_add(out, in1, &mpf_in2);
+	sc_mpf_clear(&mpf_in2);
 #else
 	mpfr_add_si(out, in1, in2, MPFR_DEFAULT_ROUNDING);
 #endif
