@@ -57,9 +57,9 @@ static SINT32 sc_mpf_negative_mod_limb(const sc_mpf_t *inout, SINT32 x)
 
 SINT32 sc_mpf_set_precision(size_t precision)
 {
-	if (precision < SC_LIMB_BITS) {
+	/*if (precision < SC_LIMB_BITS) {
 		return SC_FUNC_FAILURE;
-	}
+	}*/
 #ifdef USE_SAFECRYPTO_FLOAT_MP
 	g_mpf_precision = precision;
 #else
@@ -530,7 +530,6 @@ SINT32 sc_mpf_cmp(const sc_mpf_t *a, const sc_mpf_t *b)
 
 	// Not singular and the signs are different
 	if (a->sign != b->sign) {
-		fprintf(stderr, "a->sign is %d, b->sign is %d\n", a->sign, b->sign);
 		return a->sign;
 	}
 
@@ -797,6 +796,8 @@ SINT32 sc_mpf_sign(const sc_mpf_t *in)
 #endif
 }
 
+#ifdef USE_SAFECRYPTO_FLOAT_MP
+
 static void sc_mpf_add_normal(sc_mpf_t *out, const sc_mpf_t *in1, const sc_mpf_t *in2)
 {
 	// There are no special cases to be considered here, addition must be performed with
@@ -810,19 +811,19 @@ static void sc_mpf_add_normal(sc_mpf_t *out, const sc_mpf_t *in1, const sc_mpf_t
 	}
 
 	// Determine how many bits of the least significant input are not contained in a whole limb
-	lsb_sh = sc_mpf_negative_mod_limb(in1, in1->precision);
+	lsb_sh        = sc_mpf_negative_mod_limb(in1, in1->precision);
 
 	// Determine how much larger the exponent of in1 is than in2
-	dist   = in1->exponent - in2->exponent;
+	dist          = in1->exponent - in2->exponent;
 
 	// Maintain a variable for the output exponent
-	exponent = in1->exponent;
+	exponent      = in1->exponent;
 
 	// Record if the inputs are both negative or both positive
 	negative_flag = in1->sign < 0;
 
 	// The output sign is equivalent to in1 or in2's sign (they are both gauranteed to be the same sign)
-	out->sign = in1->sign;
+	out->sign     = in1->sign;
 
 	if (dist >= in1->precision) {
 		// in1 is much larger than in2 and addition with rounding towards zero is simply a copy
@@ -847,8 +848,8 @@ static void sc_mpf_add_normal(sc_mpf_t *out, const sc_mpf_t *in1, const sc_mpf_t
 		// Addition occurs between two operands with different exponents but the distance between their exponents
 		// is greater than 0 and less than the precision, i.e. in2 needs to be right shifted
 		// by dist bits to align with in1
-		SINT32 sh_limb, sh_bits, rnd_msb, rnd_bits;
-		sc_ulimb_t carry;
+		SINT32 carry, sh_limb, sh_bits;
+		sc_ulimb_t rnd_msb, rnd_bits;
 		sh_limb = dist >> SC_LIMB_BITS_SHIFT;
 		sh_bits = dist & SC_LIMB_BITS_MASK;
 
@@ -934,6 +935,8 @@ static void sc_mpf_sub_normal(sc_mpf_t *out, const sc_mpf_t *in1, const sc_mpf_t
 	// two non-zero real numbers, i.e. out = (|in1|>|in2|)? sign(in1) * (|in1| - |in2|) : -sign(in1) * (|in2| - |in1|)
 
 	SINT32 lsb_sh, exponent, dist;
+	sc_ulimb_t rnd_msb, rnd_bits, maybe_rnd_msb, maybe_rnd_bits;
+	sc_ulimb_t *temp = NULL;
 
 	// Ensure that the exponent of in1 is greater than or equal to in2's exponent
 	if (!swap_sign) {
@@ -969,19 +972,206 @@ static void sc_mpf_sub_normal(sc_mpf_t *out, const sc_mpf_t *in1, const sc_mpf_t
 	// Determine the distance between the input exponents
 	dist = in1->exponent - in2->exponent;
 
+	// Initialise the output exponent equal to the larger in1 input exponent
+	exponent = in1->exponent;
+
+	// Determine how many bits of the least significant input are not contained in a whole limb
+	lsb_sh = sc_mpf_negative_mod_limb(in1, in1->precision);
+
 	if (dist == in1->precision) {
-		// The exponent distance is equivalent to the precision of the input
+		// The exponent distance is equivalent to the precision of the input, so in2
+		// can potentially require rounding so look at its most significant bits
+		rnd_msb  = 1;
+		rnd_bits = 1;
+		maybe_rnd_msb = in2->mantissa[in1->alloc - 1] & (SC_LIMB_HIGHBIT >> 1);
+		if (!maybe_rnd_msb) {
+			if (in2->mantissa[in1->alloc - 1] & SC_LIMB_HIGHBIT) {
+				SINT32 i = in1->alloc - 1;
+				do {
+					i--;
+				} while (i >= 0 && 0 == in2->mantissa[i]);
+				rnd_bits = i >= 0;
+			}
+		}
+
+		mpn_copy(out->mantissa, in1->mantissa, in1->alloc);
+
+		goto apply_sub_1;
 	}
 	else if (dist > in1->precision) {
 		// The exponent distance is larger than the precision of the input
+		mpn_copy(out->mantissa, in1->mantissa, in1->alloc);
+		rnd_msb = 0;
+		rnd_bits = dist == (in1->precision + 1);
+		goto apply_sub_1;
 	}
 	else if (0 == dist) {
 		// Both of the inputs are aligned
+		SINT32 bits, words;
+		size_t limb;
+		size_t k = in1->alloc;
+
+		// mpn_sub_n of the two mantissa's where |in1| > |in2|
+		mpn_sub_n(out->mantissa, in1->mantissa, in2->mantissa, in1->alloc);
+
+		// We need to normalise the result. Knowing that |in1| > |in2| we can scan until a non-zero limb is found.
+		// Then we left shift by the appropriate number of bits to normalise and zero the least significant limbs.
+		do {
+			limb = out->mantissa[--k];
+		} while (0 == limb);
+		k++;
+		bits = limb_clz(limb);
+		words = in1->alloc - k;
+		if (bits) {
+			mpn_lshift(out->mantissa + words, out->mantissa, k, bits);
+		}
+		else {
+			mpn_copy(out->mantissa + words, out->mantissa, k);
+		}
+		mpn_zero(out->mantissa, words);
+		
+		// The least significant bits outside of the precision range are masked off
+		out->mantissa[0] &= ~(((sc_ulimb_t)1 << lsb_sh) - 1);
+
+		// The output exponent is incremented to account for normalistion
+		exponent -= bits + SC_LIMB_BITS * words;
+		out->exponent = exponent;
 	}
 	else {
 		// The distance between exponents is greater than 0 and less than the input precision
+		SINT32 sh_limb, sh_bits;
+		sc_ulimb_t carry;
+		sh_limb = dist >> SC_LIMB_BITS_SHIFT;
+		sh_bits = dist & SC_LIMB_BITS_MASK;
+
+		/// @todo If small enough the memory allocation can be to the stack
+		temp = SC_MALLOC(sizeof(sc_ulimb_t) * in1->alloc);
+
+		// NOTE: As dist is non-zero sh_limb and sh_bits can't both be zero
+		if (0 == sh_limb) {
+			// We are aligned to the same limb so a right-shift by sh_bits will suffice
+			mpn_rshift(temp, in2->mantissa, in1->alloc, sh_bits);
+		}
+		else {
+			if (0 == sh_bits) {
+				// We are bit aligned so we can do a copy and zero to acheive a right shift
+				mpn_copy(temp, in2->mantissa + sh_limb, in1->alloc - sh_limb);
+			}
+			else {
+				// We are neither word or bit aligned so a shift and zero is required
+				mpn_rshift(temp, in2->mantissa + sh_limb, in1->alloc - sh_limb, sh_bits);
+			}
+			mpn_zero(temp + in1->alloc - sh_limb, sh_limb);
+		}
+
+		// Find the rounding bits from the shifted in2
+		rnd_msb = temp[0] & ((sc_ulimb_t)1 << (lsb_sh-1));
+		if (lsb_sh && temp[0] & ((((sc_ulimb_t)1 << (lsb_sh-1))) - 1)) {
+			// The lower significance discarded bits are non-zero
+			rnd_bits = 1;
+		}
+		else {
+			// We can't quickly detect rounding bits in in2 so we must look at the
+			// discarded limbs as well
+			SINT32 discarded = in1->precision - dist;
+			if (lsb_sh) {
+				discarded += lsb_sh - 1;
+			}
+			if (discarded > in1->precision) {
+				rnd_bits = 0;
+			}
+			else {
+				SINT32 i    = in1->alloc - 1 - (discarded >> SC_LIMB_BITS_SHIFT);
+				SINT32 mask = SC_LIMB_WORD(1) << (SC_LIMB_BITS - 1 - (discarded & SC_LIMB_BITS_MASK));
+				if (in2->mantissa[i] & mask) {
+					rnd_bits = 1;
+				}
+				else {
+					do {
+						i--;
+					} while (i >= 0 && 0 == in2->mantissa[i]);
+					rnd_bits = i >= 0;
+				}
+			}
+		}
+
+		// Check for rounding conditions where we can lose a bit, i.e. the highest bit is set and
+		// the following subtraction could result in a leading 0 bit.
+		if ((in1->mantissa[in1->alloc] - temp[in1->alloc]) <= SC_LIMB_HIGHBIT) {
+			if (0 == rnd_bits) {
+				maybe_rnd_msb  = 0;
+				maybe_rnd_bits = 0;
+			}
+			else {
+				SINT32 discarded = in1->precision + 1 - dist;
+				SINT32 shift     = SC_LIMB_BITS - 1 - (discarded & SC_LIMB_BITS_MASK);
+				SINT32 mask      = SC_LIMB_WORD(1) << shift;
+				SINT32 i         = in1->alloc - 1 - (discarded >> SC_LIMB_BITS_SHIFT);
+
+				maybe_rnd_msb = in2->mantissa[i] & mask;
+
+				if (0 == maybe_rnd_msb || (in2->mantissa[in1->alloc-1] & (mask - 1))) {
+					maybe_rnd_bits = 1;
+				}
+				else {
+					do {
+						i--;
+					} while (i >= 0 && 0 == in2->mantissa[i]);
+					maybe_rnd_bits = i >= 0;
+				}
+			}
+		}
+
+		// Remove unused precision bits in the aligned copy of in2
+		temp[0] &= ~((SC_LIMB_WORD(1) << lsb_sh) - 1);
+
+		// Subtract the aligned in2 from in1
+		mpn_sub_n(out->mantissa, in1->mantissa, temp, in1->alloc);
+
+		// If the subtraction results in the most significant bit being zero we must normalize
+		if (!(SC_LIMB_HIGHBIT & out->mantissa[in1->alloc - 1])) {
+			mpn_lshift(out->mantissa, out->mantissa, in1->alloc, 1);
+
+			if (rnd_msb) {
+				mpn_sub_1(out->mantissa, out->mantissa, in1->alloc, SC_LIMB_WORD(1) << lsb_sh);
+			}
+			out->mantissa[0] &= ~((SC_LIMB_WORD(1) << lsb_sh) - 1);
+			exponent--;
+			rnd_msb  = maybe_rnd_msb;
+			rnd_bits = maybe_rnd_bits;
+		}
+
+		// Apply rounding to the result
+		if (rnd_msb || rnd_bits) {
+apply_sub_1:
+			// 
+			mpn_sub_1(out->mantissa, out->mantissa, in1->alloc, SC_LIMB_WORD(1) << lsb_sh);
+
+			if (out->mantissa[in1->alloc-1] <= SC_LIMB_HIGHBIT) {
+				// The result was a power of 2 and we lost a bit, therefore left-shifting by 1 bit
+				// must occur to normalize the result
+				out->mantissa[in1->alloc-1] |= SC_LIMB_HIGHBIT;
+				out->mantissa[0] <<= 1;
+				exponent--;
+
+				if ((0 != rnd_msb && 0 == rnd_bits) || 0 == rnd_msb) {
+					out->mantissa[0] |= SC_LIMB_WORD(1) << lsb_sh;
+				}
+			}
+		}
+
+		// Remove unused precision bits
+		out->mantissa[0] &= ~((SC_LIMB_WORD(1) << lsb_sh) - 1);
+
+		out->exponent = exponent;
+
+		if (temp) {
+			SC_FREE(temp, sizeof(sc_ulimb_t) * in1->alloc);
+		}
 	}
 }
+
+#endif
 
 void sc_mpf_add(sc_mpf_t *out, const sc_mpf_t *in1, const sc_mpf_t *in2)
 {
@@ -1014,10 +1204,10 @@ void sc_mpf_add(sc_mpf_t *out, const sc_mpf_t *in1, const sc_mpf_t *in2)
 			out->exponent = SC_MPF_EXP_ZERO;
 		}
 		else if (SC_MPF_EXP_ZERO == in1->exponent) {
-			sc_mpf_set(out, in1);
+			sc_mpf_set(out, in2);
 		}
 		else if (SC_MPF_EXP_ZERO == in2->exponent) {
-			sc_mpf_set(out, in2);
+			sc_mpf_set(out, in1);
 		}
 		return;
 	}

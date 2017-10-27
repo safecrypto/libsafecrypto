@@ -386,16 +386,57 @@ START_TEST(test_mpf_add)
     sc_mpf_set_si(&b, 31);
     sc_mpf_add(&out, &a, &b);
     ck_assert_int_eq(sc_mpf_get_si(&out), 46);
+    sc_mpf_set_si(&a, 15);
+    sc_mpf_set_si(&b, -31);
+    sc_mpf_add(&out, &a, &b);
+    ck_assert_int_eq(sc_mpf_get_si(&out), -16);
+    sc_mpf_set_si(&a, SC_LIMB_SMIN);
+    sc_mpf_set_si(&b, SC_LIMB_SMAX);
+    sc_mpf_add(&out, &a, &b);
+    ck_assert_int_eq(sc_mpf_get_si(&out), -1);
+    sc_mpf_set_si(&a, 16);
+    sc_mpf_set_si(&b, -17);
+    sc_mpf_add(&out, &a, &b);
+    ck_assert_int_eq(sc_mpf_get_si(&out), -1);
     sc_mpf_add(&out, &a, &nan);
     ck_assert_int_ne(sc_mpf_is_nan(&out), 0);
     sc_mpf_add(&out, &a, &inf);
     ck_assert_int_ne(sc_mpf_is_inf(&out), 0);
     ck_assert_int_eq(sc_mpf_is_neg(&out), 0);  // i.e. +inf
+    sc_mpf_set_si(&a, SC_LIMB_SMAX);
+    sc_mpf_set_si(&b, SC_LIMB_SMAX);
+    sc_mpf_add(&out, &a, &b);
+    sc_mpf_add(&a, &out, &b);
+    sc_mpf_set_si(&b, 0);
+    sc_mpf_add(&out, &a, &b);
+    retval = sc_mpf_fits_slimb(&a);
+    ck_assert_int_eq(retval, 0);
     sc_mpf_clear(&a);
     sc_mpf_clear(&b);
     sc_mpf_clear(&out);
     sc_mpf_clear(&nan);
     sc_mpf_clear(&inf);
+
+    // Check reduced precision
+    sc_mpf_set_precision(32);
+    sc_mpf_init(&a);
+    sc_mpf_init(&b);
+    sc_mpf_init(&out);
+    sc_mpf_set_si(&a, SC_LIMB_WORD(1) << 48);
+    sc_mpf_set_si(&b, -(SC_LIMB_WORD(1) << 16));
+    sc_mpf_add(&out, &a, &b);
+    ck_assert_int_eq(sc_mpf_get_si(&out), ((SC_LIMB_WORD(1) << 48) - 1) & ~((SC_LIMB_WORD(1) << (48-32)) - 1));
+    sc_mpf_set_si(&a, SC_LIMB_WORD(1) << 48);
+    sc_mpf_set_si(&b, -(SC_LIMB_WORD(1) << 15));
+    sc_mpf_add(&out, &a, &b);
+    ck_assert_int_eq(sc_mpf_get_si(&out), ((SC_LIMB_WORD(1) << 48) - 1) & ~((SC_LIMB_WORD(1) << (48-32)) - 1));
+    sc_mpf_set_si(&a, SC_LIMB_WORD(1) << 48);
+    sc_mpf_set_si(&b, -(SC_LIMB_WORD(1) << 14));
+    sc_mpf_add(&out, &a, &b);
+    ck_assert_int_eq(sc_mpf_get_si(&out), ((SC_LIMB_WORD(1) << 48) - 1) & ~((SC_LIMB_WORD(1) << (48-32)) - 1));
+    sc_mpf_clear(&a);
+    sc_mpf_clear(&b);
+    sc_mpf_clear(&out);
 }
 END_TEST
 
