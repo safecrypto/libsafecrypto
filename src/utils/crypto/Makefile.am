@@ -39,9 +39,7 @@ lib_3rd_crypto_la_SOURCES = aes/aes.h \
                             sha3/fips202.c \
                             sha3/fips202.h \
                             sha3/tinysha3.c \
-                            sha3/tinysha3.h \
-                            sha3/sha3.c \
-                            sha3/sha3.h
+                            sha3/tinysha3.h
 else
 lib_3rd_crypto_la_SOURCES = aes/aes.h \
                             aes/aescrypt.c \
