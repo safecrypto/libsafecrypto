@@ -1416,9 +1416,69 @@ void sc_mpf_sub_si(sc_mpf_t *out, const sc_mpf_t *in1, sc_slimb_t in2)
 #endif
 }
 
+static void sc_mpf_mul_1(sc_mpf_t *out, const sc_mpf_t *in1, const sc_mpf_t *in2)
+{
+	// Perform a word-oriented multiply of in1 and in2
+
+	// If necessary, normalise the result
+
+	// Round towards zero
+
+	// Set the sign as appropriate
+}
+
+static void sc_mpf_mul_2(sc_mpf_t *out, const sc_mpf_t *in1, const sc_mpf_t *in2)
+{
+}
+
+static void sc_mpf_mul_3(sc_mpf_t *out, const sc_mpf_t *in1, const sc_mpf_t *in2)
+{
+}
+
+static void sc_mpf_mul_general(sc_mpf_t *out, const sc_mpf_t *in1, const sc_mpf_t *in2)
+{
+}
+
 void sc_mpf_mul(sc_mpf_t *out, const sc_mpf_t *in1, const sc_mpf_t *in2)
 {
 #ifdef USE_SAFECRYPTO_FLOAT_MP
+	if (SC_MPF_IS_SINGULAR(in1) || SC_MPF_IS_SINGULAR(in2)) {
+		SINT32 sign = in1->sign * in2->sign;
+		if (SC_MPF_EXP_NAN == in1->exponent || SC_MPF_EXP_NAN == in2->exponent) {
+			// If in1 or in2 is NaN then result is NaN
+			out->exponent = SC_MPF_EXP_NAN;
+		}
+		else if (SC_MPF_EXP_INF == in1->exponent || SC_MPF_EXP_INF == in2->exponent) {
+			if (SC_MPF_EXP_ZERO == in1->exponent || SC_MPF_EXP_ZERO == in2->exponent) {
+				out->exponent = SC_MPF_EXP_NAN;
+			}
+			else {
+				out->exponent = SC_MPF_EXP_INF;
+				out->sign     = sign;
+			}
+		}
+		else {
+			out->exponent = SC_MPF_EXP_ZERO;
+			out->sign     = sign;
+		}
+		return;
+	}
+
+	// Precision is identical for all operands, so we should take care of those cases
+	// we're likely to encounter, such as 64 to 256-bit precision for Gaussian sampling.
+	// At a minimum on a 64-bit machine we'll use a single limb to store the mantissa.
+	if (SC_LIMB_BITS == in1->precision) {
+		sc_mpf_mul_1(out, in1, in2);
+	}
+	else if (SC_LIMB_BITS < in1->precision && in1->precision < 2*SC_LIMB_BITS) {
+		sc_mpf_mul_2(out, in1, in2);
+	}
+	else if (2*SC_LIMB_BITS < in1->precision && in1->precision < 3*SC_LIMB_BITS) {
+		sc_mpf_mul_3(out, in1, in2);
+	}
+	else {
+		sc_mpf_mul_general(out, in1, in2);
+	}
 #else
 	mpfr_mul(out, in1, in2, MPFR_DEFAULT_ROUNDING);
 #endif
