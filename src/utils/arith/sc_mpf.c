@@ -1811,7 +1811,7 @@ static void sc_mpf_div_ui_normal(sc_mpf_t *out, const sc_mpf_t *n, sc_ulimb_t d)
 	}
 
 	// Transfer the temporary quotient to the output quotient with normalization.
-	if (temp[len_q]) {
+	if (!temp[len_q]) {
 		// If the leading limb is zero then simply copy to the output and reduce the exponent.
 		mpn_copy(out->mantissa, temp, len_q);
 		exponent -= SC_LIMB_BITS;
@@ -1839,6 +1839,7 @@ static void sc_mpf_div_ui_normal(sc_mpf_t *out, const sc_mpf_t *n, sc_ulimb_t d)
 	out->mantissa[0] &= ~(((sc_ulimb_t)1 << lsb_sh) - 1);
 
 	out->exponent = exponent;
+	out->sign     = n->sign;
 }
 #endif
 
@@ -1874,12 +1875,12 @@ void sc_mpf_div_ui(sc_mpf_t *out, const sc_mpf_t *n, sc_ulimb_t d)
 		out->exponent  = SC_MPF_EXP_INF;
 		return;
 	}
-	else if (!(d & (d-1))) {
-		return sc_mpf_div_2exp(out, n, limb_ctz(d));
-	}
 	else if (1 == d) {
 		sc_mpf_set(out, n);
 		return;
+	}
+	else if (!(d & (d-1))) {
+		return sc_mpf_div_2exp(out, n, limb_ctz(d));
 	}
 
 	return sc_mpf_div_ui_normal(out, n, d);
