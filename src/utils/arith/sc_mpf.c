@@ -18,7 +18,8 @@
 #include "utils/arith/sc_mpf.h"
 #include "utils/arith/sc_mpn.h"
 #include "utils/arith/sc_math.h"
-#include "safecrypto_types.h"
+#include "utils/arith/sc_math.h"
+#include "utils/arith/poly_limb.h"
 #include "safecrypto_private.h"
 #include "safecrypto_debug.h"
 
@@ -1418,6 +1419,7 @@ void sc_mpf_sub_si(sc_mpf_t *out, const sc_mpf_t *in1, sc_slimb_t in2)
 
 static void sc_mpf_mul_1(sc_mpf_t *out, const sc_mpf_t *in1, const sc_mpf_t *in2)
 {
+	// NOTE: All IO must have precision less than or equal to SC_LIMB_BITS
 	sc_ulimb_t hi, lo;
 	SINT32 exponent;
 
@@ -1447,14 +1449,90 @@ static void sc_mpf_mul_1(sc_mpf_t *out, const sc_mpf_t *in1, const sc_mpf_t *in2
 
 static void sc_mpf_mul_2(sc_mpf_t *out, const sc_mpf_t *in1, const sc_mpf_t *in2)
 {
-}
+	sc_ulimb_t msb, *limbs = NULL;
+	sc_ulimb_t p[4], hi, lo;
+	SINT32 exponent, used, out_used, smaller;
 
-static void sc_mpf_mul_3(sc_mpf_t *out, const sc_mpf_t *in1, const sc_mpf_t *in2)
-{
+	used     = in1->alloc;
+	smaller  = (2 * used) > ((in1->precision + in2->precision) >> SC_LIMB_BITS_SHIFT);
+	out_used = 2 * used - smaller;
+
+	// Set the output exponent
+	exponent = in1->exponent + in2->exponent;
+
+	// Set the output sign
+	out->sign = in1->sign * in2->sign;
+	
+	limbs = p;
+		
+	// The first partial product {A1B0, 0} + {A0B0}
+	limb_mul_hi_lo(&hi, &lo, in1->mantissa[0], in2->mantissa[0]);
+	limb_mul_hi_lo(&limbs[1], &limbs[0], in1->mantissa[1], in2->mantissa[0]);
+	limb_add_hi_lo(&limbs[1], &limbs[0], limbs[1], limbs[0], 0, hi);
+
+	// The second partial product {A0B1} + {A1B1, 0}
+	limb_mul_hi_lo(&hi, &lo, in1->mantissa[0], in2->mantissa[1]);
+	limb_mul_hi_lo(&limbs[3], &limbs[2], in1->mantissa[1], in2->mantissa[1]);
+	limb_add_hi_lo(&limbs[3], &hi, limbs[3], limbs[2], 0, hi);
+
+	// Sum of the partial products to for {p3, p2, p1, p0}
+	limb_add_hi_lo(&limbs[2], &limbs[1], limbs[2], limbs[1], hi, lo);
+	limbs[3] += limbs[2] < hi;
+	msb = limbs[3] >> (SC_LIMB_BITS - 1);
+
+	// Compensate for smaller precisions that result in 2*used-1 product limbs
+	limbs += smaller;
+
+	// Normalise the product
+	if (!msb) {
+		mpn_lshift(limbs, limbs, out_used, 1);
+		exponent--;
+	}
+
+	// Copy the product to the output
+	mpn_copy(out->mantissa, limbs + out_used - used, used);
+
+	// Set the exponent
+	out->exponent = exponent;
 }
 
 static void sc_mpf_mul_general(sc_mpf_t *out, const sc_mpf_t *in1, const sc_mpf_t *in2)
 {
+	sc_ulimb_t msb, *limbs = NULL;
+	SINT32 exponent, used, out_used, smaller;
+
+	used     = in1->alloc;
+	smaller  = (2 * used) > ((in1->precision + in2->precision) >> SC_LIMB_BITS_SHIFT);
+	out_used = 2 * used - smaller;
+
+	// Set the output exponent
+	exponent = in1->exponent + in2->exponent;
+
+	// Set the output sign
+	out->sign = in1->sign * in2->sign;
+
+	limbs = SC_MALLOC(sizeof(sc_ulimb_t) * 2 * used);
+
+	mpn_mul(limbs, in1->mantissa, used, in2->mantissa, used);
+
+	msb = limbs[2*used - 1] >> (SC_LIMB_BITS - 1);
+
+	// Compensate for smaller precisions that result in 2*used-1 product limbs
+	limbs += smaller;
+
+	// Normalise the product
+	if (!msb) {
+		mpn_lshift(limbs, limbs, out_used, 1);
+		exponent--;
+	}
+
+	// Copy the product to the output
+	mpn_copy(out->mantissa, limbs + out_used - used, used);
+
+	// Set the exponent
+	out->exponent = exponent;
+
+	SC_FREE(limbs, sizeof(sc_ulimb_t) * 2 * used);
 }
 
 void sc_mpf_mul(sc_mpf_t *out, const sc_mpf_t *in1, const sc_mpf_t *in2)
@@ -1485,14 +1563,11 @@ void sc_mpf_mul(sc_mpf_t *out, const sc_mpf_t *in1, const sc_mpf_t *in2)
 	// Precision is identical for all operands, so we should take care of those cases
 	// we're likely to encounter, such as 64 to 256-bit precision for Gaussian sampling.
 	// At a minimum on a 64-bit machine we'll use a single limb to store the mantissa.
-	if (SC_LIMB_BITS == in1->precision) {
+	if (SC_LIMB_BITS >= in1->precision) {
 		sc_mpf_mul_1(out, in1, in2);
 	}
-	else if (SC_LIMB_BITS < in1->precision && in1->precision < 2*SC_LIMB_BITS) {
+	else if (2*SC_LIMB_BITS >= in1->precision) {
 		sc_mpf_mul_2(out, in1, in2);
-	}
-	else if (2*SC_LIMB_BITS < in1->precision && in1->precision < 3*SC_LIMB_BITS) {
-		sc_mpf_mul_3(out, in1, in2);
 	}
 	else {
 		sc_mpf_mul_general(out, in1, in2);
@@ -1513,6 +1588,77 @@ void sc_mpf_mul_2exp(sc_mpf_t *out, const sc_mpf_t *in, sc_ulimb_t exp)
 void sc_mpf_mul_ui(sc_mpf_t *out, const sc_mpf_t *in1, const sc_ulimb_t in2)
 {
 #ifdef USE_SAFECRYPTO_FLOAT_MP
+	sc_mpf_t mpf_in2;
+
+	if (SC_MPF_IS_SINGULAR(in1)) {
+		if (SC_MPF_EXP_NAN == in1->exponent) {
+			out->exponent = SC_MPF_EXP_NAN;
+		}
+		else if(SC_MPF_EXP_INF == in1->exponent) {
+			if (0 == in2) {
+				out->exponent = SC_MPF_EXP_NAN;
+			}
+			else {
+				out->exponent = SC_MPF_EXP_INF;
+				out->sign     = in1->sign;
+			}
+		}
+		else {
+			out->exponent = SC_MPF_EXP_ZERO;
+			out->sign     = in1->sign;
+		}
+		return;
+	}
+	else if (0 == in2) {
+		return sc_mpf_set_ui(out, in2);
+	}
+	else if (1 == in2) {
+		return sc_mpf_set(out, in1);
+	}
+	else {
+		sc_ulimb_t msb, *limbs = NULL, v;
+		SINT32 exponent, used, out_used, smaller, clz;
+	
+		used     = in1->alloc;
+		smaller  = (used + 1) > ((in1->precision + SC_LIMB_BITS) >> SC_LIMB_BITS_SHIFT);
+		out_used = used + 1 - smaller;
+	
+		// Set the output exponent
+		clz      = limb_clz(in2);
+		exponent = in1->exponent + SC_LIMB_BITS - clz;
+
+		// Normalise the input
+		v        = in2 << clz;
+	
+		// Set the output sign
+		out->sign = in1->sign;
+	
+		// Allocate memory for the intermediate result
+		limbs = SC_MALLOC(sizeof(sc_ulimb_t) * (used + 1));
+	
+		// Multiply the MP limbs with the single precision (normalised) value
+		limbs[used] = mpn_mul_1(limbs, in1->mantissa, used, v);
+	
+		msb = limbs[used] >> (SC_LIMB_BITS - 1);
+	
+		// Compensate for smaller precisions that result in 2*used-1 product limbs
+		limbs += smaller;
+	
+		// Normalise the product
+		if (!msb) {
+			mpn_lshift(limbs, limbs, out_used, 1);
+			exponent--;
+		}
+	
+		// Copy the product to the output
+		mpn_copy(out->mantissa, limbs + out_used - used, used);
+
+		// Set the exponent
+		out->exponent = exponent;
+	
+		// Free resources associated with the intermediate result
+		SC_FREE(limbs, sizeof(sc_ulimb_t) * (used + 1));
+	}
 #else
 	mpfr_mul_ui(out, in1, in2, MPFR_DEFAULT_ROUNDING);
 #endif
@@ -1521,6 +1667,78 @@ void sc_mpf_mul_ui(sc_mpf_t *out, const sc_mpf_t *in1, const sc_ulimb_t in2)
 void sc_mpf_mul_si(sc_mpf_t *out, const sc_mpf_t *in1, const sc_slimb_t in2)
 {
 #ifdef USE_SAFECRYPTO_FLOAT_MP
+	sc_mpf_t mpf_in2;
+
+	if (SC_MPF_IS_SINGULAR(in1)) {
+		if (SC_MPF_EXP_NAN == in1->exponent) {
+			out->exponent = SC_MPF_EXP_NAN;
+		}
+		else if(SC_MPF_EXP_INF == in1->exponent) {
+			if (0 == in2) {
+				out->exponent = SC_MPF_EXP_NAN;
+			}
+			else {
+				out->exponent = SC_MPF_EXP_INF;
+				out->sign     = in1->sign* ((in2 < 0)? -1 : 1);
+			}
+		}
+		else {
+			out->exponent = SC_MPF_EXP_ZERO;
+			out->sign     = in1->sign;
+		}
+		return;
+	}
+	else if (0 == in2) {
+		return sc_mpf_set_ui(out, in2);
+	}
+	else if (1 == in2) {
+		return sc_mpf_set(out, in1);
+	}
+	else {
+		sc_ulimb_t msb, *limbs = NULL, v;
+		SINT32 exponent, used, out_used, smaller, clz;
+	
+		used     = in1->alloc;
+		smaller  = (used + 1) > ((in1->precision + SC_LIMB_BITS) >> SC_LIMB_BITS_SHIFT);
+		out_used = used + 1 - smaller;
+	
+		// Set the output exponent
+		v        = (in2 >= 0)? in2 : -(sc_ulimb_t) in2;
+		clz      = limb_clz(v);
+		exponent = in1->exponent + SC_LIMB_BITS - clz;
+
+		// Normalise the input
+		v        = v << clz;
+	
+		// Set the output sign
+		out->sign = in1->sign * ((in2 < 0)? -1 : 1);
+	
+		// Allocate memory for the intermediate result
+		limbs = SC_MALLOC(sizeof(sc_ulimb_t) * (used + 1));
+	
+		// Multiply the MP limbs with the single precision (normalised) value
+		limbs[used] = mpn_mul_1(limbs, in1->mantissa, used, v);
+	
+		msb = limbs[used] >> (SC_LIMB_BITS - 1);
+	
+		// Compensate for smaller precisions that result in 2*used-1 product limbs
+		limbs += smaller;
+	
+		// Normalise the product
+		if (!msb) {
+			mpn_lshift(limbs, limbs, out_used, 1);
+			exponent--;
+		}
+	
+		// Copy the product to the output
+		mpn_copy(out->mantissa, limbs + out_used - used, used);
+
+		// Set the exponent
+		out->exponent = exponent;
+	
+		// Free resources associated with the intermediate result
+		SC_FREE(limbs, sizeof(sc_ulimb_t) * (used + 1));
+	}
 #else
     mpfr_mul_si(out, in1, (sc_ulimb_t) in2, MPFR_DEFAULT_ROUNDING);
 #endif

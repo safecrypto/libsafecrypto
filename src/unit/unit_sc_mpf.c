@@ -701,11 +701,211 @@ START_TEST(test_mpf_mul_single_precision)
 }
 END_TEST
 
-START_TEST(test_mpf_mul)
+START_TEST(test_mpf_mul_48)
+{
+    SINT32 retval;
+    sc_mpf_t a, b, out, nan, inf;
+    sc_mpf_set_precision(48);
+
+    sc_mpf_init(&a);
+    sc_mpf_init(&b);
+    sc_mpf_init(&out);
+    sc_mpf_init(&nan);
+    sc_mpf_init(&inf);
+    sc_mpf_set_si(&a, 1);
+    sc_mpf_div_ui(&inf, &a, 0);
+    sc_mpf_set_si(&a, 0);
+    sc_mpf_set_si(&b, 0);
+    sc_mpf_mul(&out, &a, &b);
+    ck_assert_int_eq(sc_mpf_get_si(&out), 0);
+    sc_mpf_set_si(&a, -1024);
+    sc_mpf_set_si(&b, 0);
+    sc_mpf_mul(&out, &a, &b);
+    ck_assert_int_eq(sc_mpf_get_si(&out), 0);
+    sc_mpf_set_si(&a, -16);
+    sc_mpf_set_si(&b, -16);
+    sc_mpf_mul(&out, &a, &b);
+    ck_assert_int_eq(sc_mpf_get_si(&out), 256);
+    sc_mpf_set_si(&a, 0);
+    sc_mpf_set_si(&b, -512);
+    sc_mpf_mul(&out, &a, &b);
+    ck_assert_int_eq(sc_mpf_get_si(&out), 0);
+    sc_mpf_set_si(&a, 15);
+    sc_mpf_set_si(&b, 31);
+    sc_mpf_mul(&out, &a, &b);
+    ck_assert_int_eq(sc_mpf_get_si(&out), 465);
+    sc_mpf_mul(&out, &a, &nan);
+    ck_assert_int_ne(sc_mpf_is_nan(&out), 0);
+    sc_mpf_mul(&out, &a, &inf);
+    ck_assert_int_ne(sc_mpf_is_inf(&out), 0);
+    ck_assert_int_eq(sc_mpf_is_neg(&out), 0);  // i.e. +inf
+    sc_mpf_set_si(&a, -1);
+    sc_mpf_mul(&out, &inf, &a);
+    ck_assert_int_ne(sc_mpf_is_inf(&out), 0);
+    ck_assert_int_ne(sc_mpf_is_neg(&out), 0);  // i.e. -inf
+    sc_mpf_clear(&a);
+    sc_mpf_clear(&b);
+    sc_mpf_clear(&out);
+    sc_mpf_clear(&nan);
+    sc_mpf_clear(&inf);
+}
+END_TEST
+
+START_TEST(test_mpf_mul_80)
+{
+    SINT32 retval;
+    sc_mpf_t a, b, out, nan, inf;
+    sc_mpf_set_precision(80);
+
+    sc_mpf_init(&a);
+    sc_mpf_init(&b);
+    sc_mpf_init(&out);
+    sc_mpf_init(&nan);
+    sc_mpf_init(&inf);
+    sc_mpf_set_si(&a, 1);
+    sc_mpf_div_ui(&inf, &a, 0);
+    sc_mpf_set_si(&a, 0);
+    sc_mpf_set_si(&b, 0);
+    sc_mpf_mul(&out, &a, &b);
+    ck_assert_int_eq(sc_mpf_get_si(&out), 0);
+    sc_mpf_set_si(&a, -1024);
+    sc_mpf_set_si(&b, 0);
+    sc_mpf_mul(&out, &a, &b);
+    ck_assert_int_eq(sc_mpf_get_si(&out), 0);
+    sc_mpf_set_si(&a, -16);
+    sc_mpf_set_si(&b, -16);
+    sc_mpf_mul(&out, &a, &b);
+    ck_assert_int_eq(sc_mpf_get_si(&out), 256);
+    sc_mpf_set_si(&a, 0);
+    sc_mpf_set_si(&b, -512);
+    sc_mpf_mul(&out, &a, &b);
+    ck_assert_int_eq(sc_mpf_get_si(&out), 0);
+    sc_mpf_set_si(&a, 15);
+    sc_mpf_set_si(&b, 31);
+    sc_mpf_mul(&out, &a, &b);
+    ck_assert_int_eq(sc_mpf_get_si(&out), 465);
+    sc_mpf_mul(&out, &a, &nan);
+    ck_assert_int_ne(sc_mpf_is_nan(&out), 0);
+    sc_mpf_mul(&out, &a, &inf);
+    ck_assert_int_ne(sc_mpf_is_inf(&out), 0);
+    ck_assert_int_eq(sc_mpf_is_neg(&out), 0);  // i.e. +inf
+    sc_mpf_set_si(&a, -1);
+    sc_mpf_mul(&out, &inf, &a);
+    ck_assert_int_ne(sc_mpf_is_inf(&out), 0);
+    ck_assert_int_ne(sc_mpf_is_neg(&out), 0);  // i.e. -inf
+    sc_mpf_clear(&a);
+    sc_mpf_clear(&b);
+    sc_mpf_clear(&out);
+    sc_mpf_clear(&nan);
+    sc_mpf_clear(&inf);
+}
+END_TEST
+
+START_TEST(test_mpf_mul_128)
 {
     SINT32 retval;
     sc_mpf_t a, b, out, nan, inf;
     sc_mpf_set_precision(128);
+
+    sc_mpf_init(&a);
+    sc_mpf_init(&b);
+    sc_mpf_init(&out);
+    sc_mpf_init(&nan);
+    sc_mpf_init(&inf);
+    sc_mpf_set_si(&a, 1);
+    sc_mpf_div_ui(&inf, &a, 0);
+    sc_mpf_set_si(&a, 0);
+    sc_mpf_set_si(&b, 0);
+    sc_mpf_mul(&out, &a, &b);
+    ck_assert_int_eq(sc_mpf_get_si(&out), 0);
+    sc_mpf_set_si(&a, -1024);
+    sc_mpf_set_si(&b, 0);
+    sc_mpf_mul(&out, &a, &b);
+    ck_assert_int_eq(sc_mpf_get_si(&out), 0);
+    sc_mpf_set_si(&a, -16);
+    sc_mpf_set_si(&b, -16);
+    sc_mpf_mul(&out, &a, &b);
+    ck_assert_int_eq(sc_mpf_get_si(&out), 256);
+    sc_mpf_set_si(&a, 0);
+    sc_mpf_set_si(&b, -512);
+    sc_mpf_mul(&out, &a, &b);
+    ck_assert_int_eq(sc_mpf_get_si(&out), 0);
+    sc_mpf_set_si(&a, 15);
+    sc_mpf_set_si(&b, 31);
+    sc_mpf_mul(&out, &a, &b);
+    ck_assert_int_eq(sc_mpf_get_si(&out), 465);
+    sc_mpf_mul(&out, &a, &nan);
+    ck_assert_int_ne(sc_mpf_is_nan(&out), 0);
+    sc_mpf_mul(&out, &a, &inf);
+    ck_assert_int_ne(sc_mpf_is_inf(&out), 0);
+    ck_assert_int_eq(sc_mpf_is_neg(&out), 0);  // i.e. +inf
+    sc_mpf_set_si(&a, -1);
+    sc_mpf_mul(&out, &inf, &a);
+    ck_assert_int_ne(sc_mpf_is_inf(&out), 0);
+    ck_assert_int_ne(sc_mpf_is_neg(&out), 0);  // i.e. -inf
+    sc_mpf_clear(&a);
+    sc_mpf_clear(&b);
+    sc_mpf_clear(&out);
+    sc_mpf_clear(&nan);
+    sc_mpf_clear(&inf);
+}
+END_TEST
+
+START_TEST(test_mpf_mul_192)
+{
+    SINT32 retval;
+    sc_mpf_t a, b, out, nan, inf;
+    sc_mpf_set_precision(192);
+
+    sc_mpf_init(&a);
+    sc_mpf_init(&b);
+    sc_mpf_init(&out);
+    sc_mpf_init(&nan);
+    sc_mpf_init(&inf);
+    sc_mpf_set_si(&a, 1);
+    sc_mpf_div_ui(&inf, &a, 0);
+    sc_mpf_set_si(&a, 0);
+    sc_mpf_set_si(&b, 0);
+    sc_mpf_mul(&out, &a, &b);
+    ck_assert_int_eq(sc_mpf_get_si(&out), 0);
+    sc_mpf_set_si(&a, -1024);
+    sc_mpf_set_si(&b, 0);
+    sc_mpf_mul(&out, &a, &b);
+    ck_assert_int_eq(sc_mpf_get_si(&out), 0);
+    sc_mpf_set_si(&a, -16);
+    sc_mpf_set_si(&b, -16);
+    sc_mpf_mul(&out, &a, &b);
+    ck_assert_int_eq(sc_mpf_get_si(&out), 256);
+    sc_mpf_set_si(&a, 0);
+    sc_mpf_set_si(&b, -512);
+    sc_mpf_mul(&out, &a, &b);
+    ck_assert_int_eq(sc_mpf_get_si(&out), 0);
+    sc_mpf_set_si(&a, 15);
+    sc_mpf_set_si(&b, 31);
+    sc_mpf_mul(&out, &a, &b);
+    ck_assert_int_eq(sc_mpf_get_si(&out), 465);
+    sc_mpf_mul(&out, &a, &nan);
+    ck_assert_int_ne(sc_mpf_is_nan(&out), 0);
+    sc_mpf_mul(&out, &a, &inf);
+    ck_assert_int_ne(sc_mpf_is_inf(&out), 0);
+    ck_assert_int_eq(sc_mpf_is_neg(&out), 0);  // i.e. +inf
+    sc_mpf_set_si(&a, -1);
+    sc_mpf_mul(&out, &inf, &a);
+    ck_assert_int_ne(sc_mpf_is_inf(&out), 0);
+    ck_assert_int_ne(sc_mpf_is_neg(&out), 0);  // i.e. -inf
+    sc_mpf_clear(&a);
+    sc_mpf_clear(&b);
+    sc_mpf_clear(&out);
+    sc_mpf_clear(&nan);
+    sc_mpf_clear(&inf);
+}
+END_TEST
+
+START_TEST(test_mpf_mul_256)
+{
+    SINT32 retval;
+    sc_mpf_t a, b, out, nan, inf;
+    sc_mpf_set_precision(256);
 
     sc_mpf_init(&a);
     sc_mpf_init(&b);
@@ -1165,7 +1365,11 @@ Suite *sc_mpf_suite(void)
     tcase_add_test(tc_mpf, test_mpf_sub_ui);
     tcase_add_test(tc_mpf, test_mpf_sub_si);
     tcase_add_test(tc_mpf, test_mpf_mul_single_precision);
-    tcase_add_test(tc_mpf, test_mpf_mul);
+    tcase_add_test(tc_mpf, test_mpf_mul_48);
+    tcase_add_test(tc_mpf, test_mpf_mul_80);
+    tcase_add_test(tc_mpf, test_mpf_mul_128);
+    tcase_add_test(tc_mpf, test_mpf_mul_192);
+    tcase_add_test(tc_mpf, test_mpf_mul_256);
     tcase_add_test(tc_mpf, test_mpf_mul_ui);
     tcase_add_test(tc_mpf, test_mpf_mul_si);
     tcase_add_test(tc_mpf, test_mpf_div);
