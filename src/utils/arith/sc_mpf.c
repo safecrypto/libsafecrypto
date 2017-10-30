@@ -1418,13 +1418,31 @@ void sc_mpf_sub_si(sc_mpf_t *out, const sc_mpf_t *in1, sc_slimb_t in2)
 
 static void sc_mpf_mul_1(sc_mpf_t *out, const sc_mpf_t *in1, const sc_mpf_t *in2)
 {
+	sc_ulimb_t hi, lo;
+	SINT32 exponent;
+
+	// Set the output exponent
+	exponent = in1->exponent + in2->exponent;
+
 	// Perform a word-oriented multiply of in1 and in2
+	limb_mul_hi_lo(&hi, &lo, in1->mantissa[0], in2->mantissa[0]);
 
 	// If necessary, normalise the result
+	//if (!(hi & SC_LIMB_HIGHBIT)) {
+	if (hi < SC_LIMB_HIGHBIT) {
+		hi   = (hi << 1) | (lo >> (SC_LIMB_BITS - 1));
+		lo <<= 1;
+		exponent--;
+	}
 
-	// Round towards zero
+	// Set the exponent
+	out->exponent = exponent;
 
 	// Set the sign as appropriate
+	out->sign = in1->sign * in2->sign;
+
+	// Round towards zero so simply truncate when setting the output mantissa
+	out->mantissa[0] = hi;
 }
 
 static void sc_mpf_mul_2(sc_mpf_t *out, const sc_mpf_t *in1, const sc_mpf_t *in2)
