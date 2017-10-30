@@ -1766,6 +1766,10 @@ void sc_mpf_div(sc_mpf_t *out, const sc_mpf_t *n, const sc_mpf_t *d)
 void sc_mpf_div_2exp(sc_mpf_t *out, const sc_mpf_t *n, sc_ulimb_t exp)
 {
 #ifdef USE_SAFECRYPTO_FLOAT_MP
+	sc_mpf_set(out, n);
+	if (!SC_MPF_IS_SINGULAR(n) && exp) {
+		out->exponent = n->exponent - exp;
+	}
 #else
 	mpfr_div_2exp(out, n, exp, MPFR_DEFAULT_ROUNDING);
 #endif
