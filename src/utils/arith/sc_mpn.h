@@ -27,6 +27,7 @@ SINT32 mpn_cmp(const sc_ulimb_t *in1, const sc_ulimb_t *in2, size_t n);
 SINT32 mpn_cmp_n(const sc_ulimb_t *in1, size_t in1_n, const sc_ulimb_t *in2, size_t in2_n);
 void mpn_copy(sc_ulimb_t *out, const sc_ulimb_t *in, size_t n);
 void mpn_zero(sc_ulimb_t* inout, size_t n);
+SINT32 mpn_zero_p(const sc_ulimb_t *in, size_t n);
 void mpn_com(sc_ulimb_t* out, const sc_ulimb_t *in, size_t n);
 size_t mpn_normalized_size(const sc_ulimb_t *inout, size_t n);
 sc_ulimb_t mpn_lshift(sc_ulimb_t *out, const sc_ulimb_t *in, size_t n, size_t count);

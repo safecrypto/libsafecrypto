@@ -72,6 +72,13 @@ void mpn_zero(sc_ulimb_t* inout, size_t n)
     }
 }
 
+SINT32 mpn_zero_p(const sc_ulimb_t *in, size_t n)
+{
+    while (n && in[--n]) {
+    }
+    return 0 == n && 0 == in[0];
+}
+
 void mpn_com(sc_ulimb_t* out, const sc_ulimb_t *in, size_t n)
 {
     while (n--) {
