@@ -1417,6 +1417,8 @@ void sc_mpf_sub_si(sc_mpf_t *out, const sc_mpf_t *in1, sc_slimb_t in2)
 #endif
 }
 
+#ifdef USE_SAFECRYPTO_FLOAT_MP
+
 static void sc_mpf_mul_1(sc_mpf_t *out, const sc_mpf_t *in1, const sc_mpf_t *in2)
 {
 	// NOTE: All IO must have precision less than or equal to SC_LIMB_BITS
@@ -1535,6 +1537,8 @@ static void sc_mpf_mul_general(sc_mpf_t *out, const sc_mpf_t *in1, const sc_mpf_
 	SC_FREE(limbs, sizeof(sc_ulimb_t) * 2 * used);
 }
 
+#endif
+
 void sc_mpf_mul(sc_mpf_t *out, const sc_mpf_t *in1, const sc_mpf_t *in2)
 {
 #ifdef USE_SAFECRYPTO_FLOAT_MP
@@ -1580,6 +1584,13 @@ void sc_mpf_mul(sc_mpf_t *out, const sc_mpf_t *in1, const sc_mpf_t *in2)
 void sc_mpf_mul_2exp(sc_mpf_t *out, const sc_mpf_t *in, sc_ulimb_t exp)
 {
 #ifdef USE_SAFECRYPTO_FLOAT_MP
+	sc_mpf_set(out, in);
+
+	// If in is NaN, INF or ZERO the result should be the same, otherwise multiplication
+	// is performed by simply increasing the exponent by exp
+	if (!SC_MPF_IS_SINGULAR(in)) {
+		out->exponent += exp;
+	}
 #else
 	mpfr_mul_2exp(out, in, exp, MPFR_DEFAULT_ROUNDING);
 #endif
