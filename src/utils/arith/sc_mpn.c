@@ -454,6 +454,12 @@ static void mpn_div_qr_preinv(sc_ulimb_t *q_limbs, sc_ulimb_t *n_limbs,
     }
 }
 
+sc_ulimb_t mpn_divrem(sc_ulimb_t *q_limbs, size_t qn, const sc_ulimb_t *n_limbs, size_t n_len, const sc_ulimb_t *d, size_t d_len)
+{
+    /// @todo Create mpn_divrem()
+    return 0;
+}
+
 sc_ulimb_t mpn_divrem_1(sc_ulimb_t *q_limbs, size_t q_frac_n, const sc_ulimb_t *n_limbs, size_t n, sc_ulimb_t d)
 {
     // The remainder is returned while a fractional quotient is written to q_limbs

@@ -1755,6 +1755,8 @@ void sc_mpf_mul_si(sc_mpf_t *out, const sc_mpf_t *in1, const sc_slimb_t in2)
 #endif
 }
 
+#ifdef USE_SAFECRYPTO_FLOAT_MP
+
 static void sc_mpf_div_general(sc_mpf_t *out, const sc_mpf_t *n, const sc_mpf_t *d)
 {
     size_t i;
@@ -1762,6 +1764,9 @@ static void sc_mpf_div_general(sc_mpf_t *out, const sc_mpf_t *n, const sc_mpf_t 
     sc_ulimb_t *mpn_n, *mpn_d, qlimb;
 
     q_used = 2 * out->alloc;
+
+    // Set the output sign
+    out->sign = n->sign * d->sign;
 
     // Check if division will generate an extra bit because the numerator mantissa is
     // larger than that of the denominator
@@ -1788,7 +1793,7 @@ static void sc_mpf_div_general(sc_mpf_t *out, const sc_mpf_t *n, const sc_mpf_t 
     // Determine how many quotient bits in the least significant limb are valid
     lsb_sh = sc_mpf_negative_mod_limb(out, out->precision);
 
-    // Prepeare for division by initialising a numerator (to become the remainder)
+    // Prepare for division by initialising a numerator (to become the remainder)
     // with the appropriately word and bit shifted input numerator
     i = q_used - n->alloc;
     mpn_zero(mpn_n, i);
@@ -1802,23 +1807,24 @@ static void sc_mpf_div_general(sc_mpf_t *out, const sc_mpf_t *n, const sc_mpf_t 
     // Prepare the denominator by either creating a pointer to the input denominator
     // OR if the quotient and denominator are the same variable a copy must be made for mpn_divrem()
     if (out == d) {
-        i = 0;
-
         /// @todo Allocate memory for mpn_d
     }
     else {
-        i     = d->alloc - out->alloc;
-        mpn_d = d->mantissa + i;
+        mpn_d = d->mantissa;
     }
 
     // Perform division and obtain the remainder in mpn_n. No fractional quotient
     // limbs are required.
-    qlimb = mpn_divrem(out->mantissa, 0, mpn_n + i, q_used - i, mpn_d, q_used - i);
+    qlimb = mpn_divrem(out->mantissa, 0, mpn_n, q_used, mpn_d, out->alloc);
 
     // Mask out those bits beyond the precision of the quotient
+    out->mantissa[0] &= ~((SC_LIMB_WORD(1) << lsb_sh) - 1);
 
-    // Deal with rounding, might be tricky...
+    // Set the exponent
+    out->exponent = exponent;
 }
+
+#endif
 
 void sc_mpf_div(sc_mpf_t *out, const sc_mpf_t *n, const sc_mpf_t *d)
 {
@@ -1870,11 +1876,11 @@ void sc_mpf_div(sc_mpf_t *out, const sc_mpf_t *n, const sc_mpf_t *d)
             out->sign = -out->sign;
         }
     }
-    else if (sc_mpf_fits_ulimb(d)) {
+    /*else if (sc_mpf_fits_ulimb(d)) {
         // If the divisor can be represented by a single precision limb then use the 
         // optimal division routine
         sc_mpf_div_ui(out, n, sc_mpf_get_ui(d));
-    }
+    }*/
     else {
         // The general case
         sc_mpf_div_general(out, n, d);
