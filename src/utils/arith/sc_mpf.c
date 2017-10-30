@@ -1892,6 +1892,54 @@ void sc_mpf_div_ui(sc_mpf_t *out, const sc_mpf_t *n, sc_ulimb_t d)
 void sc_mpf_div_si(sc_mpf_t *out, const sc_mpf_t *n, sc_slimb_t d)
 {
 #ifdef USE_SAFECRYPTO_FLOAT_MP
+	// Deal with singluar inputs - ZERO, INF and NaN
+	if (SC_MPF_IS_SINGULAR(n)) {
+		if (SC_MPF_EXP_NAN == n->exponent) {
+			// If the numerator is NaN then quotient is also a NaN
+    		out->exponent  = SC_MPF_EXP_NAN;
+		}
+		else if (SC_MPF_EXP_INF == n->exponent) {
+			// If numerator is infinite then the quotient is infinite with the same sign
+			out->sign      = n->sign * ((d < 0)? -1 : 1);
+    		out->exponent  = SC_MPF_EXP_INF;
+    	}
+		else if (0 == d) {
+			// If numerator and denominator are zero then quotient is NaN
+			out->exponent  = SC_MPF_EXP_NAN;
+		}
+		else {
+			// 0/d is zero
+			out->sign      = n->sign * ((d < 0)? -1 : 1);
+			out->exponent  = SC_MPF_EXP_ZERO;
+		}
+		return;
+	}
+	else if (0 == d) {
+		// If numerator is non-zero and denominator is zero then quotient is infinite
+		// with the same sign as the numerator
+		out->sign      = n->sign * ((d < 0)? -1 : 1);
+		out->exponent  = SC_MPF_EXP_INF;
+		return;
+	}
+	else {
+		sc_ulimb_t abs_d = (d >= 0)? d : -(sc_ulimb_t) d;
+		if (1 == abs_d) {
+			sc_mpf_set(out, n);
+			if (d < 0) {
+				out->sign = -out->sign;
+			}
+			return;
+		}
+		else if (!(abs_d & (abs_d-1))) {
+			sc_mpf_div_2exp(out, n, limb_ctz(abs_d));
+			if (d < 0) {
+				out->sign = -out->sign;
+			}
+			return;
+		}
+
+		sc_mpf_div_ui_normal(out, n, abs_d);
+	}
 #else
     mpfr_div_si(out, n, (sc_ulimb_t) d, MPFR_DEFAULT_ROUNDING);
 #endif
