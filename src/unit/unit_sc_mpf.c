@@ -1100,10 +1100,10 @@ START_TEST(test_mpf_div)
     ck_assert_int_eq(sc_mpf_is_nan(&out), 0);
     ck_assert_int_ne(sc_mpf_is_inf(&out), 0);
     ck_assert_int_ne(sc_mpf_is_neg(&out), 0);
-    sc_mpf_set_si(&a, 9999999);
-    sc_mpf_set_si(&b, 3);
+    sc_mpf_set_si(&a, -8192);
+    sc_mpf_set_si(&b, 4);
     sc_mpf_div(&out, &a, &b);
-    ck_assert_int_eq(sc_mpf_get_si(&out), 3333333);
+    ck_assert_int_eq(sc_mpf_get_si(&out), -2048);
     sc_mpf_set_si(&a, 32768);
     sc_mpf_set_si(&b, -4);
     sc_mpf_div(&out, &a, &b);
@@ -1112,10 +1112,10 @@ START_TEST(test_mpf_div)
     sc_mpf_set_si(&b, -8);
     sc_mpf_div(&out, &a, &b);
     ck_assert_int_eq(sc_mpf_get_si(&out), 2);
-    sc_mpf_set_si(&a, -8192);
-    sc_mpf_set_si(&b, 4);
+    sc_mpf_set_si(&a, 9999999);
+    sc_mpf_set_si(&b, 3);
     sc_mpf_div(&out, &a, &b);
-    ck_assert_int_eq(sc_mpf_get_si(&out), -2048);
+    ck_assert_int_eq(sc_mpf_get_si(&out), 3333333);
     sc_mpf_clear(&a);
     sc_mpf_clear(&b);
     sc_mpf_clear(&out);

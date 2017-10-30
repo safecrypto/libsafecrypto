@@ -70,6 +70,28 @@ START_TEST(test_mpn_zero)
 }
 END_TEST
 
+START_TEST(test_mpn_zero_p)
+{
+    SINT32 retval;
+    size_t i;
+    sc_ulimb_t a[8] = {0, 0, 0, 0, 1, 0, 0, 0};
+    sc_ulimb_t b[8] = {1, 0, 0, 0, 0, 0, 0, 0};
+    sc_ulimb_t c[8] = {0, 0, 0, 0, 0, 0, 0, SC_LIMB_UMAX};
+    sc_ulimb_t d[8] = {SC_LIMB_UMAX, 0, 0, 0, 0, 0, 0, 0};
+    sc_ulimb_t e[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    retval = mpn_zero_p(a, 8);
+    ck_assert_uint_eq(retval, 0);
+    retval = mpn_zero_p(b, 8);
+    ck_assert_uint_eq(retval, 0);
+    retval = mpn_zero_p(c, 8);
+    ck_assert_uint_eq(retval, 0);
+    retval = mpn_zero_p(d, 8);
+    ck_assert_uint_eq(retval, 0);
+    retval = mpn_zero_p(e, 8);
+    ck_assert_uint_eq(retval, 1);
+}
+END_TEST
+
 START_TEST(test_mpn_com)
 {
     size_t i;
@@ -566,6 +588,7 @@ Suite *sc_mp_suite(void)
 #endif
     tcase_add_test(tc_mpn, test_mpn_cmp);
     tcase_add_test(tc_mpn, test_mpn_zero);
+    tcase_add_test(tc_mpn, test_mpn_zero_p);
     tcase_add_test(tc_mpn, test_mpn_com);
     tcase_add_test(tc_mpn, test_mpn_lshift);
     tcase_add_test(tc_mpn, test_mpn_rshift);

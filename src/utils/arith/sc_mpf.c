@@ -1755,6 +1755,71 @@ void sc_mpf_mul_si(sc_mpf_t *out, const sc_mpf_t *in1, const sc_slimb_t in2)
 #endif
 }
 
+static void sc_mpf_div_general(sc_mpf_t *out, const sc_mpf_t *n, const sc_mpf_t *d)
+{
+    size_t i;
+    SINT32 q_used, div_extra, lsb_sh, exponent;
+    sc_ulimb_t *mpn_n, *mpn_d, qlimb;
+
+    q_used = 2 * out->alloc;
+
+    // Check if division will generate an extra bit because the numerator mantissa is
+    // larger than that of the denominator
+    i = n->alloc;
+
+    while (0 != i) {
+        i--;
+        if (n->mantissa[i] != d->mantissa[i]) {
+            break;
+        }
+    }
+
+    if (n->mantissa[i] != d->mantissa[i]) {
+        div_extra = n->mantissa[i] > d->mantissa[i];
+    }
+    else {
+        // The numerator is == the denominator
+        div_extra = 1;
+    }
+
+    // Determine the exponent value
+    exponent = n->exponent - d->exponent + div_extra;
+
+    // Determine how many quotient bits in the least significant limb are valid
+    lsb_sh = sc_mpf_negative_mod_limb(out, out->precision);
+
+    // Prepeare for division by initialising a numerator (to become the remainder)
+    // with the appropriately word and bit shifted input numerator
+    i = q_used - n->alloc;
+    mpn_zero(mpn_n, i);
+    if (div_extra) {
+        mpn_n[i - 1] = mpn_rshift(mpn_n + i, n->mantissa, n->alloc, 1);
+    }
+    else {
+        mpn_copy(mpn_n + i, n->mantissa, n->alloc);
+    }
+
+    // Prepare the denominator by either creating a pointer to the input denominator
+    // OR if the quotient and denominator are the same variable a copy must be made for mpn_divrem()
+    if (out == d) {
+        i = 0;
+
+        /// @todo Allocate memory for mpn_d
+    }
+    else {
+        i     = d->alloc - out->alloc;
+        mpn_d = d->mantissa + i;
+    }
+
+    // Perform division and obtain the remainder in mpn_n. No fractional quotient
+    // limbs are required.
+    qlimb = mpn_divrem(out->mantissa, 0, mpn_n + i, q_used - i, mpn_d, q_used - i);
+
+    // Mask out those bits beyond the precision of the quotient
+
+    // Deal with rounding, might be tricky...
+}
+
 void sc_mpf_div(sc_mpf_t *out, const sc_mpf_t *n, const sc_mpf_t *d)
 {
 #ifdef USE_SAFECRYPTO_FLOAT_MP
@@ -1794,7 +1859,25 @@ void sc_mpf_div(sc_mpf_t *out, const sc_mpf_t *n, const sc_mpf_t *d)
             // Non-zero numerator divided by zero denominator is INF
             out->exponent  = SC_MPF_EXP_INF;
         }
-        return;
+    }
+    else if (abs_power_of_2(d)) {
+        // If the absolute value of d is a power of 2 then use optimal division routine,
+        // this also covers the divide-by-one case
+        sc_mpf_div_2exp(out, n, d->exponent - 1);
+
+        // If the divisor is negative then swap the quotient sign
+        if (d->sign < 0) {
+            out->sign = -out->sign;
+        }
+    }
+    else if (sc_mpf_fits_ulimb(d)) {
+        // If the divisor can be represented by a single precision limb then use the 
+        // optimal division routine
+        sc_mpf_div_ui(out, n, sc_mpf_get_ui(d));
+    }
+    else {
+        // The general case
+        sc_mpf_div_general(out, n, d);
     }
 #else
     mpfr_div(out, n, d, MPFR_DEFAULT_ROUNDING);
@@ -1804,7 +1887,13 @@ void sc_mpf_div(sc_mpf_t *out, const sc_mpf_t *n, const sc_mpf_t *d)
 void sc_mpf_div_2exp(sc_mpf_t *out, const sc_mpf_t *n, sc_ulimb_t exp)
 {
 #ifdef USE_SAFECRYPTO_FLOAT_MP
+    // If the numerator is singular then out is simply a copy on the numerator,
+    // i.e. NaN divided by 2^exp is NaN, ZERO divided by 2^exp is ZERO,
+    // -INF divided by 2^exp is -INF.
     sc_mpf_set(out, n);
+
+    // If the numerator is a number and the exponent is non-zero then simply
+    // adjust the exponent to affect a right shift by exp bits
     if (!SC_MPF_IS_SINGULAR(n) && exp) {
         out->exponent = n->exponent - exp;
     }
