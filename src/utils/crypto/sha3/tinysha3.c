@@ -403,7 +403,7 @@ static void sha3_keccakf_4x(__m256i *st256, int rounds)
     // variables
     int i, j, r;
     __m256i t256, bc256[5];
-    uint64_t *t, *bc, *st PRNG_DEFAULT_ALIGNED;
+    uint64_t *t, *bc, *st SC_DEFAULT_ALIGNED;
     t  = (uint64_t*)&t256;
     bc = (uint64_t*)bc256;
     st = (uint64_t*)st256;

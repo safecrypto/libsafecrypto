@@ -46,7 +46,7 @@ typedef SINT32 (*xof_func_squeeze)(void *, void *, size_t);
 ///@}
 
 /// A struct used to store an instantiated hash
-PRNG_STRUCT_PACK_START
+SC_STRUCT_PACK_START
 typedef struct _utils_crypto_xof {
     crypto_xof_e      type;
     size_t            length;
@@ -55,8 +55,8 @@ typedef struct _utils_crypto_xof {
     xof_func_final    final;
     xof_func_squeeze  squeeze;
     void             *ctx;
-} PRNG_STRUCT_PACKED utils_crypto_xof_t;
-PRNG_STRUCT_PACK_END
+} SC_STRUCT_PACKED utils_crypto_xof_t;
+SC_STRUCT_PACK_END
 
 /// Create an instance of the selected hash function
 extern utils_crypto_xof_t * utils_crypto_xof_create(crypto_xof_e type);

@@ -28,6 +28,7 @@
 
 #include <stdint.h>
 #include <string.h>
+#include "safecrypto_types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -52,40 +53,6 @@ extern "C" {
 #define ENABLE_HASH_DRBG
 #endif
 
-/** @name Standard types
- *  Standard data types to be used throughout the library.
- */
-/**@{*/
-
-#define SINT8      int8_t
-#define UINT8      uint8_t
-
-#define SINT16     int16_t
-#define UINT16     uint16_t
-
-#define SINT32     int32_t
-#define UINT32     uint32_t
-
-#ifdef HAVE_64BIT
-#define SINT64     int64_t
-#define UINT64     uint64_t
-#endif
-
-#if defined(HAVE_128BIT) && defined(__x86_64__)
-typedef __int128 int128_t;
-typedef unsigned __int128 uint128_t;
-#define SINT128    int128_t
-#define UINT128    uint128_t
-#endif
-
-#define BOOLEAN    int32_t
-
-#define FLOAT      float
-#define DOUBLE     double
-#define LONGDOUBLE long double
-
-/**@}*/
-
 /// The size of the (CS)PRNG transfer buffer (MUST BE a factor of 64 and at least 64)
 #ifdef CONSTRAINED_RAM
 #define CSPRNG_BUFFER_SIZE          64
@@ -97,144 +64,189 @@ typedef unsigned __int128 uint128_t;
 #error CSPRNG_BUFFER_SIZE must be 64 bytes or greater and a multiple of 16
 #endif
 
-/// @name Function return codes
-/**@{*/
-#define PRNG_FUNC_SUCCESS           1
-#define PRNG_FUNC_FAILURE           0
-/**@}*/
-
-
-/// @name Standard Error Codes
-/**@{*/
-#define PRNG_OK                     0   ///< Function call was successfull
-#define PRNG_OUT_OF_BOUNDS          1   ///< An out-of-bounds error occured
-#define PRNG_CREATE_ERROR           2   ///< A resource allocation function failed
-#define PRNG_NULL_POINTER           3   ///< Indicates an attempt to dereference a null pointer
-#define PRNG_ERROR                  4   ///< A general error occured
-#define PRNG_INVALID_FUNCTION_CALL  5   ///< A function call through a function pointer was invalid
-#define PRNG_GETERR_NULL_POINTER    6   ///< Indicates the PRNG pointer is invalid
-#define PRNG_INVALID_FILE_PTR       7   ///< Indicates the use of an invalid file pointer
-#define PRNG_QUEUE_FULL             8   ///< A queue is full
-#define PRNG_QUEUE_EMPTY            9   ///< A queue is empty
-#define PRNG_FAILED_LOCK            10  ///< Failed to lock a guard
-#define PRNG_THREAD_ERROR           11  ///< A thread error occurred
-#define PRNG_THREAD_EXITING         12  ///< A thread is in the process of exiting
-#define PRNG_NUM_ERROR_CODES        13  ///< NOT AN ERROR CODE, used to indicate the number of error codes
-/**@}*/
-
-
-/// Macro's used for structure packing and alignment
-/**@{*/
-#if 0
-#define SC_STRUCT_PACK_START
-#define SC_STRUCT_PACKED
-#define SC_STRUCT_PACK_END
-#else
-#ifdef _MSC_VER
-#define PRNG_STRUCT_PACK_START   _Pragma("pack(push, 1)")
-#define PRNG_STRUCT_PACKED
-#define PRNG_STRUCT_PACK_END     _Pragma("pack(pop)")
-#else
-#define PRNG_STRUCT_PACK_START
-#define PRNG_STRUCT_PACKED       __attribute__((__packed__))
-#define PRNG_STRUCT_PACK_END
-#endif
-#endif
-/**@}*/
-
-/// Macro's used for alignment
-/**@{*/
-#if defined(_MSC_VER)
-#define PRNG_ALIGNED(n)       __declspec(align(n))
-#define PRNG_DEFAULT_ALIGNED  __declspec(align(32))
-#else
-#define PRNG_ALIGNED(n)       __attribute__((aligned(n)))
-#define PRNG_DEFAULT_ALIGNED  __attribute__((aligned(32)))
-#endif
-
-#define PRNG_RESTRICT         restrict
-
-#define PRNG_IS_ALIGNED_64(p) (0 == (7 & ((const char*)(p) - (const char*)0)))
-#define PRNG_IS_ALIGNED_32(p) (0 == (3 & ((const char*)(p) - (const char*)0)))
-/**@}*/
-
-#ifdef HAVE_64BIT
-UINT64 prng_bswap_64(UINT64 x);
-void prng_swap_copy_64(void* to, SINT32 index, const void* from, size_t length);
-#endif
-void prng_swap_copy_32(void* to, SINT32 index, const void* from, size_t length);
-
-#if __BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__
-// We are big-endian
-#define PRNG_LITTLE_ENDIAN_32(x) ((((x) & 0xFF000000) >> 24) | \
-                                  (((x) & 0x00FF0000) >>  8) | \
-                                  (((x) & 0x0000FF00) <<  8) | \
-                                  (((x) & 0x000000FF) << 24))
-#define PRNG_BIG_ENDIAN_32(x)    (x)
-#define PRNG_LITTLE_ENDIAN_32_COPY(to, index, from, length) \
-            prng_swap_copy_32((to), (index), (from), (length))
-#define PRNG_BIG_ENDIAN_32_COPY(to, index, from, length) \
-            PRNG_MEMCOPY((to) + (index), (from), (length))
-#ifdef HAVE_64BIT
-#define PRNG_LITTLE_ENDIAN_64(x) ((((x) & 0xFF00000000000000) >> 56) | \
-                                  (((x) & 0x00FF000000000000) >> 40) | \
-                                  (((x) & 0x0000FF0000000000) >> 24) | \
-                                  (((x) & 0x000000FF00000000) >>  8) | \
-                                  (((x) & 0x00000000FF000000) <<  8) | \
-                                  (((x) & 0x0000000000FF0000) << 24) | \
-                                  (((x) & 0x000000000000FF00) << 40) | \
-                                  (((x) & 0x00000000000000FF) << 56))
-#define PRNG_BIG_ENDIAN_64(x)    (x)
-#define PRNG_LITTLE_ENDIAN_64_COPY(to, index, from, length) \
-            prng_swap_copy_64((to), (index), (from), (length))
-#define PRNG_BIG_ENDIAN_64_COPY(to, index, from, length) \
-            PRNG_MEMCOPY((to) + (index), (from), (length))
-#endif
-#else
-// We are little-endian
-#define PRNG_LITTLE_ENDIAN_32(x) (x)
-#define PRNG_BIG_ENDIAN_32(x)    ((((x) & 0xFF000000) >> 24) | \
-                                  (((x) & 0x00FF0000) >>  8) | \
-                                  (((x) & 0x0000FF00) <<  8) | \
-                                  (((x) & 0x000000FF) << 24))
-#define PRNG_LITTLE_ENDIAN_32_COPY(to, index, from, length) \
-            PRNG_MEMCOPY((to) + (index), (from), (length))
-#define PRNG_BIG_ENDIAN_32_COPY(to, index, from, length) \
-            prng_swap_copy_32((to), (index), (from), (length))
-#ifdef HAVE_64BIT
-#define PRNG_LITTLE_ENDIAN_64(x) (x)
-#define PRNG_BIG_ENDIAN_64(x)    ((((x) & 0xFF00000000000000) >> 56) | \
-                                  (((x) & 0x00FF000000000000) >> 40) | \
-                                  (((x) & 0x0000FF0000000000) >> 24) | \
-                                  (((x) & 0x000000FF00000000) >>  8) | \
-                                  (((x) & 0x00000000FF000000) <<  8) | \
-                                  (((x) & 0x0000000000FF0000) << 24) | \
-                                  (((x) & 0x000000000000FF00) << 40) | \
-                                  (((x) & 0x00000000000000FF) << 56))
-#define PRNG_LITTLE_ENDIAN_64_COPY(to, index, from, length) \
-            PRNG_MEMCOPY((to) + (index), (from), (length))
-#define PRNG_BIG_ENDIAN_64_COPY(to, index, from, length) \
-            prng_swap_copy_64((to), (index), (from), (length))
-#endif
-#endif
-
-
-/// @name Helper functions for memory allocation and string manipulation
-/**@{*/
-extern void * prng_malloc(size_t size);
-extern void prng_free(void *ptr, size_t size);
-extern void prng_explicit_memzero(void * const ptr, const size_t size);
-extern void * prng_memcpy(void *dest, const void *src, size_t size);
-extern char * prng_strcpy(char *dest, const char *src, size_t dest_size);
-
-
-#define PRNG_MALLOC(s)      prng_malloc(s)
-#define PRNG_FREE(s,l)      prng_free((s), (l)); (s) = NULL;
-#define PRNG_MEMZERO(s,l)   prng_explicit_memzero((s), (l))
-#define PRNG_MEMCOPY(d,s,l) prng_memcpy((d), (s), (l))
-#define PRNG_STRCPY(d,s,l)  prng_strcpy((d), (s), (l))
-
-/**@}*/
+///** @name Standard types
+// *  Standard data types to be used throughout the library.
+// */
+///**@{*/
+//
+//#define SINT8      int8_t
+//#define UINT8      uint8_t
+//
+//#define SINT16     int16_t
+//#define UINT16     uint16_t
+//
+//#define SINT32     int32_t
+//#define UINT32     uint32_t
+//
+//#ifdef HAVE_64BIT
+//#define SINT64     int64_t
+//#define UINT64     uint64_t
+//#endif
+//
+//#if defined(HAVE_128BIT) && defined(__x86_64__)
+//typedef __int128 int128_t;
+//typedef unsigned __int128 uint128_t;
+//#define SINT128    int128_t
+//#define UINT128    uint128_t
+//#endif
+//
+//#define BOOLEAN    int32_t
+//
+//#define FLOAT      float
+//#define DOUBLE     double
+//#define LONGDOUBLE long double
+//
+///**@}*/
+//
+///// The size of the (CS)PRNG transfer buffer (MUST BE a factor of 64 and at least 64)
+//#ifdef CONSTRAINED_RAM
+//#define CSPRNG_BUFFER_SIZE          64
+//#else
+//#define CSPRNG_BUFFER_SIZE          1024
+//#endif
+//
+//#if CSPRNG_BUFFER_SIZE < 64
+//#error CSPRNG_BUFFER_SIZE must be 64 bytes or greater and a multiple of 16
+//#endif
+//
+///// @name Function return codes
+///**@{*/
+//#define PRNG_FUNC_SUCCESS           1
+//#define PRNG_FUNC_FAILURE           0
+///**@}*/
+//
+//
+///// @name Standard Error Codes
+///**@{*/
+//#define PRNG_OK                     0   ///< Function call was successfull
+//#define PRNG_OUT_OF_BOUNDS          1   ///< An out-of-bounds error occured
+//#define PRNG_CREATE_ERROR           2   ///< A resource allocation function failed
+//#define PRNG_NULL_POINTER           3   ///< Indicates an attempt to dereference a null pointer
+//#define PRNG_ERROR                  4   ///< A general error occured
+//#define PRNG_INVALID_FUNCTION_CALL  5   ///< A function call through a function pointer was invalid
+//#define PRNG_GETERR_NULL_POINTER    6   ///< Indicates the PRNG pointer is invalid
+//#define PRNG_INVALID_FILE_PTR       7   ///< Indicates the use of an invalid file pointer
+//#define PRNG_QUEUE_FULL             8   ///< A queue is full
+//#define PRNG_QUEUE_EMPTY            9   ///< A queue is empty
+//#define PRNG_FAILED_LOCK            10  ///< Failed to lock a guard
+//#define PRNG_THREAD_ERROR           11  ///< A thread error occurred
+//#define PRNG_THREAD_EXITING         12  ///< A thread is in the process of exiting
+//#define PRNG_NUM_ERROR_CODES        13  ///< NOT AN ERROR CODE, used to indicate the number of error codes
+///**@}*/
+//
+//
+///// Macro's used for structure packing and alignment
+///**@{*/
+//#if 0
+//#define SC_STRUCT_PACK_START
+//#define SC_STRUCT_PACKED
+//#define SC_STRUCT_PACK_END
+//#else
+//#ifdef _MSC_VER
+//#define PRNG_STRUCT_PACK_START   _Pragma("pack(push, 1)")
+//#define PRNG_STRUCT_PACKED
+//#define PRNG_STRUCT_PACK_END     _Pragma("pack(pop)")
+//#else
+//#define PRNG_STRUCT_PACK_START
+//#define PRNG_STRUCT_PACKED       __attribute__((__packed__))
+//#define PRNG_STRUCT_PACK_END
+//#endif
+//#endif
+///**@}*/
+//
+///// Macro's used for alignment
+///**@{*/
+//#if defined(_MSC_VER)
+//#define PRNG_ALIGNED(n)       __declspec(align(n))
+//#define PRNG_DEFAULT_ALIGNED  __declspec(align(32))
+//#else
+//#define PRNG_ALIGNED(n)       __attribute__((aligned(n)))
+//#define PRNG_DEFAULT_ALIGNED  __attribute__((aligned(32)))
+//#endif
+//
+//#define PRNG_RESTRICT         restrict
+//
+//#define PRNG_IS_ALIGNED_64(p) (0 == (7 & ((const char*)(p) - (const char*)0)))
+//#define PRNG_IS_ALIGNED_32(p) (0 == (3 & ((const char*)(p) - (const char*)0)))
+///**@}*/
+//
+//#ifdef HAVE_64BIT
+//UINT64 prng_bswap_64(UINT64 x);
+//void prng_swap_copy_64(void* to, SINT32 index, const void* from, size_t length);
+//#endif
+//void prng_swap_copy_32(void* to, SINT32 index, const void* from, size_t length);
+//
+//#if __BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__
+//// We are big-endian
+//#define PRNG_LITTLE_ENDIAN_32(x) ((((x) & 0xFF000000) >> 24) | \
+//                                  (((x) & 0x00FF0000) >>  8) | \
+//                                  (((x) & 0x0000FF00) <<  8) | \
+//                                  (((x) & 0x000000FF) << 24))
+//#define PRNG_BIG_ENDIAN_32(x)    (x)
+//#define PRNG_LITTLE_ENDIAN_32_COPY(to, index, from, length) \
+//            prng_swap_copy_32((to), (index), (from), (length))
+//#define PRNG_BIG_ENDIAN_32_COPY(to, index, from, length) \
+//            PRNG_MEMCOPY((to) + (index), (from), (length))
+//#ifdef HAVE_64BIT
+//#define PRNG_LITTLE_ENDIAN_64(x) ((((x) & 0xFF00000000000000) >> 56) | \
+//                                  (((x) & 0x00FF000000000000) >> 40) | \
+//                                  (((x) & 0x0000FF0000000000) >> 24) | \
+//                                  (((x) & 0x000000FF00000000) >>  8) | \
+//                                  (((x) & 0x00000000FF000000) <<  8) | \
+//                                  (((x) & 0x0000000000FF0000) << 24) | \
+//                                  (((x) & 0x000000000000FF00) << 40) | \
+//                                  (((x) & 0x00000000000000FF) << 56))
+//#define PRNG_BIG_ENDIAN_64(x)    (x)
+//#define PRNG_LITTLE_ENDIAN_64_COPY(to, index, from, length) \
+//            prng_swap_copy_64((to), (index), (from), (length))
+//#define PRNG_BIG_ENDIAN_64_COPY(to, index, from, length) \
+//            PRNG_MEMCOPY((to) + (index), (from), (length))
+//#endif
+//#else
+//// We are little-endian
+//#define PRNG_LITTLE_ENDIAN_32(x) (x)
+//#define PRNG_BIG_ENDIAN_32(x)    ((((x) & 0xFF000000) >> 24) | \
+//                                  (((x) & 0x00FF0000) >>  8) | \
+//                                  (((x) & 0x0000FF00) <<  8) | \
+//                                  (((x) & 0x000000FF) << 24))
+//#define PRNG_LITTLE_ENDIAN_32_COPY(to, index, from, length) \
+//            PRNG_MEMCOPY((to) + (index), (from), (length))
+//#define PRNG_BIG_ENDIAN_32_COPY(to, index, from, length) \
+//            prng_swap_copy_32((to), (index), (from), (length))
+//#ifdef HAVE_64BIT
+//#define PRNG_LITTLE_ENDIAN_64(x) (x)
+//#define PRNG_BIG_ENDIAN_64(x)    ((((x) & 0xFF00000000000000) >> 56) | \
+//                                  (((x) & 0x00FF000000000000) >> 40) | \
+//                                  (((x) & 0x0000FF0000000000) >> 24) | \
+//                                  (((x) & 0x000000FF00000000) >>  8) | \
+//                                  (((x) & 0x00000000FF000000) <<  8) | \
+//                                  (((x) & 0x0000000000FF0000) << 24) | \
+//                                  (((x) & 0x000000000000FF00) << 40) | \
+//                                  (((x) & 0x00000000000000FF) << 56))
+//#define PRNG_LITTLE_ENDIAN_64_COPY(to, index, from, length) \
+//            PRNG_MEMCOPY((to) + (index), (from), (length))
+//#define PRNG_BIG_ENDIAN_64_COPY(to, index, from, length) \
+//            prng_swap_copy_64((to), (index), (from), (length))
+//#endif
+//#endif
+//
+//
+///// @name Helper functions for memory allocation and string manipulation
+///**@{*/
+//extern void * prng_malloc(size_t size);
+//extern void prng_free(void *ptr, size_t size);
+//extern void prng_explicit_memzero(void * const ptr, const size_t size);
+//extern void * prng_memcpy(void *dest, const void *src, size_t size);
+//extern char * prng_strcpy(char *dest, const char *src, size_t dest_size);
+//
+//
+//#define PRNG_MALLOC(s)      prng_malloc(s)
+//#define PRNG_FREE(s,l)      prng_free((s), (l)); (s) = NULL;
+//#define PRNG_MEMZERO(s,l)   prng_explicit_memzero((s), (l))
+//#define PRNG_MEMCOPY(d,s,l) prng_memcpy((d), (s), (l))
+//#define PRNG_STRCPY(d,s,l)  prng_strcpy((d), (s), (l))
+//
+///**@}*/
 
 
 
@@ -278,13 +290,13 @@ typedef enum safecrypto_prng_threading {
 } safecrypto_prng_threading_e;
 
 /// A struct used to store user supplied entropy
-PRNG_STRUCT_PACK_START
+SC_STRUCT_PACK_START
 typedef struct user_entropy {
     const UINT8 *data;
     size_t len;
     size_t idx;
-} PRNG_STRUCT_PACKED user_entropy_t;
-PRNG_STRUCT_PACK_END
+} SC_STRUCT_PACKED user_entropy_t;
+SC_STRUCT_PACK_END
 
 // Forward declaration of the prng_ctx_t struct
 typedef struct prng_ctx_t prng_ctx_t;
@@ -321,7 +333,7 @@ union u_byte {
 
 
 /// The PRNG context struct used to store the parameters for each instance
-PRNG_STRUCT_PACK_START
+SC_STRUCT_PACK_START
 typedef struct prng_ctx_t
 {
     safecrypto_prng_e type;
@@ -427,8 +439,8 @@ typedef struct prng_ctx_t
     size_t debug_length;
 #endif
 
-} PRNG_STRUCT_PACKED prng_ctx_t;
-PRNG_STRUCT_PACK_END
+} SC_STRUCT_PACKED prng_ctx_t;
+SC_STRUCT_PACK_END
 
 
 /** @name Enumerated type construction

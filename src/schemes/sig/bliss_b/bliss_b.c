@@ -1686,7 +1686,7 @@ Signature compression:   %s\n\
         sc_sampler_names[sc->sampling],
         sc->sampling_precision,
         safecrypto_prng_names[(int)prng_get_type(sc->prng_ctx[0])],
-        crypto_hash_names[sc->bliss->oracle_hash],
+        sc_hash_names[sc->bliss->oracle_hash],
         sc_entropy_names[(int)sc->coding_pub_key.type],
         sc->stats.pub_keys_encoded? (DOUBLE)sc->stats.components[SC_STAT_PUB_KEY][0].bits/(DOUBLE)sc->stats.pub_keys_encoded : 0,
         sc->stats.pub_keys_encoded? (DOUBLE)sc->stats.components[SC_STAT_PUB_KEY][0].bits_coded/(DOUBLE)sc->stats.pub_keys_encoded : 0,

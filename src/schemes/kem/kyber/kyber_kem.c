@@ -1050,7 +1050,7 @@ char * kyber_kem_stats(safecrypto_t *sc)
         sc->stats.keygen_num_trials,
         sc->stats.encapsulate_num,
         sc->stats.decapsulate_num,
-        crypto_hash_names[sc->kyber->oracle_hash],
+        sc_hash_names[sc->kyber->oracle_hash],
         (KYBER_KEM_CSPRNG_ENABLED)? "CSPRNG" : "SHAKE128",
         safecrypto_prng_names[(int)prng_get_type(sc->prng_ctx[0])],
         sc_entropy_names[(int)sc->coding_pub_key.type],

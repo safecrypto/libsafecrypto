@@ -222,7 +222,7 @@ SINT32 dlp_ibe_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
         default:;
     }
 
-    crypto_hash_e hash_func;
+    sc_hash_e hash_func;
     switch (flags[0] & SC_FLAG_0_HASH_FUNCTION_MASK)
     {
         case SC_FLAG_0_HASH_BLAKE2:
@@ -1506,7 +1506,7 @@ char * dlp_ibe_stats(safecrypto_t *sc)
         sc->stats.decrypt_num,
         sc_sampler_names[sc->sampling],
         safecrypto_prng_names[(int)prng_get_type(sc->prng_ctx[0])],
-        crypto_hash_names[sc->dlp_ibe->params->hash_type],
+        sc_hash_names[sc->dlp_ibe->params->hash_type],
         sc_entropy_names[(int)sc->coding_pub_key.type],
         sc->stats.pub_keys_encoded? (DOUBLE)sc->stats.components[SC_STAT_PUB_KEY][0].bits/(DOUBLE)sc->stats.pub_keys_encoded : 0,
         sc->stats.pub_keys_encoded? (DOUBLE)sc->stats.components[SC_STAT_PUB_KEY][0].bits_coded/(DOUBLE)sc->stats.pub_keys_encoded : 0,

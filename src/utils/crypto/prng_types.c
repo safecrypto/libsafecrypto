@@ -16,6 +16,7 @@
  */
 
 #include "prng_types.h"
+#include "safecrypto_private.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -95,8 +96,8 @@ UINT64 prng_bswap_64(UINT64 x)
         UINT32 l[2];
     } w, r;
     w.ll = x;
-    r.l[0] = PRNG_BIG_ENDIAN_32(w.l[1]);
-    r.l[1] = PRNG_BIG_ENDIAN_32(w.l[0]);
+    r.l[0] = SC_BIG_ENDIAN_32(w.l[1]);
+    r.l[1] = SC_BIG_ENDIAN_32(w.l[0]);
     return r.ll;
 }
 
@@ -130,7 +131,7 @@ void prng_swap_copy_32(void* to, SINT32 index, const void* from, size_t length)
         const UINT32 *end = (const UINT32*)((const UINT8*)src + length);
         UINT32 *dst = (UINT32*)((UINT8*)to + index);
         while (src < end) {
-            *(dst++) = PRNG_BIG_ENDIAN_32(*(src));
+            *(dst++) = SC_BIG_ENDIAN_32(*(src));
             src++;
         }
     }

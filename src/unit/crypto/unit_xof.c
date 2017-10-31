@@ -43,7 +43,7 @@ START_TEST(test_create_destroy)
 
         if (xof) {
             retval = utils_crypto_xof_destroy(xof);
-            ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+            ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
         }
     }
 }
@@ -68,7 +68,7 @@ START_TEST(test_create_destroy_bad)
 
     // ENsure that a NULL pointer cannot be destroyed
     retval = utils_crypto_xof_destroy(NULL);
-    ck_assert_int_eq(retval, PRNG_FUNC_FAILURE);
+    ck_assert_int_eq(retval, SC_FUNC_FAILURE);
 }
 END_TEST
 
@@ -84,31 +84,31 @@ START_TEST(test_create_destroy_init)
     xof = utils_crypto_xof_create(CRYPTO_XOF_SHAKE256);
     ck_assert_ptr_ne(xof, NULL);
     retval = xof_init(xof);
-    ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+    ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
     retval = utils_crypto_xof_destroy(xof);
-    ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+    ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
 
     xof = utils_crypto_xof_create(CRYPTO_XOF_SHAKE128);
     ck_assert_ptr_ne(xof, NULL);
     retval = xof_init(xof);
-    ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+    ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
     retval = utils_crypto_xof_destroy(xof);
-    ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+    ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
 
 #ifdef HAVE_AVX2
     xof = utils_crypto_xof_create(CRYPTO_XOF_SHAKE256_4X);
     ck_assert_ptr_ne(xof, NULL);
     retval = xof_init(xof);
-    ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+    ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
     retval = utils_crypto_xof_destroy(xof);
-    ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+    ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
 
     xof = utils_crypto_xof_create(CRYPTO_XOF_SHAKE128_4X);
     ck_assert_ptr_ne(xof, NULL);
     retval = xof_init(xof);
-    ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+    ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
     retval = utils_crypto_xof_destroy(xof);
-    ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+    ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
 #else
     xof = utils_crypto_xof_create(CRYPTO_XOF_SHAKE256_4X);
     ck_assert_ptr_eq(xof, NULL);
@@ -138,32 +138,32 @@ START_TEST(test_input_bad)
         // Some hash algorithms may be disabled, if not test their interface
         if (NULL != xof) {
             retval = xof_init(NULL);
-            ck_assert_int_eq(retval, PRNG_FUNC_FAILURE);
+            ck_assert_int_eq(retval, SC_FUNC_FAILURE);
             retval = xof_init(xof);
-            ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+            ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
 
             retval = xof_absorb(NULL, NULL, 16);
-            ck_assert_int_eq(retval, PRNG_FUNC_FAILURE);
+            ck_assert_int_eq(retval, SC_FUNC_FAILURE);
             retval = xof_absorb(NULL, msg, 16);
-            ck_assert_int_eq(retval, PRNG_FUNC_FAILURE);
+            ck_assert_int_eq(retval, SC_FUNC_FAILURE);
             retval = xof_absorb(xof, NULL, 16);
-            ck_assert_int_eq(retval, PRNG_FUNC_FAILURE);
+            ck_assert_int_eq(retval, SC_FUNC_FAILURE);
             retval = xof_absorb(xof, msg, 16);
-            ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+            ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
 
             xof_final(xof);
 
             retval = xof_squeeze(NULL, NULL, 64);
-            ck_assert_int_eq(retval, PRNG_FUNC_FAILURE);
+            ck_assert_int_eq(retval, SC_FUNC_FAILURE);
             retval = xof_squeeze(NULL, md, 64);
-            ck_assert_int_eq(retval, PRNG_FUNC_FAILURE);
+            ck_assert_int_eq(retval, SC_FUNC_FAILURE);
             retval = xof_squeeze(xof, NULL, 64);
-            ck_assert_int_eq(retval, PRNG_FUNC_FAILURE);
+            ck_assert_int_eq(retval, SC_FUNC_FAILURE);
             retval = xof_squeeze(xof, md, 64);
-            ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+            ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
 
             retval = utils_crypto_xof_destroy(xof);
-            ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+            ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
         }
     }
 }
@@ -195,22 +195,22 @@ START_TEST(test_full)
         if (NULL != xof) {
             SINT32 equal = 1;
             retval = xof_init(xof);
-            ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+            ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
 
             retval = xof_absorb(xof, msg, 127);
-            ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+            ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
 
             retval = xof_absorb(xof, msg, 127);
-            ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+            ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
 
             retval = xof_final(xof);
-            ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+            ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
 
             retval = xof_squeeze(xof, md, 256);
-            ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+            ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
 
             retval = xof_squeeze(xof, md+256, 256);
-            ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+            ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
 
             fprintf(stderr, "output[%zu] = ", i);
             for (j=0; j<512; j++) {
@@ -224,7 +224,7 @@ START_TEST(test_full)
             ck_assert_uint_eq(equal, 0);
 
             retval = utils_crypto_xof_destroy(xof);
-            ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+            ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
         }
     }
 }

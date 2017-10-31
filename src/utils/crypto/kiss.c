@@ -19,6 +19,7 @@
 
 #include "kiss.h"
 #include "mersenne_twister/mt19937ar.h"
+#include "safecrypto_private.h"
 
 
 #define JKISS (x = 1490024343005336237ULL * x + 123456789, y ^= y << 21, y ^= y >> 17, y ^= y << 30,   \
@@ -65,7 +66,7 @@ static void reseed_kiss(kiss_state_t *state)
 kiss_state_t * create_kiss(func_get_random func,
     user_entropy_t *user_entropy, size_t seed_period)
 {
-    kiss_state_t *state = PRNG_MALLOC(sizeof(kiss_state_t));
+    kiss_state_t *state = SC_MALLOC(sizeof(kiss_state_t));
     if (NULL == state) {
         return NULL;
     }
@@ -74,9 +75,9 @@ kiss_state_t * create_kiss(func_get_random func,
     state->entropy_arg = user_entropy;
     state->seed_period = seed_period;
 
-    state->mt = PRNG_MALLOC(sizeof(mt_state_t));
+    state->mt = SC_MALLOC(sizeof(mt_state_t));
     if (NULL == state->mt) {
-        PRNG_FREE(state, sizeof(kiss_state_t));
+        SC_FREE(state, sizeof(kiss_state_t));
         return NULL;
     }
 
@@ -88,24 +89,24 @@ kiss_state_t * create_kiss(func_get_random func,
 SINT32 destroy_kiss(kiss_state_t *state)
 {
     if (NULL == state) {
-        return PRNG_FUNC_FAILURE;
+        return SC_FUNC_FAILURE;
     }
 
-    PRNG_FREE(state->mt, sizeof(mt_state_t));
-    PRNG_FREE(state, sizeof(kiss_state_t));
+    SC_FREE(state->mt, sizeof(mt_state_t));
+    SC_FREE(state, sizeof(kiss_state_t));
 
-    return PRNG_FUNC_SUCCESS;
+    return SC_FUNC_SUCCESS;
 }
 
 SINT32 reset_kiss(kiss_state_t *state)
 {
     if (NULL == state) {
-        return PRNG_FUNC_FAILURE;
+        return SC_FUNC_FAILURE;
     }
 
     reseed_kiss(state);
 
-    return PRNG_FUNC_SUCCESS;
+    return SC_FUNC_SUCCESS;
 }
 
 static inline void update_seed(kiss_state_t *state)

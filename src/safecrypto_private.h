@@ -73,6 +73,71 @@ extern SINT32 sc_init_stats(safecrypto_t *sc, size_t pub_key, size_t priv_key,
 /**@}*/
 
 
+/// Endianness conversion
+/// @{
+#ifdef HAVE_64BIT
+UINT64 prng_bswap_64(UINT64 x);
+void sc_swap_copy_64(void* to, SINT32 index, const void* from, size_t length);
+#endif
+void sc_swap_copy_32(void* to, SINT32 index, const void* from, size_t length);
+
+#if __BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__
+// We are big-endian
+#define SC_LITTLE_ENDIAN_32(x) ((((x) & 0xFF000000) >> 24) | \
+                                (((x) & 0x00FF0000) >>  8) | \
+                                (((x) & 0x0000FF00) <<  8) | \
+                                (((x) & 0x000000FF) << 24))
+#define SC_BIG_ENDIAN_32(x)    (x)
+#define SC_LITTLE_ENDIAN_32_COPY(to, index, from, length) \
+            sc_swap_copy_32((to), (index), (from), (length))
+#define SC_BIG_ENDIAN_32_COPY(to, index, from, length) \
+            SC_MEMCOPY((to) + (index), (from), (length))
+#ifdef HAVE_64BIT
+#define SC_LITTLE_ENDIAN_64(x) ((((x) & 0xFF00000000000000) >> 56) | \
+                                (((x) & 0x00FF000000000000) >> 40) | \
+                                (((x) & 0x0000FF0000000000) >> 24) | \
+                                (((x) & 0x000000FF00000000) >>  8) | \
+                                (((x) & 0x00000000FF000000) <<  8) | \
+                                (((x) & 0x0000000000FF0000) << 24) | \
+                                (((x) & 0x000000000000FF00) << 40) | \
+                                (((x) & 0x00000000000000FF) << 56))
+#define SC_BIG_ENDIAN_64(x)    (x)
+#define SC_LITTLE_ENDIAN_64_COPY(to, index, from, length) \
+            sc_swap_copy_64((to), (index), (from), (length))
+#define SC_BIG_ENDIAN_64_COPY(to, index, from, length) \
+            SC_MEMCOPY((to) + (index), (from), (length))
+#endif
+#else
+// We are little-endian
+#define SC_LITTLE_ENDIAN_32(x) (x)
+#define SC_BIG_ENDIAN_32(x)    ((((x) & 0xFF000000) >> 24) | \
+                                (((x) & 0x00FF0000) >>  8) | \
+                                (((x) & 0x0000FF00) <<  8) | \
+                                (((x) & 0x000000FF) << 24))
+#define SC_LITTLE_ENDIAN_32_COPY(to, index, from, length) \
+            SC_MEMCOPY((to) + (index), (from), (length))
+#define SC_BIG_ENDIAN_32_COPY(to, index, from, length) \
+            sc_swap_copy_32((to), (index), (from), (length))
+#ifdef HAVE_64BIT
+#define SC_LITTLE_ENDIAN_64(x) (x)
+#define SC_BIG_ENDIAN_64(x)    ((((x) & 0xFF00000000000000) >> 56) | \
+                                (((x) & 0x00FF000000000000) >> 40) | \
+                                (((x) & 0x0000FF0000000000) >> 24) | \
+                                (((x) & 0x000000FF00000000) >>  8) | \
+                                (((x) & 0x00000000FF000000) <<  8) | \
+                                (((x) & 0x0000000000FF0000) << 24) | \
+                                (((x) & 0x000000000000FF00) << 40) | \
+                                (((x) & 0x00000000000000FF) << 56))
+#define SC_LITTLE_ENDIAN_64_COPY(to, index, from, length) \
+            SC_MEMCOPY((to) + (index), (from), (length))
+#define SC_BIG_ENDIAN_64_COPY(to, index, from, length) \
+            sc_swap_copy_64((to), (index), (from), (length))
+#endif
+#endif
+/**@}*/
+
+
+
 /// An enumerated type describing the blinding techniques that are
 /// availble for the sampling schemes
 typedef enum sample_blinding {

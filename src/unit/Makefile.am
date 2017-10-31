@@ -1,3 +1,7 @@
+
+SUBDIRS                  = . crypto
+
+
 if HAVE_CHECK
 TESTS                        = unit_safecrypto_debug \
                                unit_safecrypto_error \

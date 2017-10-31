@@ -36,6 +36,7 @@
 #include "utils/threading/threadpool.h"
 #endif
 
+#include "safecrypto_private.h"
 #include "prng_get_func.h"
 
 #ifdef ENABLE_ISAAC
@@ -127,7 +128,7 @@ static SINT32 update_pool(prng_ctx_t *ctx)
         }
     }
 
-    return PRNG_FUNC_SUCCESS;
+    return SC_FUNC_SUCCESS;
 }
 
 /// Remove 32 bits from the pool and increment the pool read index
@@ -148,13 +149,13 @@ static SINT32 init_rand()
 
     struct timespec ts;
     if (timespec_get(&ts, TIME_UTC) == 0) {
-        return PRNG_CREATE_ERROR;
+        return SC_CREATE_ERROR;
     }
 
     UINT32 seed = ts.tv_nsec ^ ts.tv_sec;
     srandom(seed);
 
-    return PRNG_OK;
+    return SC_OK;
 }
 #endif
 
@@ -167,8 +168,8 @@ static SINT32 config_entropy(safecrypto_entropy_e entropy,
     // the PRNG type ensure that it is seeded once using a fine
     // granularity timestamp
     if (SC_ENTROPY_RANDOM == entropy || SC_PRNG_SYSTEM == type) {
-        if (PRNG_OK != init_rand()) {
-            return PRNG_FUNC_FAILURE;
+        if (SC_OK != init_rand()) {
+            return SC_FUNC_FAILURE;
         }
     }
 #endif
@@ -205,16 +206,16 @@ static SINT32 config_entropy(safecrypto_entropy_e entropy,
 
         default:
             {
-                return PRNG_FUNC_FAILURE;
+                return SC_FUNC_FAILURE;
             };
     }
 #else
     if (!CryptAcquireContext(&hCryptProv, NULL, NULL, PROV_RSA_FULL, 0)) {
-        return PRNG_FUNC_FAILURE;
+        return SC_FUNC_FAILURE;
     }
 #endif
 
-    return PRNG_FUNC_SUCCESS;
+    return SC_FUNC_SUCCESS;
 }
 
 static SINT32 config_csprng(prng_ctx_t *ctx,
@@ -284,7 +285,7 @@ static SINT32 config_csprng(prng_ctx_t *ctx,
         case SC_PRNG_HASH_DRBG_SHA2_256:
             {
                 ctx->hash_drbg_ctx = hash_drbg_create(
-                    fn_entropy, ctx->user_entropy, CRYPTO_HASH_SHA2_256, ctx->seed_period,
+                    fn_entropy, ctx->user_entropy, SC_HASH_SHA2_256, ctx->seed_period,
                     nonce, len_nonce);
                 ctx->get_random_32 = get_random_32_hash_drbg;
             } break;
@@ -292,7 +293,7 @@ static SINT32 config_csprng(prng_ctx_t *ctx,
         case SC_PRNG_HASH_DRBG_SHA2_512:
             {
                 ctx->hash_drbg_ctx = hash_drbg_create(
-                    fn_entropy, ctx->user_entropy, CRYPTO_HASH_SHA2_512, ctx->seed_period,
+                    fn_entropy, ctx->user_entropy, SC_HASH_SHA2_512, ctx->seed_period,
                     nonce, len_nonce);
                 ctx->get_random_32 = get_random_32_hash_drbg;
             } break;
@@ -300,7 +301,7 @@ static SINT32 config_csprng(prng_ctx_t *ctx,
         case SC_PRNG_HASH_DRBG_SHA3_256:
             {
                 ctx->hash_drbg_ctx = hash_drbg_create(
-                    fn_entropy, ctx->user_entropy, CRYPTO_HASH_SHA3_256, ctx->seed_period,
+                    fn_entropy, ctx->user_entropy, SC_HASH_SHA3_256, ctx->seed_period,
                     nonce, len_nonce);
                 ctx->get_random_32 = get_random_32_hash_drbg;
             } break;
@@ -308,7 +309,7 @@ static SINT32 config_csprng(prng_ctx_t *ctx,
         case SC_PRNG_HASH_DRBG_SHA3_512:
             {
                 ctx->hash_drbg_ctx = hash_drbg_create(
-                    fn_entropy, ctx->user_entropy, CRYPTO_HASH_SHA3_512, ctx->seed_period,
+                    fn_entropy, ctx->user_entropy, SC_HASH_SHA3_512, ctx->seed_period,
                     nonce, len_nonce);
                 ctx->get_random_32 = get_random_32_hash_drbg;
             } break;
@@ -316,7 +317,7 @@ static SINT32 config_csprng(prng_ctx_t *ctx,
         case SC_PRNG_HASH_DRBG_BLAKE2_256:
             {
                 ctx->hash_drbg_ctx = hash_drbg_create(
-                    fn_entropy, ctx->user_entropy, CRYPTO_HASH_BLAKE2_256, ctx->seed_period,
+                    fn_entropy, ctx->user_entropy, SC_HASH_BLAKE2_256, ctx->seed_period,
                     nonce, len_nonce);
                 ctx->get_random_32 = get_random_32_hash_drbg;
             } break;
@@ -324,7 +325,7 @@ static SINT32 config_csprng(prng_ctx_t *ctx,
         case SC_PRNG_HASH_DRBG_BLAKE2_512:
             {
                 ctx->hash_drbg_ctx = hash_drbg_create(
-                    fn_entropy, ctx->user_entropy, CRYPTO_HASH_BLAKE2_512, ctx->seed_period,
+                    fn_entropy, ctx->user_entropy, SC_HASH_BLAKE2_512, ctx->seed_period,
                     nonce, len_nonce);
                 ctx->get_random_32 = get_random_32_hash_drbg;
             } break;
@@ -332,7 +333,7 @@ static SINT32 config_csprng(prng_ctx_t *ctx,
         case SC_PRNG_HASH_DRBG_WHIRLPOOL_512:
             {
                 ctx->hash_drbg_ctx = hash_drbg_create(
-                    fn_entropy, ctx->user_entropy, CRYPTO_HASH_WHIRLPOOL_512, ctx->seed_period,
+                    fn_entropy, ctx->user_entropy, SC_HASH_WHIRLPOOL_512, ctx->seed_period,
                     nonce, len_nonce);
                 ctx->get_random_32 = get_random_32_hash_drbg;
             } break;
@@ -360,7 +361,7 @@ static SINT32 config_csprng(prng_ctx_t *ctx,
             } break;
 #endif
 #endif
-        default: return PRNG_FUNC_FAILURE;
+        default: return SC_FUNC_FAILURE;
     }
 
 #ifdef ENABLE_HASH_DRBG
@@ -375,7 +376,7 @@ static SINT32 config_csprng(prng_ctx_t *ctx,
         case SC_PRNG_HASH_DRBG_SHA2_512:
         case SC_PRNG_HASH_DRBG_SHA2_256:
             if (NULL == ctx->hash_drbg_ctx) {
-                return PRNG_FUNC_FAILURE;
+                return SC_FUNC_FAILURE;
             }
             break;
         default:;
@@ -463,11 +464,11 @@ static SINT32 config_csprng(prng_ctx_t *ctx,
             } break;
 #endif
 #endif
-        default: return PRNG_FUNC_FAILURE;
+        default: return SC_FUNC_FAILURE;
     }
 #endif
 
-    return PRNG_FUNC_SUCCESS;
+    return SC_FUNC_SUCCESS;
 }
 
 #if 0
@@ -504,7 +505,7 @@ static void * prng_producer_u16_worker(void *p)
         UINT16 u16[2];
         u16[0] = data >> 16;
         u16[1] = data;
-        if (PRNG_FUNC_FAILURE == pipe_push(pipe, u16, 2)) {
+        if (SC_FUNC_FAILURE == pipe_push(pipe, u16, 2)) {
             break;
         }
     }
@@ -527,7 +528,7 @@ static void * prng_producer_u8_worker(void *p)
         u8[1] = data >> 16;
         u8[2] = data >> 8;
         u8[3] = data;
-        if (PRNG_FUNC_FAILURE == pipe_push(pipe, u8, 4)) {
+        if (SC_FUNC_FAILURE == pipe_push(pipe, u8, 4)) {
             break;
         }
     }
@@ -546,7 +547,7 @@ static void * prng_producer_flt_worker(void *p)
     for (i=0; i<64; i++) {
         UINT32 data = ctx->get_random_32(ctx);
         FLOAT flt = ((FLOAT) data) / UINT32_MAX;;
-        if (PRNG_FUNC_FAILURE == pipe_push(pipe, &flt, 1)) {
+        if (SC_FUNC_FAILURE == pipe_push(pipe, &flt, 1)) {
             break;
         }
     }
@@ -566,7 +567,7 @@ static void * prng_producer_dbl_worker(void *p)
         UINT32 a = ctx->get_random_32(ctx) >> 5;
         UINT32 b = ctx->get_random_32(ctx) >> 6;
         DOUBLE dbl = (a * RND_DBL_NUM_SCALE + b) * RND_DBL_DEN_SCALE;
-        if (PRNG_FUNC_FAILURE == pipe_push(pipe, &dbl, 1)) {
+        if (SC_FUNC_FAILURE == pipe_push(pipe, &dbl, 1)) {
             break;
         }
     }
@@ -635,12 +636,12 @@ prng_ctx_t * prng_create(safecrypto_entropy_e entropy,
         return NULL;
     }
 
-    prng_ctx_t *ctx = PRNG_MALLOC(sizeof(prng_ctx_t));
+    prng_ctx_t *ctx = SC_MALLOC(sizeof(prng_ctx_t));
     if (NULL == ctx) {
         return NULL;
     }
 
-    ctx->random_pool = PRNG_MALLOC(sizeof(UINT32) * RANDOM_POOL_SIZE);
+    ctx->random_pool = SC_MALLOC(sizeof(UINT32) * RANDOM_POOL_SIZE);
 
     // Initialise the PRNG context
     ctx->type = type;
@@ -716,25 +717,25 @@ SINT32 prng_set_entropy(prng_ctx_t *ctx, const UINT8 *entropy, size_t len)
 {
     // Store the user provided entropy 
     if (NULL == ctx) {
-        return PRNG_FUNC_FAILURE;
+        return SC_FUNC_FAILURE;
     }
 
     if (NULL == ctx->user_entropy) {
-        ctx->user_entropy = PRNG_MALLOC(sizeof(user_entropy_t));
+        ctx->user_entropy = SC_MALLOC(sizeof(user_entropy_t));
         if (NULL == ctx->user_entropy) {
-            return PRNG_FUNC_FAILURE;
+            return SC_FUNC_FAILURE;
         }
     }
     ctx->user_entropy->data = entropy;
     ctx->user_entropy->len  = len;
 
-    return PRNG_FUNC_SUCCESS;
+    return SC_FUNC_SUCCESS;
 }
 
 SINT32 prng_set_entropy_callback(prng_entropy_callback cb)
 {
     entropy_callback = cb;
-    return PRNG_FUNC_SUCCESS;
+    return SC_FUNC_SUCCESS;
 }
 
 SINT32 prng_init(prng_ctx_t *ctx, const UINT8 *nonce, size_t len_nonce)
@@ -742,16 +743,16 @@ SINT32 prng_init(prng_ctx_t *ctx, const UINT8 *nonce, size_t len_nonce)
     // Configure the entropy source type (and initialise random() if it
     // is being used as a PRNG)
     func_get_random_entropy fn_entropy;
-    if (PRNG_FUNC_FAILURE == config_entropy(ctx->entropy, ctx->type, &fn_entropy)) {
-        return PRNG_FUNC_FAILURE;
+    if (SC_FUNC_FAILURE == config_entropy(ctx->entropy, ctx->type, &fn_entropy)) {
+        return SC_FUNC_FAILURE;
     }
 
     // Initialise the selected PRNG/CSPRNG
-    if (PRNG_FUNC_FAILURE == config_csprng(ctx, fn_entropy, nonce, len_nonce)) {
-        return PRNG_FUNC_FAILURE;
+    if (SC_FUNC_FAILURE == config_csprng(ctx, fn_entropy, nonce, len_nonce)) {
+        return SC_FUNC_FAILURE;
     }
 
-    return PRNG_FUNC_SUCCESS;
+    return SC_FUNC_SUCCESS;
 }
 
 safecrypto_prng_e prng_get_type(prng_ctx_t *ctx)
@@ -765,7 +766,7 @@ safecrypto_prng_e prng_get_type(prng_ctx_t *ctx)
 SINT32 prng_destroy(prng_ctx_t *ctx)
 {
     if (NULL == ctx) {
-        return PRNG_FUNC_FAILURE;
+        return SC_FUNC_FAILURE;
     }
 
 #if 0
@@ -862,13 +863,13 @@ SINT32 prng_destroy(prng_ctx_t *ctx)
     }
 
     if (ctx->user_entropy) {
-        PRNG_FREE(ctx->user_entropy, sizeof(user_entropy_t));
+        SC_FREE(ctx->user_entropy, sizeof(user_entropy_t));
     }
 
-    PRNG_FREE(ctx->random_pool, sizeof(UINT32) * RANDOM_POOL_SIZE);
-    PRNG_FREE(ctx, sizeof(prng_ctx_t));
+    SC_FREE(ctx->random_pool, sizeof(UINT32) * RANDOM_POOL_SIZE);
+    SC_FREE(ctx, sizeof(prng_ctx_t));
 
-    return PRNG_FUNC_SUCCESS;
+    return SC_FUNC_SUCCESS;
 }
 
 void prng_reset(prng_ctx_t *ctx)
@@ -1104,7 +1105,7 @@ SINT32 prng_mem(prng_ctx_t *ctx, UINT8 *mem, SINT32 length)
         data.u32[14] = ctx->get_random_32(ctx);
         data.u32[15] = ctx->get_random_32(ctx);
 #endif
-        PRNG_MEMCOPY(p, data.u8, (length >= 64)? 64 : length);
+        SC_MEMCOPY(p, data.u8, (length >= 64)? 64 : length);
         length -= 64;
         p += 64;
     }
@@ -1117,7 +1118,7 @@ SINT32 prng_mem(prng_ctx_t *ctx, UINT8 *mem, SINT32 length)
     }
 #endif
 
-    return PRNG_FUNC_SUCCESS;
+    return SC_FUNC_SUCCESS;
 }
 
 #ifdef _ENABLE_CSPRNG_FILE
@@ -1125,20 +1126,20 @@ SINT32 prng_set_debug_file(prng_ctx_t *ctx, const char *filename)
 {
     if (NULL == ctx) {
         fprintf(stderr, "ERROR! ctx pointer is NULL!\n");
-        return PRNG_FUNC_FAILURE;
+        return SC_FUNC_FAILURE;
     }
 
     if (NULL == filename) {
         fprintf(stderr, "ERROR! filename pointer is NULL!\n");
-        return PRNG_FUNC_FAILURE;
+        return SC_FUNC_FAILURE;
     }
     else if (strlen(filename) >= sizeof(ctx->debug_filename)) {
         fprintf(stderr, "ERROR! filename is too large!\n");
-        return PRNG_FUNC_FAILURE;
+        return SC_FUNC_FAILURE;
     }
     else {
         strcpy(ctx->debug_filename, filename);
-        return PRNG_FUNC_SUCCESS;
+        return SC_FUNC_SUCCESS;
     }
 }
 #endif

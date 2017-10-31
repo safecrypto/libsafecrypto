@@ -36,24 +36,24 @@
 
 SC_STRUCT_PACK_START
 typedef struct ens_dlp_sig_set_t {
-    const UINT16  set;
-    const crypto_hash_e hash_type;
-    const UINT16  q;
-    const UINT16  q_bits;
-    const UINT16  n;
-    const UINT16  n_bits;
-    const UINT32  k_recovery;
-    const UINT16  kappa;
-    const FLOAT   sig;
-    const UINT32  fg_bits;
-    const UINT32  FG_bits;
-    const FLOAT   bd;
+    const UINT16    set;
+    const sc_hash_e hash_type;
+    const UINT16    q;
+    const UINT16    q_bits;
+    const UINT16    n;
+    const UINT16    n_bits;
+    const UINT32    k_recovery;
+    const UINT16    kappa;
+    const FLOAT     sig;
+    const UINT32    fg_bits;
+    const UINT32    FG_bits;
+    const FLOAT     bd;
 #ifdef USE_RUNTIME_NTT_TABLES
-    SINT16       *w;
-    SINT16       *r;
+    SINT16         *w;
+    SINT16         *r;
 #else
-    const SINT16 *w;
-    const SINT16 *r;
+    const SINT16   *w;
+    const SINT16   *r;
 #endif
 } SC_STRUCT_PACKED ens_dlp_sig_set_t;
 SC_STRUCT_PACK_END

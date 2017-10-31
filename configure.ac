@@ -1135,10 +1135,10 @@ AC_CONFIG_FILES([Makefile docs/Doxygen/Makefile \
     src/utils/Makefile \
     src/utils/arith/Makefile \
     src/utils/crypto/Makefile \
-    src/utils/crypto/unit/Makefile \
     src/utils/sampling/Makefile \
     src/utils/entropy/Makefile \
     src/utils/third_party/Makefile \
+    src/unit/crypto/Makefile \
     src/unit/Makefile \
     test/Makefile \
     test/functional/Makefile \
@@ -1192,6 +1192,6 @@ if test "x${enable_kem_ens}" = "xyes"; then
     AC_CONFIG_FILES([src/schemes/kem/ens/Makefile])
 fi
 
-AC_CONFIG_SUBDIRS([src/utils/crypto])
+#AC_CONFIG_SUBDIRS([src/utils/crypto])
 #AX_SUBDIRS_CONFIGURE([src/utils/crypto])
 AC_OUTPUT

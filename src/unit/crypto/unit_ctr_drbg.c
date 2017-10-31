@@ -34,13 +34,13 @@ START_TEST(test_ctr_drbg_0)
     SINT32 retval;
 
     retval = ctr_drbg_destroy(NULL);
-    ck_assert_int_eq(retval, PRNG_FUNC_FAILURE);
+    ck_assert_int_eq(retval, SC_FUNC_FAILURE);
 
     ctx_ctr_drbg_t *ctx = ctr_drbg_create(get_entropy, NULL, 0);
     ck_assert_ptr_ne(ctx, NULL);
 
     retval = ctr_drbg_destroy(ctx);
-    ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+    ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
 }
 END_TEST
 
@@ -54,13 +54,13 @@ START_TEST(test_ctr_drbg_1)
     ck_assert_ptr_ne(ctx, NULL);
 
     retval = ctr_drbg_update(NULL, data);
-    ck_assert_int_eq(retval, PRNG_FUNC_FAILURE);
+    ck_assert_int_eq(retval, SC_FUNC_FAILURE);
 
     retval = ctr_drbg_update(ctx, NULL);
-    ck_assert_int_eq(retval, PRNG_FUNC_FAILURE);
+    ck_assert_int_eq(retval, SC_FUNC_FAILURE);
 
     retval = ctr_drbg_update(ctx, data);
-    ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+    ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
     UINT8 OR = 0;
     for (i=0; i<CSPRNG_BUFFER_SIZE; i++) {
         OR |= data[i];
@@ -68,7 +68,7 @@ START_TEST(test_ctr_drbg_1)
     ck_assert_uint_ne(OR, 0);
 
     retval = ctr_drbg_destroy(ctx);
-    ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+    ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
 }
 END_TEST
 
@@ -83,11 +83,11 @@ START_TEST(test_ctr_drbg_2)
 
     for (i=0; i<4096; i++) {
         retval = ctr_drbg_update(ctx, data);
-        ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+        ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
     }
 
     retval = ctr_drbg_destroy(ctx);
-    ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+    ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
 }
 END_TEST
 

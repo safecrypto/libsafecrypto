@@ -28,14 +28,14 @@ typedef struct user_entropy user_entropy_t;
 typedef void (*func_get_random)(size_t, UINT8 *, user_entropy_t *);
 
 /// A struct that stores the AES-CTR context
-PRNG_STRUCT_PACK_START
+SC_STRUCT_PACK_START
 typedef struct ctx_aes_ctr_t {
     func_get_random get_random;
     user_entropy_t *entropy_arg;
     UINT32          counter;
     UINT8           key[32];
-} PRNG_STRUCT_PACKED ctx_aes_ctr_t;
-PRNG_STRUCT_PACK_END
+} SC_STRUCT_PACKED ctx_aes_ctr_t;
+SC_STRUCT_PACK_END
 
 
 /// Create an instance of the AES-CTR

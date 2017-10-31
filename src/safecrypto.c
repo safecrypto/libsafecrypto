@@ -884,6 +884,16 @@ SINT32 safecrypto_hash_destroy(void *hash)
     return utils_crypto_hash_destroy(hash);
 }
 
+sc_hash_e safecrypto_hash_type(void *hash)
+{
+    return hash_get_type(hash);
+}
+
+size_t safecrypto_hash_length(void *hash)
+{
+    return hash_length(hash);
+}
+
 SINT32 safecrypto_hash_init(void *hash)
 {
     return hash_init(hash);

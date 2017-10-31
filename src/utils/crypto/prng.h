@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "safecrypto_types.h"
 #include "prng_types.h"
 
 

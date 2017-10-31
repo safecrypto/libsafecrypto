@@ -53,7 +53,7 @@ typedef struct ens_dlp_sig_cfg_t {
     safecrypto_ntt_e      ntt_optimisation;
     ntt_params_t          ntt;
     sc_entropy_type_e     entropy;
-    crypto_hash_e         oracle_hash;
+    sc_hash_e             oracle_hash;
     SINT32                keep_matrices;
     SINT32               *b;
 #ifdef ENS_DLP_SIG_USE_LONGDOUBLE_PREC_FLOATS
@@ -223,7 +223,7 @@ SINT32 ens_dlp_sig_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
         default:;
     }
 
-    crypto_hash_e hash_func;
+    sc_hash_e hash_func;
     switch (flags[0] & SC_FLAG_0_HASH_FUNCTION_MASK)
     {
         case SC_FLAG_0_HASH_BLAKE2:
@@ -1889,7 +1889,7 @@ Signature compression:   %s\n\
         sc->stats.sig_num_unverified,
         sc_sampler_names[sc->sampling],
         safecrypto_prng_names[(int)prng_get_type(sc->prng_ctx[0])],
-        crypto_hash_names[sc->ens_dlp_sig->oracle_hash],
+        sc_hash_names[sc->ens_dlp_sig->oracle_hash],
         sc_entropy_names[(int)sc->coding_pub_key.type],
         sc->stats.pub_keys_encoded? (DOUBLE)sc->stats.components[SC_STAT_PUB_KEY][0].bits/(DOUBLE)sc->stats.pub_keys_encoded : 0,
         sc->stats.pub_keys_encoded? (DOUBLE)sc->stats.components[SC_STAT_PUB_KEY][0].bits_coded/(DOUBLE)sc->stats.pub_keys_encoded : 0,
@@ -1951,7 +1951,7 @@ Signature compression:   %s\n\
         sc->stats.sig_num_unverified,
         sc_sampler_names[sc->sampling],
         safecrypto_prng_names[(int)prng_get_type(sc->prng_ctx[0])],
-        crypto_hash_names[sc->ens_dlp_sig->oracle_hash],
+        sc_hash_names[sc->ens_dlp_sig->oracle_hash],
         sc_entropy_names[(int)sc->coding_pub_key.type],
         sc->stats.pub_keys_encoded? (DOUBLE)sc->stats.components[SC_STAT_PUB_KEY][0].bits/(DOUBLE)sc->stats.pub_keys_encoded : 0,
         sc->stats.pub_keys_encoded? (DOUBLE)sc->stats.components[SC_STAT_PUB_KEY][0].bits_coded/(DOUBLE)sc->stats.pub_keys_encoded : 0,

@@ -37,20 +37,20 @@ START_TEST(test_hash_drbg_0)
     static const UINT8 nonce[16] = "SAFEcrypto nonce";
 
     retval = hash_drbg_destroy(NULL);
-    ck_assert_int_eq(retval, PRNG_FUNC_FAILURE);
+    ck_assert_int_eq(retval, SC_FUNC_FAILURE);
 
     // Invalid nonce pointer but correct length
     ctx = hash_drbg_create(get_entropy, NULL,
-        CRYPTO_HASH_SHA3_512, 0, NULL, 16);
+        SC_HASH_SHA3_512, 0, NULL, 16);
     ck_assert_ptr_eq(ctx, NULL);
 
     // Valid nonce pointer and correct length
     ctx = hash_drbg_create(get_entropy, NULL,
-        CRYPTO_HASH_SHA3_512, 0, nonce, 16);
+        SC_HASH_SHA3_512, 0, nonce, 16);
     ck_assert_ptr_ne(ctx, NULL);
 
     retval = hash_drbg_destroy(ctx);
-    ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+    ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
 }
 END_TEST
 
@@ -64,27 +64,27 @@ START_TEST(test_hash_drbg_1)
 
     // Invalid nonce length, must be half security strength
     ctx = hash_drbg_create(get_entropy, NULL,
-        CRYPTO_HASH_SHA3_512, 0xFFFFFFFF, nonce, 0);
+        SC_HASH_SHA3_512, 0xFFFFFFFF, nonce, 0);
     ck_assert_ptr_eq(ctx, NULL);
 
     // Invalid nonce length, must be half security strength
     ctx = hash_drbg_create(get_entropy, NULL,
-        CRYPTO_HASH_SHA3_512, 0, nonce, 15);
+        SC_HASH_SHA3_512, 0, nonce, 15);
     ck_assert_ptr_eq(ctx, NULL);
 
     // Invalid nonce length, must be half security strength
     ctx = hash_drbg_create(get_entropy, NULL,
-        CRYPTO_HASH_SHA3_512, 0, nonce, 16);
+        SC_HASH_SHA3_512, 0, nonce, 16);
     ck_assert_ptr_ne(ctx, NULL);
 
     retval = hash_drbg_update(NULL, data, 16);
-    ck_assert_int_eq(retval, PRNG_FUNC_FAILURE);
+    ck_assert_int_eq(retval, SC_FUNC_FAILURE);
 
     retval = hash_drbg_update(ctx, NULL, 16);
-    ck_assert_int_eq(retval, PRNG_FUNC_FAILURE);
+    ck_assert_int_eq(retval, SC_FUNC_FAILURE);
 
     retval = hash_drbg_update(ctx, data, 16);
-    ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+    ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
     UINT8 OR = 0;
     for (i=0; i<16; i++) {
         OR |= data[i];
@@ -92,7 +92,7 @@ START_TEST(test_hash_drbg_1)
     ck_assert_uint_ne(OR, 0);
 
     retval = hash_drbg_destroy(ctx);
-    ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+    ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
 }
 END_TEST
 
@@ -104,16 +104,16 @@ START_TEST(test_hash_drbg_2)
     static const UINT8 nonce[16] = "SAFEcrypto nonce";
 
     hash_drbg_t *ctx = hash_drbg_create(get_entropy, NULL,
-        CRYPTO_HASH_SHA3_512, 0x00010000, nonce, 16);
+        SC_HASH_SHA3_512, 0x00010000, nonce, 16);
     ck_assert_ptr_ne(ctx, NULL);
 
     for (i=0; i<4096; i++) {
         retval = hash_drbg_update(ctx, data, 16);
-        ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+        ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
     }
 
     retval = hash_drbg_destroy(ctx);
-    ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+    ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
 }
 END_TEST
 

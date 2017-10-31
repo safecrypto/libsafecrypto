@@ -68,7 +68,7 @@ int main(void)
 
         for (j=0; j<NUM_HASH_FUNCIONS; j++) {
             char disp_msg[128];
-            snprintf(disp_msg, 128, "%-20s", crypto_hash_names[j]);
+            snprintf(disp_msg, 128, "%-20s", sc_hash_names[j]);
             
             utils_crypto_hash_t *hash;
             switch (j) {
@@ -112,7 +112,7 @@ int main(void)
 
         for (j=0; j<NUM_HASH_FUNCIONS; j++) {
             printf("%-20s elapsed time: %f (%f bytes per sec)\n",
-                crypto_hash_names[j], elapsed[j], (double)length * (double)MAX_ITER / elapsed[j]);
+                sc_hash_names[j], elapsed[j], (double)length * (double)MAX_ITER / elapsed[j]);
         }
         printf("\n");
 
