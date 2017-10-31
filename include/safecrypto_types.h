@@ -222,6 +222,22 @@ __attribute__((unused))
 GENERATE_ENUM_NAMES(sc_hash_names, HASH_LIST, SC_HASH_MAX);
 
 
+/// A list of the available schemes
+#define XOF_LIST(m) \
+   m(SC_XOF_SHAKE256) \
+   m(SC_XOF_SHAKE128) \
+   m(SC_XOF_SHAKE256_4X) \
+   m(SC_XOF_SHAKE128_4X)
+
+/// An enumerated type for the choice of XOF algorithm
+GENERATE_ENUM(sc_xof_e, XOF_LIST, SC_XOF_MAX);
+
+/// A list of the XOF algorithms in the form of human readable strings
+__attribute__((unused))
+GENERATE_ENUM_NAMES(sc_xof_names, XOF_LIST, SC_XOF_MAX);
+
+
+
 /// A list of the available AKE types
 #define AKE_LIST(m) \
     m(SC_AKE_FORWARD_SECURE)

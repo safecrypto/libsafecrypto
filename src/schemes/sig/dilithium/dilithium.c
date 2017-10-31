@@ -262,7 +262,7 @@ SINT32 dilithium_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
     }
 
     // Create the XOF to be used by the random oracle
-    sc->xof = utils_crypto_xof_create(CRYPTO_XOF_SHAKE128);
+    sc->xof = utils_crypto_xof_create(SC_XOF_SHAKE128);
     if (NULL == sc->xof) {
         return SC_FUNC_FAILURE;
     }

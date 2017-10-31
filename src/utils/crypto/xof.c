@@ -21,16 +21,16 @@
 #include "safecrypto_private.h"
 
 
-utils_crypto_xof_t * utils_crypto_xof_create(crypto_xof_e type)
+utils_crypto_xof_t * utils_crypto_xof_create(sc_xof_e type)
 {
     utils_crypto_xof_t *crypto_xof = SC_MALLOC(sizeof(utils_crypto_xof_t));
 
     switch (type)
     {
 #ifdef ENABLE_SHA3
-        case CRYPTO_XOF_SHAKE256:
+        case SC_XOF_SHAKE256:
         {
-            crypto_xof->type    = CRYPTO_XOF_SHAKE256;
+            crypto_xof->type    = SC_XOF_SHAKE256;
             crypto_xof->length  = 32;
             crypto_xof->init    = tinysha3_init;
             crypto_xof->absorb  = tinysha3_update;
@@ -39,9 +39,9 @@ utils_crypto_xof_t * utils_crypto_xof_create(crypto_xof_e type)
             crypto_xof->ctx     = SC_MALLOC(sizeof(sha3_ctx_t));
         } break;
 
-        case CRYPTO_XOF_SHAKE128:
+        case SC_XOF_SHAKE128:
         {
-            crypto_xof->type    = CRYPTO_XOF_SHAKE128;
+            crypto_xof->type    = SC_XOF_SHAKE128;
             crypto_xof->length  = 16;
             crypto_xof->init    = tinysha3_init;
             crypto_xof->absorb  = tinysha3_update;
@@ -51,9 +51,9 @@ utils_crypto_xof_t * utils_crypto_xof_create(crypto_xof_e type)
         } break;
 
 #ifdef HAVE_AVX2
-        case CRYPTO_XOF_SHAKE256_4X:
+        case SC_XOF_SHAKE256_4X:
         {
-            crypto_xof->type    = CRYPTO_XOF_SHAKE256_4X;
+            crypto_xof->type    = SC_XOF_SHAKE256_4X;
             crypto_xof->length  = 128;
             crypto_xof->init    = tinysha3_init_4x;
             crypto_xof->absorb  = tinysha3_update_4x;
@@ -62,9 +62,9 @@ utils_crypto_xof_t * utils_crypto_xof_create(crypto_xof_e type)
             crypto_xof->ctx     = SC_MALLOC(sizeof(sha3_4x_ctx_t));
         } break;
 
-        case CRYPTO_XOF_SHAKE128_4X:
+        case SC_XOF_SHAKE128_4X:
         {
-            crypto_xof->type    = CRYPTO_XOF_SHAKE128_4X;
+            crypto_xof->type    = SC_XOF_SHAKE128_4X;
             crypto_xof->length  = 64;
             crypto_xof->init    = tinysha3_init_4x;
             crypto_xof->absorb  = tinysha3_update_4x;
@@ -94,11 +94,11 @@ SINT32 utils_crypto_xof_destroy(utils_crypto_xof_t *xof)
     switch (xof->type)
     {
 #ifdef ENABLE_SHA3
-        case CRYPTO_XOF_SHAKE256:
-        case CRYPTO_XOF_SHAKE128:
+        case SC_XOF_SHAKE256:
+        case SC_XOF_SHAKE128:
 #ifdef HAVE_AVX2
-        case CRYPTO_XOF_SHAKE256_4X:
-        case CRYPTO_XOF_SHAKE128_4X:
+        case SC_XOF_SHAKE256_4X:
+        case SC_XOF_SHAKE128_4X:
 #endif
         {
             SC_FREE(xof->ctx, sizeof(sha3_ctx_t));
@@ -114,6 +114,14 @@ SINT32 utils_crypto_xof_destroy(utils_crypto_xof_t *xof)
     SC_FREE(xof, sizeof(utils_crypto_xof_t));
 
     return SC_FUNC_SUCCESS;
+}
+
+sc_xof_e xof_get_type(utils_crypto_xof_t *c)
+{
+    if (NULL == c) {
+        return SC_XOF_MAX;
+    }
+    return c->type;
 }
 
 SINT32 xof_init(utils_crypto_xof_t *c)

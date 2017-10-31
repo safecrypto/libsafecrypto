@@ -909,3 +909,38 @@ SINT32 safecrypto_hash_final(void *hash, UINT8 *md)
     return hash_final(hash, md);
 }
 
+
+void * safecrypto_xof_create(sc_xof_e type)
+{
+    return utils_crypto_xof_create(type);
+}
+
+SINT32 safecrypto_xof_destroy(void* xof)
+{
+    return utils_crypto_xof_destroy(xof);
+}
+
+sc_xof_e safecrypto_xof_type(void *xof)
+{
+    return xof_get_type(xof);
+}
+
+SINT32 safecrypto_xof_init(void *xof)
+{
+    return xof_init(xof);
+}
+
+SINT32 safecrypto_xof_absorb(void *xof, const UINT8 *data, size_t len)
+{
+    return xof_absorb(xof, data, len);
+}
+
+SINT32 safecrypto_xof_final(void *xof)
+{
+    return xof_final(xof);
+}
+
+SINT32 safecrypto_xof_squeeze(void *xof, UINT8 *output, size_t len)
+{
+    return xof_squeeze(xof, output, len);
+}

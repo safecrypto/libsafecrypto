@@ -68,12 +68,12 @@ int main(void)
 
         for (j=0; j<NUM_XOF_FUNCTIONS; j++) {
             char disp_msg[128];
-            snprintf(disp_msg, 128, "%-20s", crypto_xof_names[j]);
+            snprintf(disp_msg, 128, "%-20s", sc_xof_names[j]);
             
             utils_crypto_xof_t *xof;
             switch (j) {
-                case 0:  xof = utils_crypto_xof_create(CRYPTO_XOF_SHAKE128); break;
-                case 1:  xof = utils_crypto_xof_create(CRYPTO_XOF_SHAKE256); break;
+                case 0:  xof = utils_crypto_xof_create(SC_XOF_SHAKE128); break;
+                case 1:  xof = utils_crypto_xof_create(SC_XOF_SHAKE256); break;
             }
 
             SC_TIMER_RESET(xof_timer);
@@ -102,7 +102,7 @@ int main(void)
 
         for (j=0; j<NUM_XOF_FUNCTIONS; j++) {
             printf("%-20s elapsed time: %f (%f bytes per sec)\n",
-                crypto_xof_names[j], elapsed[j], (double)length * (double)MAX_ITER / elapsed[j]);
+                sc_xof_names[j], elapsed[j], (double)length * (double)MAX_ITER / elapsed[j]);
         }
         printf("\n");
 
@@ -116,12 +116,12 @@ int main(void)
 
         for (j=0; j<NUM_XOF_FUNCTIONS; j++) {
             char disp_msg[128];
-            snprintf(disp_msg, 128, "%-20s", crypto_xof_names[j]);
+            snprintf(disp_msg, 128, "%-20s", sc_xof_names[j]);
             
             utils_crypto_xof_t *xof;
             switch (j) {
-                case 0:  xof = utils_crypto_xof_create(CRYPTO_XOF_SHAKE128); break;
-                case 1:  xof = utils_crypto_xof_create(CRYPTO_XOF_SHAKE256); break;
+                case 0:  xof = utils_crypto_xof_create(SC_XOF_SHAKE128); break;
+                case 1:  xof = utils_crypto_xof_create(SC_XOF_SHAKE256); break;
             }
 
             SC_TIMER_RESET(xof_timer);
@@ -150,7 +150,7 @@ int main(void)
 
         for (j=0; j<NUM_XOF_FUNCTIONS; j++) {
             printf("%-20s elapsed time: %f (%f bytes per sec)\n",
-                crypto_xof_names[j], elapsed[j], (double)length * (double)MAX_ITER / elapsed[j]);
+                sc_xof_names[j], elapsed[j], (double)length * (double)MAX_ITER / elapsed[j]);
         }
         printf("\n");
 
