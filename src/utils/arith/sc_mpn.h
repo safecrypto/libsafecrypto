@@ -44,8 +44,9 @@ sc_ulimb_t mpn_mul_1(sc_ulimb_t *out, const sc_ulimb_t *in1, size_t n, sc_ulimb_
 void mpn_mul_n(sc_ulimb_t *out, const sc_ulimb_t *in1, const sc_ulimb_t *in2, size_t n);
 sc_ulimb_t mpn_mul(sc_ulimb_t *out, const sc_ulimb_t *in1, size_t in1_n, const sc_ulimb_t *in2, size_t in2_n);
 sc_ulimb_t mpn_sqr(sc_ulimb_t *out, const sc_ulimb_t *in, size_t n);
-sc_ulimb_t mpn_divrem(sc_ulimb_t *q_limbs, size_t qn, const sc_ulimb_t *n_limbs, size_t n_len, const sc_ulimb_t *d, size_t d_len);
-sc_ulimb_t mpn_divrem_1(sc_ulimb_t *q_limbs, size_t qn, const sc_ulimb_t *n_limbs, size_t n, sc_ulimb_t d);
+sc_ulimb_t mpn_divrem(sc_ulimb_t *q_limbs, size_t q_frac_n, sc_ulimb_t *n_limbs, size_t n_len, const sc_ulimb_t *d, size_t d_len);
+sc_ulimb_t mpn_divrem_1(sc_ulimb_t *q_limbs, size_t q_frac_n, const sc_ulimb_t *n_limbs, size_t n, sc_ulimb_t d);
+sc_ulimb_t mpn_divrem_2(sc_ulimb_t *q_limbs, size_t q_frac_n, sc_ulimb_t *n_limbs, size_t n, const sc_ulimb_t *d);
 void mpn_div_qr(sc_ulimb_t *q_limbs, sc_ulimb_t *n_limbs,
     size_t n, const sc_ulimb_t *d_limbs, size_t dn);
 sc_ulimb_t mpn_div_qr_1(sc_ulimb_t *q_limbs, sc_ulimb_t *qh, const sc_ulimb_t *n_limbs,

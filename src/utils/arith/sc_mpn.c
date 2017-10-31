@@ -74,7 +74,7 @@ void mpn_zero(sc_ulimb_t* inout, size_t n)
 
 SINT32 mpn_zero_p(const sc_ulimb_t *in, size_t n)
 {
-    while (n && in[--n]) {
+    while (n && !in[--n]) {
     }
     return 0 == n && 0 == in[0];
 }
@@ -454,12 +454,6 @@ static void mpn_div_qr_preinv(sc_ulimb_t *q_limbs, sc_ulimb_t *n_limbs,
     }
 }
 
-sc_ulimb_t mpn_divrem(sc_ulimb_t *q_limbs, size_t qn, const sc_ulimb_t *n_limbs, size_t n_len, const sc_ulimb_t *d, size_t d_len)
-{
-    /// @todo Create mpn_divrem()
-    return 0;
-}
-
 sc_ulimb_t mpn_divrem_1(sc_ulimb_t *q_limbs, size_t q_frac_n, const sc_ulimb_t *n_limbs, size_t n, sc_ulimb_t d)
 {
     // The remainder is returned while a fractional quotient is written to q_limbs
@@ -504,6 +498,101 @@ sc_ulimb_t mpn_divrem_1(sc_ulimb_t *q_limbs, size_t q_frac_n, const sc_ulimb_t *
     }
 
     return rem >> mod.norm;
+}
+
+sc_ulimb_t mpn_divrem_2(sc_ulimb_t *q_limbs, size_t q_frac_n, sc_ulimb_t *n_limbs, size_t n, const sc_ulimb_t *d)
+{
+    // It is assumed that the denominator is two limbs in length.
+    // The most significant quotient limb is returned while a fractional quotient is written
+    // to q_limbs with q_frac_n fractional limbs and n integer limbs.
+    // The numerator is overwritten with the 2 limb remainder.
+    size_t i;
+
+    // Pre-compute the inverse of the two-limb denominator
+    fprintf(stderr, "Doing inversion...\n");
+    const sc_ulimb_t inv_d = limb_inverse_3by2(d[1], d[0]);
+    fprintf(stderr, "...done\n");
+    sc_ulimb_t retval, *num_rem, *quo, nhi, nlo;
+    const sc_ulimb_t dhi = d[1], dlo = d[0];
+
+    // Initialise the most significant bit/limb of the quotient to 0
+    retval  = 0;
+
+    // Set the numerator pointer to the last limb
+    num_rem = n_limbs + n - 1;
+
+    // Set the quotient pointer to account for the fractional component
+    quo     = q_limbs + q_frac_n;
+
+    // Initialise most significant numerator limbs
+    nhi     = *num_rem;
+    nlo     = *--num_rem;
+    fprintf(stderr, "nhi=%016lX, nlo=%016lX, dhi=%016lX, dlo=%016lX\n", nhi, nlo, dhi, dlo);
+
+    // Compensate for the most significant limbs requiring a quotient carry bit
+    if (nhi > dhi || (nhi == dhi && nlo >= dlo)) {
+        limb_sub_hi_lo(&nhi, &nlo, nhi, nlo, dhi, dlo);
+        retval = 1;
+    }
+
+    // Iteratively calculate the integer quotient from most to least significant limb
+    i = (n - 2) - 1;
+    while (num_rem != n_limbs) {
+        sc_ulimb_t num = *--num_rem;
+        udiv_qrnnndd_preinv(&quo[i--], &nhi, &nlo, nhi, nlo, num, dhi, dlo, inv_d);
+    }
+
+    // Iteratively calculate the fractional quotient (if required)
+    if (q_frac_n) {
+        quo = q_limbs;
+        i   = q_frac_n - 1;
+        while (num_rem != n_limbs) {
+            udiv_qrnnndd_preinv(&quo[i--], &nhi, &nlo, nhi, nlo, 0, dhi, dlo, inv_d);
+        }
+    }
+
+    // Overwrite the numerator with the 2 remainder limbs
+    n_limbs[1] = nhi;
+    n_limbs[0] = nlo;
+
+    return retval;
+}
+
+static sc_ulimb_t mpn_divrem_general(sc_ulimb_t *q_limbs, size_t q_frac_n, const sc_ulimb_t *n_limbs, size_t n_len, const sc_ulimb_t *d, size_t d_len)
+{
+    /// @todo Create mpn_divrem_general()
+    return 0;
+}
+
+sc_ulimb_t mpn_divrem(sc_ulimb_t *q_limbs, size_t q_frac_n, sc_ulimb_t *n_limbs, size_t n_len, const sc_ulimb_t *d, size_t d_len)
+{
+    // Use the existing mpn_divrem_1() as a special case when the denominator is a single limb, a two
+    // limb denominator can also be regarded as a special case, beyond that a general purpose
+    // division routine must be used.
+    if (1 == d_len) {
+        // Unfortunately the quotient produced by mpn_divrem_1() is one limb too large, so temporary memory
+        // must be used to store it with a subsequent copy, then return the most significant limb.
+        sc_ulimb_t retval;
+
+        /// @todo Have a threshold for use of static/dynamic memory in mpn_divrem()
+        sc_ulimb_t *q = SC_MALLOC(sizeof(sc_ulimb_t) * (n_len + q_frac_n));
+
+        mpn_divrem_1(q, q_frac_n, n_limbs, n_len, d[0]);
+        mpn_copy(q_limbs, q, n_len + q_frac_n - 1);
+        retval = q[n_len + q_frac_n - 1];
+
+        // Free resources
+        SC_FREE(q, sizeof(sc_ulimb_t) * (n_len + q_frac_n));
+
+        return retval;
+    }
+    else if (2 == d_len) {
+        // Special case for a denominator with two limbs
+        return mpn_divrem_2(q_limbs, q_frac_n, n_limbs, n_len, d);
+    }
+    else {
+        return mpn_divrem_general(q_limbs, q_frac_n, n_limbs, n_len, d, d_len);
+    }
 }
 
 // NOTE: The numerator will be overwritten

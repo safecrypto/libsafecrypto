@@ -479,6 +479,72 @@ START_TEST(test_mpn_divrem_1)
 }
 END_TEST
 
+START_TEST(test_mpn_divrem_2)
+{
+    {
+        sc_ulimb_t q[1], n[2] = {32, 64}, d[2] = {0, SC_LIMB_HIGHBIT};
+
+        q[0] = mpn_divrem_2(q, 0, n, 2, d);
+        ck_assert_uint_eq(q[0], 0);
+        ck_assert_uint_eq(n[0], 32);
+        ck_assert_uint_eq(n[1], 64);
+    }
+    {
+        sc_ulimb_t q[1], n[2] = {32, SC_LIMB_HIGHBIT}, d[2] = {0, SC_LIMB_HIGHBIT};
+
+        q[0] = mpn_divrem_2(q, 0, n, 2, d);
+        ck_assert_uint_eq(q[0], 1);
+        ck_assert_uint_eq(n[0], 32);
+        ck_assert_uint_eq(n[1], 0);
+    }
+    {
+        sc_ulimb_t q[1], n[2] = {0, SC_LIMB_HIGHBIT}, d[2] = {1, SC_LIMB_HIGHBIT};
+
+        q[0] = mpn_divrem_2(q, 0, n, 2, d);
+        ck_assert_uint_eq(q[0], 0);
+        ck_assert_uint_eq(n[0], 0);
+        ck_assert_uint_eq(n[1], SC_LIMB_HIGHBIT);
+    }
+    {
+        sc_ulimb_t q[1], n[2] = {1, SC_LIMB_HIGHBIT}, d[2] = {1, SC_LIMB_HIGHBIT};
+
+        q[0] = mpn_divrem_2(q, 0, n, 2, d);
+        ck_assert_uint_eq(q[0], 1);
+        ck_assert_uint_eq(n[0], 0);
+        ck_assert_uint_eq(n[1], 0);
+    }
+    {
+        sc_ulimb_t q[1], n[2] = {2, SC_LIMB_HIGHBIT}, d[2] = {1, SC_LIMB_HIGHBIT};
+
+        q[0] = mpn_divrem_2(q, 0, n, 2, d);
+        ck_assert_uint_eq(q[0], 1);
+        ck_assert_uint_eq(n[0], 1);
+        ck_assert_uint_eq(n[1], 0);
+    }
+    {
+        sc_ulimb_t q[2], n[3] = {0, 0, SC_LIMB_HIGHBIT}, d[2] = {1, SC_LIMB_HIGHBIT};
+
+        q[1] = mpn_divrem_2(q, 0, n, 3, d);
+        ck_assert_uint_eq(q[0], SC_LIMB_UMAX);
+        ck_assert_uint_eq(q[1], 0);
+        ck_assert_uint_eq(n[0], 1);
+        ck_assert_uint_eq(n[1], SC_LIMB_UMAX >> 1);
+    }
+    {
+        sc_ulimb_t q[5], n[6] = {0, 0, 0, 0, 0, SC_LIMB_HIGHBIT}, d[2] = {1, SC_LIMB_HIGHBIT};
+
+        q[4] = mpn_divrem_2(q, 0, n, 6, d);
+        ck_assert_uint_eq(q[0], 3);
+        ck_assert_uint_eq(q[1], 0);
+        ck_assert_uint_eq(q[2], SC_LIMB_UMAX - 1);
+        ck_assert_uint_eq(q[3], SC_LIMB_UMAX);
+        ck_assert_uint_eq(q[4], 0);
+        ck_assert_uint_eq(n[0], SC_LIMB_UMAX - 2);
+        ck_assert_uint_eq(n[1], SC_LIMB_UMAX >> 1);
+    }
+}
+END_TEST
+
 START_TEST(test_mpn_div_qr_1)
 {
     {
@@ -604,6 +670,7 @@ Suite *sc_mp_suite(void)
     tcase_add_test(tc_mpn, test_mpn_mul_n);
     tcase_add_test(tc_mpn, test_mpn_mul);
     tcase_add_test(tc_mpn, test_mpn_divrem_1);
+    tcase_add_test(tc_mpn, test_mpn_divrem_2);
     tcase_add_test(tc_mpn, test_mpn_div_qr_1);
 #ifdef USE_SAFECRYPTO_INTEGER_MP    
     tcase_add_test(tc_mpn, test_mpn_div_qr);
