@@ -28,7 +28,7 @@
 #include "utils/arith/sc_mpf.h"
 #endif
 
-#ifdef HAVE_128BIT
+#if defined(HAVE_128BIT) && !defined(DISABLE_HIGH_PREC_GAUSSIAN)
 SC_STRUCT_PACK_START
 typedef struct _gauss_cdf_128 {
     UINT128 *cdf;
@@ -79,7 +79,7 @@ static size_t find_kldiv_k(size_t max_lut_bytes, FLOAT tail, FLOAT *sigma)
     return k;
 }
 
-#ifdef HAVE_128BIT
+#if defined(HAVE_128BIT) && !defined(DISABLE_HIGH_PREC_GAUSSIAN)
 static SINT32 binary_search_128(UINT128 x, const UINT128 *l, SINT32 n)
 {
     // Given the table l of length n, return the address in the table

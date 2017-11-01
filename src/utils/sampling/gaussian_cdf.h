@@ -27,7 +27,7 @@ extern prng_ctx_t * gaussian_cdf_get_prng_128(void *sampler);
 extern prng_ctx_t * gaussian_cdf_get_prng_64(void *sampler);
 extern prng_ctx_t * gaussian_cdf_get_prng_32(void *sampler);
 
-#ifdef HAVE_128BIT
+#if defined(HAVE_128BIT) && !defined(DISABLE_HIGH_PREC_GAUSSIAN)
 extern void * gaussian_cdf_create_128(prng_ctx_t *prng_ctx,
 	FLOAT tail, float sigma, size_t max_lut_bytes, sample_blinding_e blinding);
 extern SINT32 gaussian_cdf_destroy_128(void **sampler);

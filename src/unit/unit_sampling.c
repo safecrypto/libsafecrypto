@@ -33,7 +33,7 @@
 
 
 #ifdef HAVE_CDF_GAUSSIAN_SAMPLING
-#ifdef HAVE_128BIT
+#if defined(HAVE_128BIT) && !defined(DISABLE_HIGH_PREC_GAUSSIAN)
 START_TEST(test_gaussian_create_128)
 {
     SINT32 retcode;
@@ -778,7 +778,7 @@ Suite *gaussian_suite(void)
     /* Test cases */
 #ifdef HAVE_CDF_GAUSSIAN_SAMPLING
     tc_cdf = tcase_create("CDF");
-#ifdef HAVE_128BIT
+#if defined(HAVE_128BIT) && !defined(DISABLE_HIGH_PREC_GAUSSIAN)
     tcase_add_test(tc_cdf, test_gaussian_create_128);
     tcase_add_test(tc_cdf, test_gaussian_destroy_bad_128);
     tcase_add_test(tc_cdf, test_gaussian_range_128);

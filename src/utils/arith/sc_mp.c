@@ -23,7 +23,7 @@
 #include "limb.h"
 
 
-#ifdef USE_SAFECRYPTO_MULTIPLE_PRECISION
+#ifdef USE_SAFECRYPTO_INTEGER_MP
 
 sc_ulimb_t * mpz_realloc(sc_mpz_t *inout, size_t size)
 {

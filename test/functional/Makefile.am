@@ -28,11 +28,11 @@ if WITH_MULTITHREADING
 TESTS                   += func_threading
 endif WITH_MULTITHREADING
 
-if WITH_ARITH_MP
+if WITH_ARITH_INTEGER_MP
 TESTS                   += func_poly_limb_mul \
                            func_poly_limb_divrem_mod \
                            func_poly_mpi_mul
-endif WITH_ARITH_MP
+endif WITH_ARITH_INTEGER_MP
 
 if WITH_BLISS_B_SIG
 TESTS                   += func_alg_bliss_b \
@@ -224,7 +224,7 @@ func_alg_kyber_enc_huffman_CFLAGS    = -DUSE_HUFFMAN_STATIC_ENTROPY
 func_alg_kyber_enc_huffman_LDFLAGS   = -static
 endif
 
-if WITH_ARITH_MP
+if WITH_ARITH_INTEGER_MP
 func_poly_limb_mul_SOURCES           = func_poly_limb_mul.c \
                                        $(top_srcdir)/include/safecrypto.h
 func_poly_limb_mul_LDADD             = $(top_builddir)/libs/libsafecrypto.la -lm
