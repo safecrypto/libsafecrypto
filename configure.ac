@@ -498,17 +498,33 @@ if test "x${enable_mpfr}" = "xyes"; then
     fi
 fi
 
+# Check if high-precision Gaussian sampling is required
+AC_MSG_CHECKING([for high-precision Gaussian sampling])
+AC_ARG_ENABLE([high_prec_gaussian],
+    AC_HELP_STRING([--enable-high-prec-gaussian], [Enable support for high-precision Gaussian sampling (default: enable)]),
+    [enable_high_prec_gaussian=$enableval],
+    [enable_high_prec_gaussian=yes])
+AC_MSG_RESULT([$enable_high_prec_gaussian])
+
+if test "x${enable_high_prec_gaussian}" != "xyes"; then
+    AC_SUBST([AM_CPPFLAGS], ["$AM_CPPFLAGS -DDISABLE_HIGH_PREC_GAUSSIAN"])
+fi
+
 AM_CONDITIONAL([WITH_GMP], [test "x${enable_gmp}" = "xyes"])
 AM_CONDITIONAL([WITH_MPFR], [test "x${enable_mpfr}" = "xyes"])
 if test "x${enable_gmp}" = "xyes"; then
     AC_SUBST([AM_CPPFLAGS], ["$AM_CPPFLAGS -DUSE_GMP_MULTIPLE_PRECISION"])
 else
-    AC_SUBST([AM_CPPFLAGS], ["$AM_CPPFLAGS -DUSE_SAFECRYPTO_INTEGER_MP"])
+    if test "x${enable_ibe_dlp}" = "xyes" || test "x${enable_sig_ens}" = "xyes" || test "x${enable_sig_dlp}" = "xyes"; then
+        AC_SUBST([AM_CPPFLAGS], ["$AM_CPPFLAGS -DUSE_SAFECRYPTO_INTEGER_MP"])
+    fi
 fi
 if test "x${enable_mpfr}" = "xyes"; then
     AC_SUBST([AM_CPPFLAGS], ["$AM_CPPFLAGS -DUSE_MPFR_MULTIPLE_PRECISION"])
 else
-    AC_SUBST([AM_CPPFLAGS], ["$AM_CPPFLAGS -DUSE_SAFECRYPTO_FLOAT_MP"])
+    if test "x${enable_high_prec_gaussian}" = "xyes"; then
+        AC_SUBST([AM_CPPFLAGS], ["$AM_CPPFLAGS -DUSE_SAFECRYPTO_FLOAT_MP"])
+    fi
 fi
 
 
@@ -821,8 +837,15 @@ AM_CONDITIONAL([WITH_ARITH_MLWE],
    test "x${enable_enc_kyber}" = "xyes" ||
    test "x${enable_sig_dilithium}" = "xyes" ||
    test "x${enable_sig_dilithium_g}" = "xyes"])
-AM_CONDITIONAL([WITH_ARITH_MP],
+AM_CONDITIONAL([WITH_ARITH_INTEGER_MP],
   [test "x${enable_ibe_dlp}" = "xyes" ||
+   test "x${enable_sig_ens}" = "xyes" ||
+   test "x${enable_sig_dlp}" = "xyes"])
+AM_CONDITIONAL([WITH_ARITH_FLOAT_MP],
+  [test "x${enable_high_prec_gaussian}" = "xyes"])
+AM_CONDITIONAL([WITH_ARITH_NATURAL_MP],
+  [test "x${enable_high_prec_gaussian}" = "xyes" ||
+   test "x${enable_ibe_dlp}" = "xyes" ||
    test "x${enable_sig_ens}" = "xyes" ||
    test "x${enable_sig_dlp}" = "xyes"])
 AM_CONDITIONAL([WITH_ARITH_GPV],

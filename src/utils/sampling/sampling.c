@@ -276,7 +276,7 @@ SINT32 configure_sampler(utils_sampling_t *sampling_table, random_sampling_e typ
             success = SC_FUNC_SUCCESS;
         }
 #endif
-#ifdef HAVE_128BIT
+#if defined(HAVE_128BIT) && !defined(DISABLE_HIGH_PREC_GAUSSIAN)
         else if (SAMPLING_128BIT == precision) {
             sampling_table->create   = gaussian_cdf_create_128;
             sampling_table->destroy  = gaussian_cdf_destroy_128;

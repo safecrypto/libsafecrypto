@@ -19,7 +19,7 @@
 
 #include "safecrypto_types.h"
 
-#if defined(USE_SAFECRYPTO_INTEGER_MP) && defined(USE_SAFECRYPTO_FLOAT_MP)
+#if defined(USE_SAFECRYPTO_INTEGER_MP) || defined(USE_SAFECRYPTO_FLOAT_MP)
 #define USE_SAFECRYPTO_MULTIPLE_PRECISION
 #endif
 
@@ -110,7 +110,7 @@ typedef __mpz_struct sc_mpz_t;
 #endif
 
 
-#ifdef USE_SAFECRYPTO_MULTIPLE_PRECISION
+#ifdef USE_SAFECRYPTO_INTEGER_MP
 
 sc_ulimb_t * mpz_realloc(sc_mpz_t *inout, size_t size);
 void mpz_init(sc_mpz_t *inout);
