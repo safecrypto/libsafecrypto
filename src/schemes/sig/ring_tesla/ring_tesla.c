@@ -505,9 +505,9 @@ SINT32 ring_tesla_pubkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
     }
     sc->coding_pub_key.type = SC_ENTROPY_NONE;
     entropy_poly_encode_32(packer, n, pubkey, q_bits,
-        SIGNED_COEFF, sc->coding_pub_key.type, &sc->stats.components[SC_STAT_PUB_KEY][0].bits_coded);
+        SIGNED_COEFF, sc->coding_pub_key.type, 0, &sc->stats.components[SC_STAT_PUB_KEY][0].bits_coded);
     entropy_poly_encode_32(packer, n, pubkey + n, q_bits,
-        SIGNED_COEFF, sc->coding_pub_key.type, &sc->stats.components[SC_STAT_PUB_KEY][1].bits_coded);
+        SIGNED_COEFF, sc->coding_pub_key.type, 0, &sc->stats.components[SC_STAT_PUB_KEY][1].bits_coded);
 
     // Extract the buffer with the public key and release the packer resources
     utils_entropy.pack_get_buffer(packer, key, key_len);
@@ -543,11 +543,11 @@ SINT32 ring_tesla_privkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
         return SC_FUNC_FAILURE;
     }
     entropy_poly_encode_16(packer, n, privkey, e_bits,
-        SIGNED_COEFF, sc->coding_priv_key.type, &packer->sc->stats.components[SC_STAT_PRIV_KEY][0].bits_coded);
+        SIGNED_COEFF, sc->coding_priv_key.type, 1, &packer->sc->stats.components[SC_STAT_PRIV_KEY][0].bits_coded);
     entropy_poly_encode_16(packer, n, privkey + n, e_bits,
-        SIGNED_COEFF, sc->coding_priv_key.type, &packer->sc->stats.components[SC_STAT_PRIV_KEY][1].bits_coded);
+        SIGNED_COEFF, sc->coding_priv_key.type, 1, &packer->sc->stats.components[SC_STAT_PRIV_KEY][1].bits_coded);
     entropy_poly_encode_16(packer, n, privkey + 2*n, e_bits,
-        SIGNED_COEFF, sc->coding_priv_key.type, &packer->sc->stats.components[SC_STAT_PRIV_KEY][2].bits_coded);
+        SIGNED_COEFF, sc->coding_priv_key.type, 1, &packer->sc->stats.components[SC_STAT_PRIV_KEY][2].bits_coded);
 
     // Extract the buffer with the polynomial f and release the packer resources
     utils_entropy.pack_get_buffer(packer, key, key_len);
@@ -662,6 +662,19 @@ static SINT32 test_rejection(safecrypto_t *sc, SINT32 *z)
         }
     }
     return 0;
+}
+
+SINT32 ring_tesla_set_key_coding(safecrypto_t *sc, sc_entropy_type_e pub,
+    sc_entropy_type_e priv)
+{
+    return SC_FUNC_FAILURE;
+}
+
+
+SINT32 ring_tesla_get_key_coding(safecrypto_t *sc, sc_entropy_type_e *pub,
+    sc_entropy_type_e *priv)
+{
+    return SC_FUNC_FAILURE;
 }
 
 #ifdef DISABLE_SIGNATURES_SERVER
@@ -942,9 +955,9 @@ SINT32 ring_tesla_sign(safecrypto_t *sc, const UINT8 *m, size_t m_len,
             break;
         }
         entropy_poly_encode_32(packer, n, z, q_bits,
-            SIGNED_COEFF, sc->coding_signature.type, &sc->stats.components[SC_STAT_SIGNATURE][0].bits_coded);
+            SIGNED_COEFF, sc->coding_signature.type, 2, &sc->stats.components[SC_STAT_SIGNATURE][0].bits_coded);
         entropy_poly_encode_8(packer, 64, md, 8,
-            UNSIGNED_COEFF, SC_ENTROPY_NONE, &sc->stats.components[SC_STAT_SIGNATURE][1].bits_coded);
+            UNSIGNED_COEFF, SC_ENTROPY_NONE, 2, &sc->stats.components[SC_STAT_SIGNATURE][1].bits_coded);
         utils_entropy.pack_get_buffer(packer, sigret, siglen);
         utils_entropy.pack_destroy(&packer);
         sc->stats.components[SC_STAT_SIGNATURE][0].bits += n * q_bits;
@@ -1045,9 +1058,9 @@ SINT32 ring_tesla_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
 
     UINT32 value;
     entropy_poly_decode_32(packer, n, z, q_bits,
-        SIGNED_COEFF, sc->coding_signature.type);
+        SIGNED_COEFF, sc->coding_signature.type, 2);
     entropy_poly_decode_8(packer, 64, sigmd, 8,
-        UNSIGNED_COEFF, SC_ENTROPY_NONE);
+        UNSIGNED_COEFF, SC_ENTROPY_NONE, 3);
     utils_entropy.pack_destroy(&packer);
 
     SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Received z", z, n);

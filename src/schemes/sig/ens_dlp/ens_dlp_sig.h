@@ -60,6 +60,14 @@ SINT32 ens_dlp_sig_destroy(safecrypto_t *sc);
 /// Key pair generation function
 SINT32 ens_dlp_sig_keygen(safecrypto_t *sc);
 
+/// Set key-pair lossless compression coding
+SINT32 ens_dlp_set_key_coding(safecrypto_t *sc, sc_entropy_type_e pub,
+    sc_entropy_type_e priv);
+
+/// Get key-pair lossless compression coding
+SINT32 ens_dlp_get_key_coding(safecrypto_t *sc, sc_entropy_type_e *pub,
+    sc_entropy_type_e *priv);
+
 /// Public key load function
 SINT32 ens_dlp_sig_pubkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len);
 

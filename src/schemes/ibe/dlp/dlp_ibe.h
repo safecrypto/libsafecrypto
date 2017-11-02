@@ -95,6 +95,14 @@ SINT32 dlp_ibe_destroy(safecrypto_t *sc);
 /// Generate a key pair for DLP IBE
 SINT32 dlp_ibe_keygen(safecrypto_t *sc);
 
+/// Set key-pair lossless compression coding
+SINT32 dlp_ibe_set_key_coding(safecrypto_t *sc, sc_entropy_type_e pub,
+    sc_entropy_type_e priv);
+
+/// Get key-pair lossless compression coding
+SINT32 dlp_ibe_get_key_coding(safecrypto_t *sc, sc_entropy_type_e *pub,
+    sc_entropy_type_e *priv);
+
 /// Key load and encode functions for storage and transmission
 /// @{
 SINT32 dlp_ibe_pubkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len);

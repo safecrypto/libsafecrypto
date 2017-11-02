@@ -253,7 +253,7 @@ static SINT32 extract_signed_key(safecrypto_t *sc, SINT32 *sc_key,
     }
 
     entropy_poly_decode_32(packer, n, sc_key, bits,
-        SIGNED_COEFF, coding->type);
+        SIGNED_COEFF, coding->type, 0);
 
     utils_entropy.pack_destroy(&packer);
 
@@ -501,7 +501,7 @@ SINT32 ens_kem_pubkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
         return SC_FUNC_SUCCESS;
     }
     entropy_poly_encode_32(packer, n, t, q_bits,
-        SIGNED_COEFF, SC_ENTROPY_NONE, &sc->stats.components[SC_STAT_PUB_KEY][0].bits_coded);
+        SIGNED_COEFF, SC_ENTROPY_NONE, 0, &sc->stats.components[SC_STAT_PUB_KEY][0].bits_coded);
 
     // Extract the buffer with the public key and release the packer resources
     utils_entropy.pack_get_buffer(packer, key, key_len);
@@ -549,7 +549,7 @@ SINT32 ens_kem_privkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
         return SC_FUNC_FAILURE;
     }
     entropy_poly_encode_32(packer, n, t, 5,
-        SIGNED_COEFF, sc->coding_priv_key.type, &sc->stats.components[SC_STAT_PRIV_KEY][0].bits_coded);
+        SIGNED_COEFF, sc->coding_priv_key.type, 0, &sc->stats.components[SC_STAT_PRIV_KEY][0].bits_coded);
 
     // Extract the buffer with the polynomial f and release the packer resources
     utils_entropy.pack_get_buffer(packer, key, key_len);
@@ -558,6 +558,19 @@ SINT32 ens_kem_privkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
     sc->stats.components[SC_STAT_PRIV_KEY][0].bits += n * 5;
 
     return SC_FUNC_SUCCESS;
+}
+
+SINT32 ens_kem_set_key_coding(safecrypto_t *sc, sc_entropy_type_e pub,
+    sc_entropy_type_e priv)
+{
+    return SC_FUNC_FAILURE;
+}
+
+
+SINT32 ens_kem_get_key_coding(safecrypto_t *sc, sc_entropy_type_e *pub,
+    sc_entropy_type_e *priv)
+{
+    return SC_FUNC_FAILURE;
 }
 
 SINT32 ens_kem_keygen(safecrypto_t *sc)
@@ -830,7 +843,7 @@ SINT32 ens_kem_encapsulation(safecrypto_t *sc,
         return SC_FUNC_FAILURE;
     }
     entropy_poly_encode_32(packer, n, t, q_bits,
-        UNSIGNED_COEFF, sc->coding_encryption.type, &sc->stats.components[SC_STAT_ENCAPSULATE][0].bits_coded);
+        UNSIGNED_COEFF, sc->coding_encryption.type, 1, &sc->stats.components[SC_STAT_ENCAPSULATE][0].bits_coded);
     utils_entropy.pack_get_buffer(packer, c, c_len);
     SC_PRINT_1D_UINT8(sc, SC_LEVEL_DEBUG, "Ciphertext", *c, *c_len);
     utils_entropy.pack_destroy(&packer);
@@ -848,7 +861,7 @@ SINT32 ens_kem_encapsulation(safecrypto_t *sc,
         return SC_FUNC_FAILURE;
     }
     entropy_poly_encode_32(packer, n, e, 1,
-        UNSIGNED_COEFF, SC_ENTROPY_NONE, &sc->stats.components[SC_STAT_ENCAPSULATE][1].bits_coded);
+        UNSIGNED_COEFF, SC_ENTROPY_NONE, 0, &sc->stats.components[SC_STAT_ENCAPSULATE][1].bits_coded);
     utils_entropy.pack_get_buffer(packer, k, k_len);
     SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "Master Key", *k, *k_len);
     utils_entropy.pack_destroy(&packer);
@@ -919,7 +932,7 @@ SINT32 ens_kem_decapsulation(safecrypto_t *sc,
     // Decode the data and decrypt it
     while (utils_entropy.pack_is_data_avail(ipacker)) {
         entropy_poly_decode_32(ipacker, n, t, q_bits,
-            UNSIGNED_COEFF, sc->coding_encryption.type);
+            UNSIGNED_COEFF, sc->coding_encryption.type, 1);
     }
     SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Ciphertext", t, n);
 

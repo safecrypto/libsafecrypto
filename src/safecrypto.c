@@ -66,123 +66,136 @@
 
 // A table into which every algorithm is encoded
 static safecrypto_alg_t safecrypto_algorithms[] = {
-    { SC_SCHEME_SIG_HELLO_WORLD, helloworld_create, helloworld_destroy,
-      NULL, NULL, NULL, NULL,
+    { SC_SCHEME_SIG_HELLO_WORLD, helloworld_create, helloworld_destroy, NULL, NULL, NULL,
+      NULL, NULL, NULL,
       NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, helloworld_sign, helloworld_verify, NULL, NULL, NULL },
 #if defined(DISABLE_SIGNATURES) || defined(DISABLE_SIG_BLISS_B)
-    { SC_SCHEME_SIG_BLISS, NULL, NULL, NULL,
+    { SC_SCHEME_SIG_BLISS, NULL, NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
 #else
     { SC_SCHEME_SIG_BLISS, bliss_b_create, bliss_b_destroy, bliss_b_keygen,
+      bliss_b_set_key_coding, bliss_b_get_key_coding,
       bliss_b_pubkey_load, bliss_b_privkey_load, bliss_b_pubkey_encode, bliss_b_privkey_encode,
       NULL, NULL, NULL, NULL, NULL, NULL, NULL, bliss_b_sign, bliss_b_verify, NULL, NULL, bliss_b_stats },
 #endif
 #if defined(DISABLE_SIGNATURES) || defined(DISABLE_SIG_DILITHIUM)
-    { SC_SCHEME_SIG_DILITHIUM, NULL, NULL, NULL,
+    { SC_SCHEME_SIG_DILITHIUM, NULL, NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
 #else
     { SC_SCHEME_SIG_DILITHIUM, dilithium_create, dilithium_destroy, dilithium_keygen,
+      dilithium_set_key_coding, dilithium_get_key_coding,
       dilithium_pubkey_load, dilithium_privkey_load, dilithium_pubkey_encode, dilithium_privkey_encode,
       NULL, NULL, NULL, NULL, NULL, NULL, NULL, dilithium_sign, dilithium_verify, NULL, NULL, dilithium_stats },
 #endif
 #if defined(DISABLE_SIGNATURES) || defined(DISABLE_SIG_DILITHIUM_G)
-    { SC_SCHEME_SIG_DILITHIUM_G, NULL, NULL, NULL,
+    { SC_SCHEME_SIG_DILITHIUM_G, NULL, NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
 #else
     { SC_SCHEME_SIG_DILITHIUM_G, dilithium_create, dilithium_destroy, dilithium_keygen,
+      dilithium_set_key_coding, dilithium_get_key_coding,
       dilithium_pubkey_load, dilithium_privkey_load, dilithium_pubkey_encode, dilithium_privkey_encode,
       NULL, NULL, NULL, NULL, NULL, NULL, NULL, dilithium_sign, dilithium_verify, NULL, NULL, dilithium_stats },
 #endif
 #if defined(DISABLE_SIGNATURES) || defined(DISABLE_SIG_RING_TESLA)
-    { SC_SCHEME_SIG_RING_TESLA, NULL, NULL, NULL,
+    { SC_SCHEME_SIG_RING_TESLA, NULL, NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
 #else
     { SC_SCHEME_SIG_RING_TESLA, ring_tesla_create, ring_tesla_destroy, ring_tesla_keygen,
+      ring_tesla_set_key_coding, ring_tesla_get_key_coding,
       ring_tesla_pubkey_load, ring_tesla_privkey_load, ring_tesla_pubkey_encode, ring_tesla_privkey_encode,
       NULL, NULL, NULL, NULL, NULL, NULL, NULL, ring_tesla_sign, ring_tesla_verify, NULL, NULL, ring_tesla_stats },
 #endif
 #if defined(DISABLE_SIGNATURES) || defined(DISABLE_SIG_ENS)
-    { SC_SCHEME_SIG_ENS, NULL, NULL, NULL,
+    { SC_SCHEME_SIG_ENS, NULL, NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
 #else
     { SC_SCHEME_SIG_ENS, ens_dlp_sig_create, ens_dlp_sig_destroy, ens_dlp_sig_keygen,
+      ens_dlp_set_key_coding, ens_dlp_get_key_coding,
       ens_dlp_sig_pubkey_load, ens_dlp_sig_privkey_load, ens_dlp_sig_pubkey_encode, ens_dlp_sig_privkey_encode,
       NULL, NULL, NULL, NULL, NULL, NULL, NULL, ens_dlp_sig_sign, ens_dlp_sig_verify, NULL, NULL, ens_dlp_sig_stats },
 #endif
 #if defined(DISABLE_SIGNATURES) || defined(DISABLE_SIG_ENS)
-    { SC_SCHEME_SIG_ENS_WITH_RECOVERY, NULL, NULL, NULL,
+    { SC_SCHEME_SIG_ENS_WITH_RECOVERY, NULL, NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
 #else
     { SC_SCHEME_SIG_ENS_WITH_RECOVERY, ens_dlp_sig_create, ens_dlp_sig_destroy, ens_dlp_sig_keygen,
+      ens_dlp_set_key_coding, ens_dlp_get_key_coding,
       ens_dlp_sig_pubkey_load, ens_dlp_sig_privkey_load, ens_dlp_sig_pubkey_encode, ens_dlp_sig_privkey_encode,
       NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, ens_dlp_sig_sign_recovery, ens_dlp_sig_verify_recovery, ens_dlp_sig_stats },
 #endif
 #if defined(DISABLE_SIGNATURES) || defined(DISABLE_SIG_DLP)
-    { SC_SCHEME_SIG_DLP, NULL, NULL, NULL,
+    { SC_SCHEME_SIG_DLP, NULL, NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
 #else
     { SC_SCHEME_SIG_DLP, ens_dlp_sig_create, ens_dlp_sig_destroy, ens_dlp_sig_keygen,
+      ens_dlp_set_key_coding, ens_dlp_get_key_coding,
       ens_dlp_sig_pubkey_load, ens_dlp_sig_privkey_load, ens_dlp_sig_pubkey_encode, ens_dlp_sig_privkey_encode,
       NULL, NULL, NULL, NULL, NULL, NULL, NULL, ens_dlp_sig_sign, ens_dlp_sig_verify, NULL, NULL, ens_dlp_sig_stats },
 #endif
 #if defined(DISABLE_SIGNATURES) || defined(DISABLE_SIG_DLP)
-    { SC_SCHEME_SIG_DLP_WITH_RECOVERY, NULL, NULL, NULL,
+    { SC_SCHEME_SIG_DLP_WITH_RECOVERY, NULL, NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
 #else
     { SC_SCHEME_SIG_DLP_WITH_RECOVERY, ens_dlp_sig_create, ens_dlp_sig_destroy, ens_dlp_sig_keygen,
+      ens_dlp_set_key_coding, ens_dlp_get_key_coding,
       ens_dlp_sig_pubkey_load, ens_dlp_sig_privkey_load, ens_dlp_sig_pubkey_encode, ens_dlp_sig_privkey_encode,
       NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, ens_dlp_sig_sign_recovery, ens_dlp_sig_verify_recovery, ens_dlp_sig_stats },
 #endif
 #if defined(DISABLE_ENCRYPTION) || defined(DISABLE_ENC_RLWE)
-    { SC_SCHEME_ENC_RLWE, NULL, NULL, NULL,
+    { SC_SCHEME_ENC_RLWE, NULL, NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
 #else
     { SC_SCHEME_ENC_RLWE, rlwe_enc_create, rlwe_enc_destroy, rlwe_enc_keygen,
+      rlwe_enc_set_key_coding, rlwe_enc_get_key_coding,
       rlwe_enc_pubkey_load, rlwe_enc_privkey_load, rlwe_enc_pubkey_encode, rlwe_enc_privkey_encode,
       NULL, NULL, NULL, NULL, NULL, rlwe_enc_encrypt, rlwe_enc_decrypt, NULL, NULL, NULL, NULL, rlwe_enc_stats },
 #endif
 #if defined(DISABLE_ENCRYPTION) || defined(DISABLE_ENC_KYBER)
-    { SC_SCHEME_ENC_KYBER_CPA, NULL, NULL, NULL,
+    { SC_SCHEME_ENC_KYBER_CPA, NULL, NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
 #else
     { SC_SCHEME_ENC_KYBER_CPA, kyber_enc_create, kyber_enc_destroy, kyber_enc_keygen,
+      kyber_enc_set_key_coding, kyber_enc_get_key_coding,
       kyber_enc_pubkey_load, kyber_enc_privkey_load, kyber_enc_pubkey_encode, kyber_enc_privkey_encode,
       NULL, NULL, NULL, NULL, NULL, kyber_enc_encrypt, kyber_enc_decrypt, NULL, NULL, NULL, NULL, kyber_enc_stats },
 #endif
 #if defined(DISABLE_KEM) || defined(DISABLE_KEM_ENS)
-    { SC_SCHEME_KEM_ENS, NULL, NULL, NULL,
+    { SC_SCHEME_KEM_ENS, NULL, NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
 #else
     { SC_SCHEME_KEM_ENS, ens_kem_create, ens_kem_destroy, ens_kem_keygen,
+      ens_kem_set_key_coding, ens_kem_get_key_coding,
       ens_kem_pubkey_load, ens_kem_privkey_load, ens_kem_pubkey_encode, ens_kem_privkey_encode,
       ens_kem_encapsulation, ens_kem_decapsulation, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, ens_kem_stats },
 #endif
 #if defined(DISABLE_KEM) || defined(DISABLE_KEM_KYBER)
-    { SC_SCHEME_KEM_KYBER, NULL, NULL, NULL,
+    { SC_SCHEME_KEM_KYBER, NULL, NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
 #else
     { SC_SCHEME_KEM_KYBER, kyber_kem_create, kyber_kem_destroy, kyber_kem_keygen,
+      kyber_kem_set_key_coding, kyber_kem_get_key_coding,
       kyber_kem_pubkey_load, kyber_kem_privkey_load, kyber_kem_pubkey_encode, kyber_kem_privkey_encode,
       kyber_kem_encapsulation, kyber_kem_decapsulation, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, kyber_kem_stats },
 #endif
 #if defined(DISABLE_IBE) || defined(DISABLE_IBE_DLP)
-    { SC_SCHEME_IBE_DLP, NULL, NULL, NULL,
+    { SC_SCHEME_IBE_DLP, NULL, NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
 #else
     { SC_SCHEME_IBE_DLP, dlp_ibe_create, dlp_ibe_destroy, dlp_ibe_keygen,
+      dlp_ibe_set_key_coding, dlp_ibe_get_key_coding,
       dlp_ibe_pubkey_load, dlp_ibe_privkey_load, dlp_ibe_pubkey_encode, dlp_ibe_privkey_encode,
       NULL, NULL, dlp_ibe_secret_key, dlp_ibe_extract, dlp_ibe_encrypt, NULL, dlp_ibe_decrypt, NULL, NULL, NULL, NULL, dlp_ibe_stats },
 #endif
@@ -618,13 +631,13 @@ SINT32 safecrypto_set_key_coding(safecrypto_t *sc, sc_entropy_type_e pub,
     if (priv < SC_ENTROPY_NONE || priv >= SC_ENTROPY_SCHEME_MAX)
         return SC_FUNC_FAILURE;
 
-    /// @todo Currently all key entropy coding is disabled ...
-    sc->coding_pub_key.type  = pub;
-    sc->coding_pub_key.entropy_coder = NULL;
-    sc->coding_priv_key.type = priv;
-    sc->coding_priv_key.entropy_coder = NULL;
+    // Set the key compression uniquely for each scheme
+    if (safecrypto_algorithms[sc->alg_index].set_key_coding == NULL) {
+        SC_LOG_ERROR(sc, SC_INVALID_FUNCTION_CALL);
+        return SC_FUNC_FAILURE;
+    }
 
-    return SC_FUNC_SUCCESS;
+    return safecrypto_algorithms[sc->alg_index].set_key_coding(sc, pub, priv);
 }
 
 SINT32 safecrypto_get_key_coding(safecrypto_t *sc, sc_entropy_type_e *pub,
@@ -633,10 +646,13 @@ SINT32 safecrypto_get_key_coding(safecrypto_t *sc, sc_entropy_type_e *pub,
     if (check_safecrypto(sc) != SC_FUNC_SUCCESS)
         return SC_FUNC_FAILURE;
 
-    *pub  = sc->coding_pub_key.type;
-    *priv = sc->coding_priv_key.type;
+    // Get the key compression uniquely for each scheme
+    if (safecrypto_algorithms[sc->alg_index].get_key_coding == NULL) {
+        SC_LOG_ERROR(sc, SC_INVALID_FUNCTION_CALL);
+        return SC_FUNC_FAILURE;
+    }
 
-    return SC_FUNC_SUCCESS;
+    return safecrypto_algorithms[sc->alg_index].get_key_coding(sc, pub, priv);
 }
 
 SINT32 safecrypto_public_key_load(safecrypto_t *sc, const UINT8 *key, size_t keylen)

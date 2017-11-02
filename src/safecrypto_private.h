@@ -286,6 +286,12 @@ typedef SINT32 (*keygeneration)(safecrypto_t *);
 /// Public key load function pointer
 typedef SINT32 (*public_key_load)(safecrypto_t *, const UINT8*, size_t);
 
+/// Set key-pair lossless compression coding
+typedef SINT32 (*setkeycoding)(safecrypto_t *, sc_entropy_type_e, sc_entropy_type_e);
+
+/// Get key-pair lossless compression coding
+typedef SINT32 (*getkeycoding)(safecrypto_t *, sc_entropy_type_e*, sc_entropy_type_e*);
+
 /// Private key load function pointer
 typedef SINT32 (*private_key_load)(safecrypto_t *, const UINT8*, size_t);
 
@@ -349,6 +355,8 @@ typedef struct _safecrypto_alg {
     creation           create;
     destruction        destroy;
     keygeneration      keygen;
+    setkeycoding       set_key_coding;
+    getkeycoding       get_key_coding;
     public_key_load    pubkey_load;
     private_key_load   privkey_load;
     public_key_encode  pubkey_encode;

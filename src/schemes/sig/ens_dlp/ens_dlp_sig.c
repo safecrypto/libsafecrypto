@@ -486,7 +486,7 @@ SINT32 ens_dlp_sig_pubkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_le
         return SC_FUNC_FAILURE;
     }
     entropy_poly_decode_16(packer, n, pubkey, q_bits,
-        UNSIGNED_COEFF, sc->coding_pub_key.type);
+        UNSIGNED_COEFF, sc->coding_pub_key.type, 0);
     utils_entropy.pack_destroy(&packer);
     sc->pubkey->len = n;
 
@@ -546,13 +546,13 @@ SINT32 ens_dlp_sig_privkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_l
         return SC_FUNC_FAILURE;
     }
     entropy_poly_decode_32(packer, n, privkey, fg_bits,
-        SIGNED_COEFF, sc->coding_priv_key.type);
+        SIGNED_COEFF, sc->coding_priv_key.type, 1);
     entropy_poly_decode_32(packer, n, privkey+n, fg_bits,
-        SIGNED_COEFF, sc->coding_priv_key.type);
+        SIGNED_COEFF, sc->coding_priv_key.type, 1);
     entropy_poly_decode_32(packer, n, privkey+2*n, FG_bits,
-        SIGNED_COEFF, SC_ENTROPY_NONE);
+        SIGNED_COEFF, SC_ENTROPY_NONE, 2);
     entropy_poly_decode_32(packer, n, privkey+3*n, FG_bits,
-        SIGNED_COEFF, SC_ENTROPY_NONE);
+        SIGNED_COEFF, SC_ENTROPY_NONE, 2);
     utils_entropy.pack_destroy(&packer);
 
     sc->privkey->len = 4 * n;
@@ -619,8 +619,8 @@ SINT32 ens_dlp_sig_pubkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
         SC_LOG_ERROR(sc, SC_NULL_POINTER);
         return SC_FUNC_FAILURE;
     }
-    entropy_poly_encode_16(packer, n, pubkey, q_bits,
-        UNSIGNED_COEFF, SC_ENTROPY_NONE, &sc->stats.components[SC_STAT_PUB_KEY][0].bits_coded);
+    entropy_poly_encode_16(packer, n, pubkey, q_bits, UNSIGNED_COEFF,
+        SC_ENTROPY_NONE, 0, &sc->stats.components[SC_STAT_PUB_KEY][0].bits_coded);
 
     // Extract the buffer with the public key and release the packer resources
     utils_entropy.pack_get_buffer(packer, key, key_len);
@@ -659,14 +659,14 @@ SINT32 ens_dlp_sig_privkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len
     }
 
     // Encode the four polynomials f, g, F, G
-    entropy_poly_encode_32(packer, n, privkey, fg_bits,
-        SIGNED_COEFF, sc->coding_priv_key.type, &sc->stats.components[SC_STAT_PRIV_KEY][0].bits_coded);
-    entropy_poly_encode_32(packer, n, privkey+n, fg_bits,
-        SIGNED_COEFF, sc->coding_priv_key.type, &sc->stats.components[SC_STAT_PRIV_KEY][1].bits_coded);
-    entropy_poly_encode_32(packer, n, privkey+2*n, FG_bits,
-        SIGNED_COEFF, SC_ENTROPY_NONE, &sc->stats.components[SC_STAT_PRIV_KEY][2].bits_coded);
-    entropy_poly_encode_32(packer, n, privkey+3*n, FG_bits,
-        SIGNED_COEFF, SC_ENTROPY_NONE, &sc->stats.components[SC_STAT_PRIV_KEY][3].bits_coded);
+    entropy_poly_encode_32(packer, n, privkey, fg_bits, SIGNED_COEFF,
+        sc->coding_priv_key.type, 1, &sc->stats.components[SC_STAT_PRIV_KEY][0].bits_coded);
+    entropy_poly_encode_32(packer, n, privkey+n, fg_bits, SIGNED_COEFF,
+        sc->coding_priv_key.type, 1, &sc->stats.components[SC_STAT_PRIV_KEY][1].bits_coded);
+    entropy_poly_encode_32(packer, n, privkey+2*n, FG_bits, SIGNED_COEFF,
+        SC_ENTROPY_NONE, 2, &sc->stats.components[SC_STAT_PRIV_KEY][2].bits_coded);
+    entropy_poly_encode_32(packer, n, privkey+3*n, FG_bits, SIGNED_COEFF,
+        SC_ENTROPY_NONE, 2, &sc->stats.components[SC_STAT_PRIV_KEY][3].bits_coded);
 
     // Extract the buffer with the polynomial g and release the packer resources
     utils_entropy.pack_get_buffer(packer, key, key_len);
@@ -945,6 +945,18 @@ static void small_mul_mod_ring(SINT32 *r, const SINT32 *a, const SINT16 *b_spars
     for (j=n; j--;) {
         r[j] = sparse[j] - sparse[j + n];
     }
+}
+
+SINT32 ens_dlp_set_key_coding(safecrypto_t *sc, sc_entropy_type_e pub,
+    sc_entropy_type_e priv)
+{
+    return SC_FUNC_FAILURE;
+}
+
+SINT32 ens_dlp_get_key_coding(safecrypto_t *sc, sc_entropy_type_e *pub,
+    sc_entropy_type_e *priv)
+{
+    return SC_FUNC_FAILURE;
 }
 
 #ifdef DISABLE_SIGNATURES_SERVER
@@ -1301,7 +1313,7 @@ SINT32 ens_dlp_sig_sign(safecrypto_t *sc, const UINT8 *m, size_t m_len, UINT8 **
 
     // Send s1
     entropy_poly_encode_32(packer, n, s1, q_bits,
-        SIGNED_COEFF, sc->coding_signature.type, &sc->stats.components[SC_STAT_SIGNATURE][0].bits_coded);
+        SIGNED_COEFF, sc->coding_signature.type, 3, &sc->stats.components[SC_STAT_SIGNATURE][0].bits_coded);
 
     sc->stats.components[SC_STAT_SIGNATURE][0].bits += q_bits*n;
     utils_entropy.pack_get_buffer(packer, sigret, siglen);
@@ -1461,13 +1473,13 @@ SINT32 ens_dlp_sig_sign_recovery(safecrypto_t *sc, UINT8 **m, size_t *m_len, UIN
 
     // Send s1
     entropy_poly_encode_32(packer, n, s1, q_bits,
-        SIGNED_COEFF, sc->coding_signature.type,
+        SIGNED_COEFF, sc->coding_signature.type, 3,
         &sc->stats.components[SC_STAT_SIGNATURE][0].bits_coded);
 
     // Send s2
     sc->sc_ntt->center_32(s2, n, &sc->ens_dlp_sig->ntt);
     entropy_poly_encode_32(packer, n, s2, q_bits,
-        SIGNED_COEFF, sc->coding_signature.type,
+        SIGNED_COEFF, sc->coding_signature.type, 4,
         &sc->stats.components[SC_STAT_SIGNATURE][1].bits_coded);
 
     // Destroy the packer
@@ -1637,7 +1649,7 @@ SINT32 ens_dlp_sig_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
 
     // Decode s1
     entropy_poly_decode_32(ipacker, n, s1, q_bits,
-        SIGNED_COEFF, sc->coding_signature.type);
+        SIGNED_COEFF, sc->coding_signature.type, 3);
 
     SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Received s1", s1, n);
 
@@ -1738,13 +1750,13 @@ SINT32 ens_dlp_sig_verify_recovery(safecrypto_t *sc, UINT8 **m, size_t *m_len,
 
     // Decode s1
     entropy_poly_decode_32(ipacker, n, s1, q_bits,
-        SIGNED_COEFF, sc->coding_signature.type);
+        SIGNED_COEFF, sc->coding_signature.type, 3);
 
     SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Received s1", s1, n);
 
     // Decode s2
     entropy_poly_decode_32(ipacker, n, s2, q_bits,
-        SIGNED_COEFF, sc->coding_signature.type);
+        SIGNED_COEFF, sc->coding_signature.type, 4);
     SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Received s2", s2, n);
 
     // Destroy the input packer

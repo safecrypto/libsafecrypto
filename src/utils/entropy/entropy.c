@@ -577,7 +577,7 @@ static SINT32 decode_raw_unsigned_8(sc_packer_t *packer, size_t n, SINT8 *p,
 
 SINT32 entropy_poly_encode_32(sc_packer_t *packer, size_t n, const SINT32 *p,
 	size_t bits, entropy_sign_e signedness, sc_entropy_type_e type,
-    size_t *coded_bits)
+    size_t dist, size_t *coded_bits)
 {
     SINT32 retval;
     if (NULL == packer) {
@@ -598,6 +598,14 @@ SINT32 entropy_poly_encode_32(sc_packer_t *packer, size_t n, const SINT32 *p,
 			retval = encode_huffman_signed_32(packer, n, p, bits - beta, beta);
 		}
 	}
+    else if (SC_ENTROPY_BAC == type) {
+        SINT32 offset = 0;
+        if (SIGNED_COEFF == signedness) {
+            offset = 1 << (bits - 1);
+        }
+        retval = bac_encode_64_32(packer, p, n, packer->coder->dist[dist], bits, offset);
+        retval = (SC_FUNC_SUCCESS == retval)? SC_OK : SC_ERROR;
+    }
 	else {
 		retval = encode_raw_32(packer, n, p, bits);
 	}
@@ -609,7 +617,7 @@ SINT32 entropy_poly_encode_32(sc_packer_t *packer, size_t n, const SINT32 *p,
 }
 
 SINT32 entropy_poly_decode_32(sc_packer_t *packer, size_t n, SINT32 *p,
-	size_t bits, entropy_sign_e signedness, sc_entropy_type_e type)
+	size_t bits, entropy_sign_e signedness, sc_entropy_type_e type, size_t dist)
 {
     if (NULL == packer) {
         return SC_ERROR;
@@ -639,7 +647,7 @@ SINT32 entropy_poly_decode_32(sc_packer_t *packer, size_t n, SINT32 *p,
 
 SINT32 entropy_poly_encode_16(sc_packer_t *packer, size_t n, const SINT16 *p,
 	size_t bits, entropy_sign_e signedness, sc_entropy_type_e type,
-    size_t *coded_bits)
+    size_t dist, size_t *coded_bits)
 {
     SINT32 retval;
 
@@ -672,7 +680,7 @@ SINT32 entropy_poly_encode_16(sc_packer_t *packer, size_t n, const SINT16 *p,
 }
 
 SINT32 entropy_poly_decode_16(sc_packer_t *packer, size_t n, SINT16 *p,
-	size_t bits, entropy_sign_e signedness, sc_entropy_type_e type)
+	size_t bits, entropy_sign_e signedness, sc_entropy_type_e type, size_t dist)
 {
     if (NULL == packer) {
         return SC_ERROR;
@@ -702,7 +710,7 @@ SINT32 entropy_poly_decode_16(sc_packer_t *packer, size_t n, SINT16 *p,
 
 SINT32 entropy_poly_encode_8(sc_packer_t *packer, size_t n, const SINT8 *p,
     size_t bits, entropy_sign_e signedness, sc_entropy_type_e type,
-    size_t *coded_bits)
+    size_t dist, size_t *coded_bits)
 {
     SINT32 retval;
 
@@ -735,7 +743,7 @@ SINT32 entropy_poly_encode_8(sc_packer_t *packer, size_t n, const SINT8 *p,
 }
 
 SINT32 entropy_poly_decode_8(sc_packer_t *packer, size_t n, SINT8 *p,
-    size_t bits, entropy_sign_e signedness, sc_entropy_type_e type)
+    size_t bits, entropy_sign_e signedness, sc_entropy_type_e type, size_t dist)
 {
     if (NULL == packer) {
         return SC_ERROR;

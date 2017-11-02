@@ -727,7 +727,7 @@ SINT32 bliss_b_pubkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len)
         size_t i;
 
         entropy_poly_decode_32(packer, n, t, q_bits,
-            UNSIGNED_COEFF, sc->coding_pub_key.type);
+            UNSIGNED_COEFF, sc->coding_pub_key.type, 0);
 
         // Convert to the NTT domain
         sc_ntt->fwd_ntt_32_16(t, ntt, t, w);
@@ -739,7 +739,7 @@ SINT32 bliss_b_pubkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len)
     }
 #else
     entropy_poly_decode_16(packer, n, pubkey, q_bits,
-        UNSIGNED_COEFF, sc->coding_pub_key.type);
+        UNSIGNED_COEFF, sc->coding_pub_key.type, 0);
 #endif
     utils_entropy.pack_destroy(&packer);
     sc->pubkey->len = n;
@@ -800,9 +800,9 @@ SINT32 bliss_b_privkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len)
     sc_packer_t *packer = utils_entropy.pack_create(sc, &sc->coding_priv_key,
         2 * n * s_bits, key, key_len, NULL, 0);
     entropy_poly_decode_16(packer, n, privkey, s_bits,
-        SIGNED_COEFF, sc->coding_priv_key.type);
+        SIGNED_COEFF, sc->coding_priv_key.type, 1);
     entropy_poly_decode_16(packer, n, privkey + n, s_bits,
-        SIGNED_COEFF, sc->coding_priv_key.type);
+        SIGNED_COEFF, sc->coding_priv_key.type, 1);
     for (i=0; i<(size_t)n; i++) {
         privkey[n+i] <<= 1;
     }
@@ -913,13 +913,13 @@ SINT32 bliss_b_pubkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
         sc_ntt->inv_ntt_32_16(t, ntt, t, w_inv, r);
         sc_ntt->normalize_32(t, n, ntt);
         entropy_poly_encode_32(packer, n, t, q_bits,
-            UNSIGNED_COEFF, sc->coding_pub_key.type,
+            UNSIGNED_COEFF, sc->coding_pub_key.type, 0,
             &sc->stats.components[SC_STAT_PUB_KEY][0].bits_coded);
         SC_MEMZERO(t, n * sizeof(SINT32));
     }
 #else
     entropy_poly_encode_16(packer, n, pubkey, q_bits,
-        UNSIGNED_COEFF, sc->coding_pub_key.type,
+        UNSIGNED_COEFF, sc->coding_pub_key.type, 0,
         &sc->stats.components[SC_STAT_PUB_KEY][0].bits_coded);
 #endif
 
@@ -960,14 +960,14 @@ SINT32 bliss_b_privkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
         return SC_FUNC_FAILURE;
     }
     entropy_poly_encode_16(packer, n, privkey, s_bits,
-        SIGNED_COEFF, sc->coding_priv_key.type,
+        SIGNED_COEFF, sc->coding_priv_key.type, 1,
         &sc->stats.components[SC_STAT_PRIV_KEY][0].bits_coded);
     sc->temp[0]--;
     for (i=0; i<n; i++) {
         sc->temp[i] = privkey[n+i] >> 1;
     }
     entropy_poly_encode_32(packer, n, sc->temp, s_bits,
-        SIGNED_COEFF, sc->coding_priv_key.type,
+        SIGNED_COEFF, sc->coding_priv_key.type, 1,
         &sc->stats.components[SC_STAT_PRIV_KEY][1].bits_coded);
 
     // Extract the buffer with the polynomial g and release the packer resources
@@ -1050,6 +1050,25 @@ static void signature_gen(SINT32 *u, SINT32 *v, SINT16 *z,
     }
 }
 
+SINT32 bliss_b_set_key_coding(safecrypto_t *sc, sc_entropy_type_e pub,
+    sc_entropy_type_e priv)
+{
+    sc->coding_pub_key.type           = pub;
+    sc->coding_pub_key.entropy_coder  = NULL;
+    sc->coding_priv_key.type          = priv;
+    sc->coding_priv_key.entropy_coder = NULL;
+
+    return SC_FUNC_SUCCESS;
+}
+
+SINT32 bliss_b_get_key_coding(safecrypto_t *sc, sc_entropy_type_e *pub,
+    sc_entropy_type_e *priv)
+{
+    *pub  = sc->coding_pub_key.type;
+    *priv = sc->coding_priv_key.type;
+    
+    return SC_FUNC_SUCCESS;
+}
 
 #ifdef DISABLE_SIGNATURES_SERVER
 
@@ -1385,10 +1404,10 @@ SINT32 bliss_b_sign(safecrypto_t *sc, const UINT8 *m, size_t m_len,
             break;
         }
         entropy_poly_encode_32(packer, n, t, z1_bits,
-            SIGNED_COEFF, sc->coding_signature.type,
+            SIGNED_COEFF, sc->coding_signature.type, 2,
             &sc->stats.components[SC_STAT_SIGNATURE][0].bits_coded);
         entropy_poly_encode_16(packer, n, z, z2_bits,
-            SIGNED_COEFF, sc->coding_signature.type,
+            SIGNED_COEFF, sc->coding_signature.type, 3,
             &sc->stats.components[SC_STAT_SIGNATURE][1].bits_coded);
         for (i=0; i<kappa; i++) {
             utils_entropy.pack_encode(packer, c_idx[i], n_bits);
@@ -1529,9 +1548,9 @@ SINT32 bliss_b_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
         goto verification_early_failure;
     }
     entropy_poly_decode_32(packer, n, t, z1_bits,
-        SIGNED_COEFF, sc->coding_signature.type);
+        SIGNED_COEFF, sc->coding_signature.type, 2);
     entropy_poly_decode_16(packer, n, z, z2_bits,
-        SIGNED_COEFF, sc->coding_signature.type);
+        SIGNED_COEFF, sc->coding_signature.type, 3);
     for (i=0; i<kappa; i++) {
         if (SC_FUNC_FAILURE == utils_entropy.pack_decode(packer, (UINT32*)&c_idx[i], n_bits)) {
             SC_PRINT_ERROR(sc, "BLISS signature decode error 2\n");

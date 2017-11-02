@@ -121,6 +121,7 @@ extern "C" {
 typedef struct sc_entropy {
     sc_entropy_type_e type;
     void* entropy_coder;
+    void** dist;
 } sc_entropy_t;
 
 

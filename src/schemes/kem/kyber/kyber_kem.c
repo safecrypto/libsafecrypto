@@ -283,9 +283,9 @@ SINT32 kyber_kem_pubkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len)
     sc_packer_t *packer = utils_entropy.pack_create(sc, &sc->coding_pub_key,
         0, key, key_len, NULL, 0);
     entropy_poly_decode_32(packer, k * n, t, dt_bits,
-        UNSIGNED_COEFF, SC_ENTROPY_NONE);
+        UNSIGNED_COEFF, SC_ENTROPY_NONE, 0);
     entropy_poly_decode_8(packer, 32, rho, 8,
-        UNSIGNED_COEFF, SC_ENTROPY_NONE);
+        UNSIGNED_COEFF, SC_ENTROPY_NONE, 0);
     utils_entropy.pack_destroy(&packer);
 
     sc->pubkey->len = k * n + 32;
@@ -364,13 +364,13 @@ SINT32 kyber_kem_privkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len
     sc_packer_t *packer = utils_entropy.pack_create(sc, &sc->coding_priv_key,
         0, key, key_len, NULL, 0);
     entropy_poly_decode_32(packer, k * n, s, eta_bits,
-        SIGNED_COEFF, sc->coding_priv_key.type);
+        SIGNED_COEFF, sc->coding_priv_key.type, 0);
     entropy_poly_decode_8(packer, 32, z, 8,
-        UNSIGNED_COEFF, SC_ENTROPY_NONE);
+        UNSIGNED_COEFF, SC_ENTROPY_NONE, 0);
     entropy_poly_decode_32(packer, k * n, t, dt_bits,
-        UNSIGNED_COEFF, SC_ENTROPY_NONE);
+        UNSIGNED_COEFF, SC_ENTROPY_NONE, 0);
     entropy_poly_decode_8(packer, 32, rho, 8,
-        UNSIGNED_COEFF, SC_ENTROPY_NONE);
+        UNSIGNED_COEFF, SC_ENTROPY_NONE, 0);
     utils_entropy.pack_destroy(&packer);
 
     sc->privkey->len = 2 * k * n + 64;
@@ -467,9 +467,9 @@ SINT32 kyber_kem_pubkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
     sc_packer_t *packer = utils_entropy.pack_create(sc, &sc->coding_pub_key,
         (k * n * dt_bits) + 32*8, NULL, 0, key, key_len);
     entropy_poly_encode_32(packer, k * n, temp, dt_bits,
-        UNSIGNED_COEFF, SC_ENTROPY_NONE, &sc->stats.components[SC_STAT_PUB_KEY][0].bits_coded);
+        UNSIGNED_COEFF, SC_ENTROPY_NONE, 0, &sc->stats.components[SC_STAT_PUB_KEY][0].bits_coded);
     entropy_poly_encode_8(packer, 32, rho, 8,
-        UNSIGNED_COEFF, SC_ENTROPY_NONE, &sc->stats.components[SC_STAT_PUB_KEY][1].bits_coded);
+        UNSIGNED_COEFF, SC_ENTROPY_NONE, 0, &sc->stats.components[SC_STAT_PUB_KEY][1].bits_coded);
 
     // Extract the buffer with the public key and release the packer resources
     utils_entropy.pack_get_buffer(packer, key, key_len);
@@ -545,13 +545,13 @@ SINT32 kyber_kem_privkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
     sc_packer_t *packer = utils_entropy.pack_create(sc, &sc->coding_priv_key,
         k * n * (eta_bits + dt_bits) + 2*32*8, NULL, 0, key, key_len);
     entropy_poly_encode_32(packer, k*n, sk_s, eta_bits,
-        SIGNED_COEFF, sc->coding_priv_key.type, &sc->stats.components[SC_STAT_PRIV_KEY][0].bits_coded);
+        SIGNED_COEFF, sc->coding_priv_key.type, 0, &sc->stats.components[SC_STAT_PRIV_KEY][0].bits_coded);
     entropy_poly_encode_8(packer, 32, z, 8,
-        UNSIGNED_COEFF, SC_ENTROPY_NONE, &sc->stats.components[SC_STAT_PRIV_KEY][1].bits_coded);
+        UNSIGNED_COEFF, SC_ENTROPY_NONE, 0, &sc->stats.components[SC_STAT_PRIV_KEY][1].bits_coded);
     entropy_poly_encode_32(packer, k*n, temp, dt_bits,
-        UNSIGNED_COEFF, SC_ENTROPY_NONE, &sc->stats.components[SC_STAT_PRIV_KEY][2].bits_coded);
+        UNSIGNED_COEFF, SC_ENTROPY_NONE, 0, &sc->stats.components[SC_STAT_PRIV_KEY][2].bits_coded);
     entropy_poly_encode_8(packer, 32, rho, 8,
-        UNSIGNED_COEFF, SC_ENTROPY_NONE, &sc->stats.components[SC_STAT_PRIV_KEY][3].bits_coded);
+        UNSIGNED_COEFF, SC_ENTROPY_NONE, 0, &sc->stats.components[SC_STAT_PRIV_KEY][3].bits_coded);
 
     // Extract the buffer with the polynomial f and release the packer resources
     utils_entropy.pack_get_buffer(packer, key, key_len);
@@ -560,6 +560,19 @@ SINT32 kyber_kem_privkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
     sc->stats.components[SC_STAT_PRIV_KEY][4].bits_coded += *key_len * 8;
 
     return SC_FUNC_SUCCESS;
+}
+
+SINT32 kyber_kem_set_key_coding(safecrypto_t *sc, sc_entropy_type_e pub,
+    sc_entropy_type_e priv)
+{
+    return SC_FUNC_FAILURE;
+}
+
+
+SINT32 kyber_kem_get_key_coding(safecrypto_t *sc, sc_entropy_type_e *pub,
+    sc_entropy_type_e *priv)
+{
+    return SC_FUNC_FAILURE;
 }
 
 SINT32 kyber_kem_keygen(safecrypto_t *sc)
@@ -870,11 +883,11 @@ SINT32 kyber_kem_encapsulation(safecrypto_t *sc,
         return SC_FUNC_FAILURE;
     }
     entropy_poly_encode_32(packer, param_k*n, u, du_bits,
-        UNSIGNED_COEFF, sc->coding_encryption.type, &sc->stats.components[SC_STAT_ENCAPSULATE][0].bits_coded);
+        UNSIGNED_COEFF, sc->coding_encryption.type, 1, &sc->stats.components[SC_STAT_ENCAPSULATE][0].bits_coded);
     entropy_poly_encode_32(packer, n, v, dv_bits,
-        UNSIGNED_COEFF, sc->coding_encryption.type, &sc->stats.components[SC_STAT_ENCAPSULATE][1].bits_coded);
+        UNSIGNED_COEFF, sc->coding_encryption.type, 2, &sc->stats.components[SC_STAT_ENCAPSULATE][1].bits_coded);
     entropy_poly_encode_8(packer, 32, d, 8,
-        UNSIGNED_COEFF, SC_ENTROPY_NONE, &sc->stats.components[SC_STAT_ENCAPSULATE][2].bits_coded);
+        UNSIGNED_COEFF, SC_ENTROPY_NONE, 0, &sc->stats.components[SC_STAT_ENCAPSULATE][2].bits_coded);
     utils_entropy.pack_get_buffer(packer, c, c_len);
     SC_PRINT_1D_UINT8(sc, SC_LEVEL_DEBUG, "Ciphertext", *c, *c_len);
     utils_entropy.pack_destroy(&packer);
@@ -891,7 +904,7 @@ SINT32 kyber_kem_encapsulation(safecrypto_t *sc,
         return SC_FUNC_FAILURE;
     }
     entropy_poly_encode_8(packer, 32, md, 8,
-        UNSIGNED_COEFF, SC_ENTROPY_NONE, &sc->stats.components[SC_STAT_ENCAPSULATE][3].bits_coded);
+        UNSIGNED_COEFF, SC_ENTROPY_NONE, 0, &sc->stats.components[SC_STAT_ENCAPSULATE][3].bits_coded);
     utils_entropy.pack_get_buffer(packer, k, k_len);
     SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "Master Key", *k, *k_len);
     utils_entropy.pack_destroy(&packer);
@@ -973,11 +986,11 @@ SINT32 kyber_kem_decapsulation(safecrypto_t *sc,
 
     // Decode the data and decapsulate the key
     entropy_poly_decode_32(ipacker, param_k*n, u, du_bits,
-        UNSIGNED_COEFF, sc->coding_encryption.type);
+        UNSIGNED_COEFF, sc->coding_encryption.type, 1);
     entropy_poly_decode_32(ipacker, n, v, dv_bits,
-        UNSIGNED_COEFF, sc->coding_encryption.type);
+        UNSIGNED_COEFF, sc->coding_encryption.type, 2);
     entropy_poly_decode_8(ipacker, 32, d, 8,
-        UNSIGNED_COEFF, SC_ENTROPY_NONE);
+        UNSIGNED_COEFF, SC_ENTROPY_NONE, 0);
 
     // Generate the 256-bit random value to be encapsulated
     kyber_cpa_dec(sc, u, v, KYBER_KEM_STORE_NTT_S, s, n, param_k, m);
@@ -996,7 +1009,7 @@ SINT32 kyber_kem_decapsulation(safecrypto_t *sc,
     SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "K", md, 32);
 
     entropy_poly_encode_8(opacker, 32, md, 8,
-        UNSIGNED_COEFF, SC_ENTROPY_NONE, NULL);
+        UNSIGNED_COEFF, SC_ENTROPY_NONE, 0, NULL);
 
     // Release all resources associated with the packers and obtain the
     // buffer with the plaintext byte stream

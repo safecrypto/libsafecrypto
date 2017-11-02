@@ -396,9 +396,9 @@ SINT32 dilithium_pubkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len)
         return SC_FUNC_FAILURE;
     }
     entropy_poly_decode_32(packer, k*n, pubkey, q_bits - d,
-        UNSIGNED_COEFF, SC_ENTROPY_NONE);
+        UNSIGNED_COEFF, SC_ENTROPY_NONE, 0);
     entropy_poly_decode_8(packer, 32, rho, 8,
-        UNSIGNED_COEFF, SC_ENTROPY_NONE);
+        UNSIGNED_COEFF, SC_ENTROPY_NONE, 0);
     utils_entropy.pack_destroy(&packer);
     sc->pubkey->len = n;
 
@@ -473,19 +473,19 @@ SINT32 dilithium_privkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len
 
     // s1
     entropy_poly_decode_32(packer, l*n, s1, eta_bits + 1,
-        SIGNED_COEFF, SC_ENTROPY_NONE);
+        SIGNED_COEFF, SC_ENTROPY_NONE, 0);
 
     // s2
     entropy_poly_decode_32(packer, k*n, s2, eta_bits + 1,
-        SIGNED_COEFF, SC_ENTROPY_NONE);
+        SIGNED_COEFF, SC_ENTROPY_NONE, 0);
 
     // t
     entropy_poly_decode_32(packer, k*n, t, q_bits,
-        UNSIGNED_COEFF, SC_ENTROPY_NONE);
+        UNSIGNED_COEFF, SC_ENTROPY_NONE, 0);
 
     // rho
     entropy_poly_decode_8(packer, 32, rho, 8,
-        UNSIGNED_COEFF, SC_ENTROPY_NONE);
+        UNSIGNED_COEFF, SC_ENTROPY_NONE, 0);
 
     utils_entropy.pack_destroy(&packer);
     sc->privkey->len = n;
@@ -577,10 +577,10 @@ SINT32 dilithium_pubkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
         return SC_FUNC_FAILURE;
     }
     entropy_poly_encode_32(packer, k*n, pubkey, q_bits - d,
-        UNSIGNED_COEFF, SC_ENTROPY_NONE,
+        UNSIGNED_COEFF, SC_ENTROPY_NONE, 0,
         &sc->stats.components[SC_STAT_PUB_KEY][0].bits_coded);
     entropy_poly_encode_8(packer, 32, rho, 8,
-        UNSIGNED_COEFF, SC_ENTROPY_NONE,
+        UNSIGNED_COEFF, SC_ENTROPY_NONE, 0,
         &sc->stats.components[SC_STAT_PUB_KEY][1].bits_coded);
 
     // Extract the buffer with the public key and release the packer resources
@@ -643,22 +643,22 @@ SINT32 dilithium_privkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
 
     // s1
     entropy_poly_encode_32(packer, l*n, temp, eta_bits + 1,
-        SIGNED_COEFF, SC_ENTROPY_NONE,
+        SIGNED_COEFF, SC_ENTROPY_NONE, 0,
         &sc->stats.components[SC_STAT_PRIV_KEY][0].bits_coded);
 
     // s2
     entropy_poly_encode_32(packer, k*n, temp + l*n, eta_bits + 1,
-        SIGNED_COEFF, SC_ENTROPY_NONE,
+        SIGNED_COEFF, SC_ENTROPY_NONE, 0,
         &sc->stats.components[SC_STAT_PRIV_KEY][1].bits_coded);
 
     // t
     entropy_poly_encode_32(packer, k*n, privkey + (k+l)*n, q_bits,
-        UNSIGNED_COEFF, SC_ENTROPY_NONE,
+        UNSIGNED_COEFF, SC_ENTROPY_NONE, 0,
         &sc->stats.components[SC_STAT_PRIV_KEY][2].bits_coded);
 
     // rho
     entropy_poly_encode_8(packer, 32, rho, 8,
-        UNSIGNED_COEFF, SC_ENTROPY_NONE,
+        UNSIGNED_COEFF, SC_ENTROPY_NONE, 0,
         &sc->stats.components[SC_STAT_PRIV_KEY][3].bits_coded);
 
     // Extract the buffer with the public key and release the packer resources
@@ -672,6 +672,17 @@ SINT32 dilithium_privkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
 
 #endif // DISABLE_SIGNATURES_SERVER
 
+SINT32 dilithium_set_key_coding(safecrypto_t *sc, sc_entropy_type_e pub,
+    sc_entropy_type_e priv)
+{
+    return SC_FUNC_FAILURE;
+}
+
+SINT32 dilithium_get_key_coding(safecrypto_t *sc, sc_entropy_type_e *pub,
+    sc_entropy_type_e *priv)
+{
+    return SC_FUNC_FAILURE;
+}
 
 #ifdef DISABLE_SIGNATURES_SERVER
 
@@ -1622,10 +1633,10 @@ restart:
     entropy_poly_encode_32(packer, l*n, z, z_bits,
         SIGNED_COEFF,
         (SC_SCHEME_SIG_DILITHIUM == sc->scheme)? SC_ENTROPY_NONE : sc->coding_signature.type,
-        &sc->stats.components[SC_STAT_SIGNATURE][0].bits_coded);
+        0, &sc->stats.components[SC_STAT_SIGNATURE][0].bits_coded);
     if (SC_SCHEME_SIG_DILITHIUM_G == sc->scheme) {
         entropy_poly_encode_32(packer, k*n, h, 9,
-            SIGNED_COEFF, sc->coding_signature.type,
+            SIGNED_COEFF, sc->coding_signature.type, 1,
             &sc->stats.components[SC_STAT_SIGNATURE][1].bits_coded);
         sc->stats.components[SC_STAT_SIGNATURE][1].bits += 9*k*n;
         sc->stats.components[SC_STAT_SIGNATURE][3].bits += 9*k*n;
@@ -1646,7 +1657,7 @@ restart:
         }
     }
     entropy_poly_encode_32(packer, n, c, 2,
-        UNSIGNED_COEFF, SC_ENTROPY_NONE,
+        UNSIGNED_COEFF, SC_ENTROPY_NONE, 0,
         &sc->stats.components[SC_STAT_SIGNATURE][2].bits_coded);
     sc->stats.components[SC_STAT_SIGNATURE][3].bits += l*n*z_bits + 2*n;
     utils_entropy.pack_get_buffer(packer, sigret, siglen);
@@ -1779,11 +1790,11 @@ SINT32 dilithium_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
         return SC_FUNC_FAILURE;
     }
     entropy_poly_decode_32(ipacker, l*n, z, z_bits,
-        SIGNED_COEFF, (SC_SCHEME_SIG_DILITHIUM == sc->scheme)? SC_ENTROPY_NONE : sc->coding_signature.type);
+        SIGNED_COEFF, (SC_SCHEME_SIG_DILITHIUM == sc->scheme)? SC_ENTROPY_NONE : sc->coding_signature.type, 0);
     sc_ntt->normalize_32(z, l*n, ntt);
     if (SC_SCHEME_SIG_DILITHIUM_G == sc->scheme) {
         entropy_poly_decode_32(ipacker, k*n, h, 9,
-            SIGNED_COEFF, sc->coding_signature.type);
+            SIGNED_COEFF, sc->coding_signature.type, 1);
     }
     else {
         size_t h_bits = 8 + ((k + 1) >> 1);
