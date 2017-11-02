@@ -22,33 +22,6 @@
 #include <string.h>
 
 
-/*/// A list of the available schemes
-#define CRYPTO_HASH_LIST(m) \
-   m(CRYPTO_HASH_SHA3_512) \
-   m(CRYPTO_HASH_SHA3_384) \
-   m(CRYPTO_HASH_SHA3_256) \
-   m(CRYPTO_HASH_SHA3_224) \
-   m(CRYPTO_HASH_SHA2_512) \
-   m(CRYPTO_HASH_SHA2_384) \
-   m(CRYPTO_HASH_SHA2_256) \
-   m(CRYPTO_HASH_SHA2_224) \
-   m(CRYPTO_HASH_BLAKE2_512) \
-   m(CRYPTO_HASH_BLAKE2_384) \
-   m(CRYPTO_HASH_BLAKE2_256) \
-   m(CRYPTO_HASH_BLAKE2_224) \
-   m(CRYPTO_HASH_WHIRLPOOL_512) \
-   m(CRYPTO_HASH_SHAKE128_256) \
-   m(CRYPTO_HASH_SHAKE256_512)
-
-
-/// An enumerated type for the choice of hash algorithm
-GENERATE_ENUM(crypto_hash_e, CRYPTO_HASH_LIST, CRYPTO_HASH_MAX);
-
-/// A list of the hash algorithms in the form of human readable strings
-__attribute__((unused))
-GENERATE_ENUM_NAMES(crypto_hash_names, CRYPTO_HASH_LIST, CRYPTO_HASH_MAX);*/
-
-
 /// Function pointers for a common hash interface
 ///@{
 typedef SINT32 (*hash_func_init)(void *, SINT32);

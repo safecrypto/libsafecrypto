@@ -127,9 +127,13 @@ unit_huffman_LDADD             = $(top_builddir)/libs/libsafecrypto.la @CHECK_LI
 unit_ntt_SOURCES               = unit_ntt.c \
                                  $(top_srcdir)/src/safecrypto_debug.h
 unit_ntt_CFLAGS                = -I$(top_srcdir)/src -I$(top_srcdir)/include @CFLAGS_AVX2@ -I$(top_srcdir)/src/utils/crypto @CHECK_CFLAGS@
+unit_ntt_LDFLAGS               =
 if WITH_MULTITHREADING
-unit_ntt_LDFLAGS               = -pthread
+unit_ntt_LDFLAGS              += -pthread
 endif WITH_MULTITHREADING
+if WITH_GMP
+unit_ntt_LDFLAGS              += -lgmp
+endif
 unit_ntt_LDADD                 = $(top_builddir)/libs/libsafecrypto.la @CHECK_LIBS@
 
 

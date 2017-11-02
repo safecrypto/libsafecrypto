@@ -127,6 +127,12 @@ typedef struct sc_entropy {
 /// Forward declaration of the SAFEcrypto struct (user does not require a definition)
 typedef struct _safecrypto safecrypto_t;
 
+/// Forward declaration of the Hash struct (user does not require a definition)
+typedef struct _utils_crypto_hash safecrypto_hash_t;
+
+/// Forward declaration of the XOF struct (user does not require a definition)
+typedef struct _utils_crypto_xof safecrypto_xof_t;
+
 
 /** @name Library version
  *  Functions used to provide the library version.
@@ -563,35 +569,35 @@ extern SINT32 safecrypto_ake_2way_final(safecrypto_t *sc_sig, safecrypto_t *sc_k
  *  @param type The type of hash function
  *  @return Returns a pointer to the hash struct
  */
-extern void * safecrypto_hash_create(sc_hash_e type);
+extern safecrypto_hash_t * safecrypto_hash_create(sc_hash_e type);
 
 /** @brief Destroy an instance of a hash and release all memory resources
  *
  *  @param hash A pointer to the hash struct
  *  @return Returns 1 on success
  */
-extern SINT32 safecrypto_hash_destroy(void *hash);
+extern SINT32 safecrypto_hash_destroy(safecrypto_hash_t *hash);
 
 /** @brief Return the type of hash function
  *
  *  @param hash A pointer to the hash struct
  *  @return Returns the SC_HASH_MAX upon failure
  */
-extern sc_hash_e safecrypto_hash_type(void *hash);
+extern sc_hash_e safecrypto_hash_type(safecrypto_hash_t *hash);
 
 /** @brief Get the length of the message digest produced by the hash function
  *
  *  @param hash A pointer to the hash struct
  *  @return Returns the length of the message digest (in bytes), or 0 if failure
  */
-extern size_t safecrypto_hash_length(void *hash);
+extern size_t safecrypto_hash_length(safecrypto_hash_t *hash);
 
 /** @brief The common hash API function used to initialise
  *
  *  @param hash A pointer to the hash struct
  *  @return Returns 1 on success
  */
-extern SINT32 safecrypto_hash_init(void *hash);
+extern SINT32 safecrypto_hash_init(safecrypto_hash_t *hash);
 
 /** @brief The common hash API function used to update using a specified byte array
  *
@@ -600,7 +606,7 @@ extern SINT32 safecrypto_hash_init(void *hash);
  *  @param len The length of the message data array
  *  @return Returns 1 on success
  */
-extern SINT32 safecrypto_hash_update(void *hash, const UINT8 *data, size_t len);
+extern SINT32 safecrypto_hash_update(safecrypto_hash_t *hash, const UINT8 *data, size_t len);
 
 /** @brief The common hash API function used to finalize the hash output
  *
@@ -608,7 +614,7 @@ extern SINT32 safecrypto_hash_update(void *hash, const UINT8 *data, size_t len);
  *  @param md A pointer to the message digest
  *  @return Returns 1 on success
  */
-extern SINT32 safecrypto_hash_final(void *hash, UINT8 *md);
+extern SINT32 safecrypto_hash_final(safecrypto_hash_t *hash, UINT8 *md);
 /**@}*/
 
 #ifdef __cplusplus
@@ -625,28 +631,28 @@ extern SINT32 safecrypto_hash_final(void *hash, UINT8 *md);
  *  @param type The type of XOF function
  *  @return Returns a pointer to the XOF struct
  */
-extern void * safecrypto_xof_create(sc_xof_e type);
+extern safecrypto_xof_t * safecrypto_xof_create(sc_xof_e type);
 
 /** @brief Destroy an instance of a XOF and release all memory resources
  *
  *  @param xof A pointer to the XOF struct
  *  @return Returns 1 on success
  */
-extern SINT32 safecrypto_xof_destroy(void* xof);
+extern SINT32 safecrypto_xof_destroy(safecrypto_xof_t* xof);
 
 /** @brief Determine the type of XOF
  *
  *  @param xof A pointer to the XOF struct
  *  @return Returns SC_XOF_MAX on failure
  */
-extern sc_xof_e safecrypto_xof_type(void *xof);
+extern sc_xof_e safecrypto_xof_type(safecrypto_xof_t *xof);
 
 /** @brief Initialise a XOF instance
  *
  *  @param xof A pointer to the XOF struct
  *  @return Returns 1 on success
  */
-extern SINT32 safecrypto_xof_init(void *xof);
+extern SINT32 safecrypto_xof_init(safecrypto_xof_t *xof);
 
 /** @brief The XOF API function used to seed a XOF
  *
@@ -655,14 +661,14 @@ extern SINT32 safecrypto_xof_init(void *xof);
  *  @param len The length of the message data array
  *  @return Returns 1 on success
  */
-extern SINT32 safecrypto_xof_absorb(void *xof, const UINT8 *data, size_t len);
+extern SINT32 safecrypto_xof_absorb(safecrypto_xof_t *xof, const UINT8 *data, size_t len);
 
 /** @brief XOF API function used to finalize the XOF input
  *
  *  @param xof A pointer to the XOF struct
  *  @return Returns 1 on success
  */
-extern SINT32 safecrypto_xof_final(void *xof);
+extern SINT32 safecrypto_xof_final(safecrypto_xof_t *xof);
 
 /** @brief Generate output data
  *
@@ -671,5 +677,5 @@ extern SINT32 safecrypto_xof_final(void *xof);
  *  @param len The length of the output data array
  *  @return Returns 1 on success
  */
-extern SINT32 safecrypto_xof_squeeze(void *xof, UINT8 *output, size_t len);
+extern SINT32 safecrypto_xof_squeeze(safecrypto_xof_t *xof, UINT8 *output, size_t len);
 /**@}*/

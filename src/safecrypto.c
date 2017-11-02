@@ -874,73 +874,73 @@ const sc_statistics_t * safecrypto_get_stats(safecrypto_t *sc)
 }
 
 
-void * safecrypto_hash_create(sc_hash_e type)
+safecrypto_hash_t * safecrypto_hash_create(sc_hash_e type)
 {
     return utils_crypto_hash_create(type);
 }
 
-SINT32 safecrypto_hash_destroy(void *hash)
+SINT32 safecrypto_hash_destroy(safecrypto_hash_t *hash)
 {
     return utils_crypto_hash_destroy(hash);
 }
 
-sc_hash_e safecrypto_hash_type(void *hash)
+sc_hash_e safecrypto_hash_type(safecrypto_hash_t *hash)
 {
     return hash_get_type(hash);
 }
 
-size_t safecrypto_hash_length(void *hash)
+size_t safecrypto_hash_length(safecrypto_hash_t *hash)
 {
     return hash_length(hash);
 }
 
-SINT32 safecrypto_hash_init(void *hash)
+SINT32 safecrypto_hash_init(safecrypto_hash_t *hash)
 {
     return hash_init(hash);
 }
 
-SINT32 safecrypto_hash_update(void *hash, const UINT8 *data, size_t len)
+SINT32 safecrypto_hash_update(safecrypto_hash_t *hash, const UINT8 *data, size_t len)
 {
     return hash_update(hash, data, len);
 }
 
-SINT32 safecrypto_hash_final(void *hash, UINT8 *md)
+SINT32 safecrypto_hash_final(safecrypto_hash_t *hash, UINT8 *md)
 {
     return hash_final(hash, md);
 }
 
 
-void * safecrypto_xof_create(sc_xof_e type)
+safecrypto_xof_t * safecrypto_xof_create(sc_xof_e type)
 {
     return utils_crypto_xof_create(type);
 }
 
-SINT32 safecrypto_xof_destroy(void* xof)
+SINT32 safecrypto_xof_destroy(safecrypto_xof_t* xof)
 {
     return utils_crypto_xof_destroy(xof);
 }
 
-sc_xof_e safecrypto_xof_type(void *xof)
+sc_xof_e safecrypto_xof_type(safecrypto_xof_t *xof)
 {
     return xof_get_type(xof);
 }
 
-SINT32 safecrypto_xof_init(void *xof)
+SINT32 safecrypto_xof_init(safecrypto_xof_t *xof)
 {
     return xof_init(xof);
 }
 
-SINT32 safecrypto_xof_absorb(void *xof, const UINT8 *data, size_t len)
+SINT32 safecrypto_xof_absorb(safecrypto_xof_t *xof, const UINT8 *data, size_t len)
 {
     return xof_absorb(xof, data, len);
 }
 
-SINT32 safecrypto_xof_final(void *xof)
+SINT32 safecrypto_xof_final(safecrypto_xof_t *xof)
 {
     return xof_final(xof);
 }
 
-SINT32 safecrypto_xof_squeeze(void *xof, UINT8 *output, size_t len)
+SINT32 safecrypto_xof_squeeze(safecrypto_xof_t *xof, UINT8 *output, size_t len)
 {
     return xof_squeeze(xof, output, len);
 }
