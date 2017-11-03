@@ -18,7 +18,7 @@
 #pragma once
 
 #include "safecrypto_private.h"
-#include <string.h>
+#include <stddef.h>
 
 typedef struct sc_packer sc_packer_t;
 
@@ -27,6 +27,19 @@ typedef enum _entropy_sign_e {
     SIGNED_COEFF
 } entropy_sign_e;
 
+/// Generate a Gaussian distribution for lossless compression
+/// @param sc A pointer to the configuration struct
+/// @param type The type of entropy coding to be applied
+/// @param dist The index of the distribution to be used
+/// @param sigma The standard deviation of the distribution
+/// @param n The length of the input polynomial
+SINT32 entropy_dist_create(safecrypto_t *sc, sc_entropy_type_e type,
+    size_t dist, FLOAT sigma, size_t n);
+
+/// Erase the specified distribution
+/// @param sc A pointer to the configuration struct
+/// @param dist The index of the distribution to be used
+SINT32 entropy_dist_destroy(safecrypto_t *sc, size_t dist);
 
 /// Use the given packer object to compress the signed input polynomial
 /// @param packer A bit packing object also capable of entropy coding

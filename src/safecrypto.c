@@ -416,9 +416,9 @@ static safecrypto_t * init_safecrypto(sc_scheme_e scheme, const UINT32 *flags)
     sc->coding_pub_key.type             = SC_ENTROPY_NONE;
     sc->coding_priv_key.type            = SC_ENTROPY_NONE;
     sc->coding_signature.type           = SC_ENTROPY_NONE;
-    sc->coding_pub_key.entropy_coder    = NULL;
-    sc->coding_priv_key.entropy_coder   = NULL;
-    sc->coding_signature.entropy_coder  = NULL;
+    for (i=0; i<ENTROPY_MAX_DIST; i++) {
+        sc->dist[i] = NULL;
+    }
 
     // Disable sample blinding by default
     sc->blinding = NORMAL_SAMPLES;

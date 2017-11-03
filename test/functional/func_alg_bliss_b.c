@@ -125,10 +125,9 @@ int main(void)
 #endif
 
     flags[0] |= SC_FLAG_MORE;
-    flags[0] |= SC_FLAG_0_SAMPLE_64BIT | SC_FLAG_0_SAMPLE_CDF;
+    flags[0] |= SC_FLAG_0_SAMPLE_CDF;
     flags[1] |= SC_FLAG_1_CSPRNG_AES_CTR_DRBG;
     flags[1] |= SC_FLAG_1_CSPRNG_USE_CALLBACK_RANDOM;
-    //flags[0] |= SC_FLAG_0_SAMPLE_CDF;
 
     SC_TIMER_INSTANCE(keygen_timer);
     SC_TIMER_INSTANCE(sign_timer);
@@ -167,7 +166,10 @@ int main(void)
             }
             SC_TIMER_STOP(keygen_timer);
 
-            safecrypto_set_key_coding(sc, coding, coding);
+            if (SC_FUNC_SUCCESS != safecrypto_set_key_coding(sc, SC_ENTROPY_NONE, coding)) {
+                fprintf(stderr, "ERROR! safecrypto_set_key_coding() failed\n");
+                goto error_return;
+            }
             pubkeylen = FIXED_BUFFER_SIZE;
             if (SC_FUNC_SUCCESS != safecrypto_public_key_encode(sc, &pubkey, &pubkeylen)) {
                 fprintf(stderr, "ERROR! safecrypto_public_key_encode() failed\n");

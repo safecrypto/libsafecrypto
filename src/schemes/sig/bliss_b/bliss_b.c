@@ -187,16 +187,13 @@ SINT32 bliss_b_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
 
     // Precomputation for entropy coding
     sc->coding_pub_key.type             = SC_ENTROPY_NONE;
-    sc->coding_pub_key.entropy_coder    = NULL;
     sc->coding_priv_key.type            = SC_ENTROPY_NONE;
-    sc->coding_priv_key.entropy_coder   = NULL;
     sc->coding_signature.type           =
         (flags[0] & SC_FLAG_0_ENTROPY_BAC)?            SC_ENTROPY_BAC :
-        (flags[0] & SC_FLAG_0_ENTROPY_BAC_RLE)?        SC_ENTROPY_BAC_RLE :
-        (flags[0] & SC_FLAG_0_ENTROPY_STRONGSWAN)?     SC_ENTROPY_STRONGSWAN :
         (flags[0] & SC_FLAG_0_ENTROPY_HUFFMAN_STATIC)? SC_ENTROPY_HUFFMAN_STATIC :
                                                        SC_ENTROPY_NONE;
-    sc->coding_signature.entropy_coder  = NULL;
+
+    // Determine if blinding countermeasures are to be enabled
     sc->blinding =
         (flags[0] & SC_FLAG_0_SAMPLE_BLINDING)? BLINDING_SAMPLES :
                                                 NORMAL_SAMPLES;
@@ -261,9 +258,10 @@ SINT32 bliss_b_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
     }
 
     // Obtain parameters for the selected parameter set
-    UINT16 n = sc->bliss->params->n;
-    UINT16 p = sc->bliss->params->p;
+    UINT16 n     = sc->bliss->params->n;
+    UINT16 p     = sc->bliss->params->p;
     UINT16 kappa = sc->bliss->params->kappa;
+    FLOAT  sigma = sc->bliss->params->sig;
 
     // Initialise the reduction scheme
     sc->bliss->ntt_optimisation =
@@ -389,6 +387,12 @@ SINT32 bliss_b_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
         }
     }
 
+    // Initialise any distributions required for lossless compression
+    entropy_dist_create(sc, sc->coding_pub_key.type, 0, 0.7f, sc->bliss->params->s_bits);
+    entropy_dist_create(sc, sc->coding_priv_key.type, 1, 0.7f, sc->bliss->params->s_bits);
+    entropy_dist_create(sc, sc->coding_signature.type, 2, sigma, sc->bliss->params->z1_bits);
+    entropy_dist_create(sc, sc->coding_signature.type, 3, 0.7f, sc->bliss->params->z2_bits);
+
 #ifdef HAVE_MULTITHREADING
     // Create a threadpool and messaging IPC
     refcount[0] = 0;
@@ -438,6 +442,11 @@ SINT32 bliss_b_destroy(safecrypto_t *sc)
     if (!sc->temp_external_flag) {
         SC_FREE(sc->temp, sc->temp_size);
     }
+
+    entropy_dist_destroy(sc, 0);
+    entropy_dist_destroy(sc, 1);
+    entropy_dist_destroy(sc, 2);
+    entropy_dist_destroy(sc, 3);
 
     // Free resources associated with the Gaussian sampler
     destroy_sampler(&sc->sc_gauss);
@@ -785,15 +794,8 @@ SINT32 bliss_b_privkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len)
         return SC_FUNC_FAILURE;
     }
 
-    // Extract the parameter set ID
-    SINT32 s_bits;
-
-    if (nz2 > 0) {
-        s_bits = 3;
-    }
-    else {
-        s_bits = 2;
-    }
+    // Extract the number of bits to be coded
+    SINT32 s_bits = sc->bliss->params->s_bits;
 
     // Create a bit packer to extract the private key polynomials f and g from the buffer
     SINT16 *privkey = (SINT16 *) sc->privkey->key;
@@ -944,7 +946,7 @@ SINT32 bliss_b_privkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
     nz2 = sc->bliss->params->nz[0];
 
     // Determine the number of bits in each symbol
-    SINT32 s_bits = (nz2 > 0)? 3 : 2;
+    SINT32 s_bits = sc->bliss->params->s_bits;
 
     sc->stats.priv_keys_encoded++;
     sc->stats.components[SC_STAT_PRIV_KEY][0].bits += n * s_bits;
@@ -1053,10 +1055,20 @@ static void signature_gen(SINT32 *u, SINT32 *v, SINT16 *z,
 SINT32 bliss_b_set_key_coding(safecrypto_t *sc, sc_entropy_type_e pub,
     sc_entropy_type_e priv)
 {
-    sc->coding_pub_key.type           = pub;
-    sc->coding_pub_key.entropy_coder  = NULL;
-    sc->coding_priv_key.type          = priv;
-    sc->coding_priv_key.entropy_coder = NULL;
+    // We will default to no compression if an invalid entropy coding method is selected
+    if (SC_ENTROPY_NONE != pub) {
+        pub = SC_ENTROPY_NONE;
+    }
+    if (SC_ENTROPY_NONE           != priv &&
+        SC_ENTROPY_HUFFMAN_STATIC != priv &&
+        SC_ENTROPY_BAC            != priv) {
+        priv = SC_ENTROPY_NONE;
+    }
+    sc->coding_pub_key.type  = pub;
+    sc->coding_priv_key.type = priv;
+
+    entropy_dist_destroy(sc, 1);
+    entropy_dist_create(sc, sc->coding_priv_key.type, 1, 0.7f, sc->bliss->params->s_bits);
 
     return SC_FUNC_SUCCESS;
 }
@@ -1066,7 +1078,7 @@ SINT32 bliss_b_get_key_coding(safecrypto_t *sc, sc_entropy_type_e *pub,
 {
     *pub  = sc->coding_pub_key.type;
     *priv = sc->coding_priv_key.type;
-    
+
     return SC_FUNC_SUCCESS;
 }
 

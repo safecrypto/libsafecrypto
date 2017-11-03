@@ -66,11 +66,8 @@ SINT32 ens_kem_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
 
     // Precomputation for entropy coding
     sc->coding_pub_key.type             = SC_ENTROPY_NONE;
-    sc->coding_pub_key.entropy_coder    = NULL;
     sc->coding_priv_key.type            = SC_ENTROPY_NONE;
-    sc->coding_priv_key.entropy_coder   = NULL;
     sc->coding_encryption.type          = SC_ENTROPY_NONE;
-    sc->coding_encryption.entropy_coder = NULL;
 
     // Allocate memory for NTRU-KEM configuration
     sc->ens_kem = SC_MALLOC(sizeof(ens_kem_cfg_t));
@@ -226,13 +223,6 @@ static SINT32 sig_entropy_init(safecrypto_t *sc, SINT32 set,
     {
     default:
         coding_pub_key->type = SC_ENTROPY_NONE;
-        coding_pub_key->entropy_coder = NULL;
-    }
-
-    switch (coding_priv_key->type)
-    {
-    default:
-        coding_priv_key->entropy_coder = NULL;
     }
 
     return SC_FUNC_SUCCESS;
@@ -913,7 +903,6 @@ SINT32 ens_kem_decapsulation(safecrypto_t *sc,
     // Create packers to obtain the data from the byte stream
     sc_entropy_t coding_raw = {
         .type = SC_ENTROPY_NONE,
-        .entropy_coder = NULL
     };
     sc_packer_t *ipacker, *opacker;
     ipacker  = utils_entropy.pack_create(sc, &sc->coding_encryption,

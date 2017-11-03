@@ -20,7 +20,6 @@ START_TEST(test_huffman_static_bounds)
     SINT32 retcode;
     sc_entropy_t entropy;
     entropy.type = SC_ENTROPY_NONE;
-    entropy.entropy_coder = NULL;
     sc_packer_t *packer = create(NULL, &entropy, 4096, NULL, 0, NULL, 0);
     ck_assert_ptr_ne(packer, NULL);
 
@@ -47,7 +46,6 @@ START_TEST(test_huffman_static_simple)
     SINT32 retcode;
     sc_entropy_t entropy;
     entropy.type = SC_ENTROPY_NONE;
-    entropy.entropy_coder = NULL;
     sc_packer_t *packer = create(NULL, &entropy, 4096, NULL, 0, NULL, 0);
     ck_assert_ptr_ne(packer, NULL);
 
@@ -86,7 +84,6 @@ START_TEST(test_huffman_static_complex)
     SINT32 retcode;
     sc_entropy_t entropy;
     entropy.type = SC_ENTROPY_NONE;
-    entropy.entropy_coder = NULL;
     sc_packer_t *packer = create(NULL, &entropy, 4096, NULL, 0, NULL, 0);
     ck_assert_ptr_ne(packer, NULL);
 
@@ -143,7 +140,6 @@ START_TEST(test_huffman_static_compound)
     SINT32 retcode;
     sc_entropy_t entropy;
     entropy.type = SC_ENTROPY_NONE;
-    entropy.entropy_coder = NULL;
     sc_packer_t *packer = create(NULL, &entropy, 4096, NULL, 0, NULL, 0);
     ck_assert_ptr_ne(packer, NULL);
 
@@ -204,7 +200,6 @@ START_TEST(test_huffman_static_table_2)
     UINT8 *buffer;
     sc_entropy_t entropy;
     entropy.type = SC_ENTROPY_NONE;
-    entropy.entropy_coder = NULL;
     sc_packer_t *packer = create(NULL, &entropy, 4096, NULL, 0, NULL, 0);
     ck_assert_ptr_ne(packer, NULL);
 
@@ -245,7 +240,6 @@ START_TEST(test_huffman_static_table_3)
     UINT8 *buffer;
     sc_entropy_t entropy;
     entropy.type = SC_ENTROPY_NONE;
-    entropy.entropy_coder = NULL;
     sc_packer_t *packer = create(NULL, &entropy, 4096, NULL, 0, NULL, 0);
     ck_assert_ptr_ne(packer, NULL);
 
@@ -283,7 +277,6 @@ START_TEST(test_huffman_static_table_4)
     SINT32 retcode;
     sc_entropy_t entropy;
     entropy.type = SC_ENTROPY_NONE;
-    entropy.entropy_coder = NULL;
     sc_packer_t *packer = create(NULL, &entropy, 4096, NULL, 0, NULL, 0);
     ck_assert_ptr_ne(packer, NULL);
 
@@ -307,7 +300,6 @@ START_TEST(test_huffman_static_table_5)
     UINT8 *buffer;
     sc_entropy_t entropy;
     entropy.type = SC_ENTROPY_NONE;
-    entropy.entropy_coder = NULL;
     sc_packer_t *packer = create(NULL, &entropy, 32768, NULL, 0, NULL, 0);
     ck_assert_ptr_ne(packer, NULL);
 

@@ -56,11 +56,8 @@ SINT32 rlwe_enc_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
 
     // Precomputation for entropy coding
     sc->coding_pub_key.type             = SC_ENTROPY_NONE;
-    sc->coding_pub_key.entropy_coder    = NULL;
     sc->coding_priv_key.type            = SC_ENTROPY_NONE;
-    sc->coding_priv_key.entropy_coder   = NULL;
     sc->coding_encryption.type          = SC_ENTROPY_NONE;
-    sc->coding_encryption.entropy_coder = NULL;
 
     // Allocate memory for Ring-LWE Encryption configuration
     sc->rlwe_enc = SC_MALLOC(sizeof(rlwe_enc_cfg_t));
@@ -661,7 +658,6 @@ SINT32 rlwe_enc_decrypt(safecrypto_t *sc, size_t flen, const UINT8 *from, size_t
     size_t message_length = (8 * flen) / (2 * q_bits);
     sc_entropy_t coding_raw = {
         .type = SC_ENTROPY_NONE,
-        .entropy_coder = NULL
     };
     sc_packer_t *ipacker, *opacker;
     ipacker  = utils_entropy.pack_create(sc, &sc->coding_encryption,

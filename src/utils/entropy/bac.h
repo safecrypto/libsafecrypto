@@ -83,3 +83,27 @@ SINT32 bac_encode_64_16(sc_packer_t *packer, const SINT16 *in, size_t inlen,
  */
 SINT32 bac_decode_64_16(sc_packer_t *packer, SINT16 *out, size_t outlen,
     const UINT64 *dist, SINT32 bits, SINT32 offset);
+
+/** @brief Obtain a distribution based on the frequency of occurrence (64-bit).
+ *
+ *  @param packer A pointer to a packer instance
+ *  @param in The message to be compressed
+ *  @param inlen The length of the input message
+ *  @param dist The symbol distribution
+ *  @param bits The number of bits per uncoded symbol
+ *  @return SC_FUNC_SUCCESS indicates success, SC_FUNC_FAILURE otherwise
+ */
+SINT32 bac_encode_64_8(sc_packer_t *packer, const SINT8 *in, size_t inlen,
+	const UINT64 *dist, SINT32 bits, SINT32 offset);
+
+/** @brief Obtain a distribution based on the frequency of occurrence (64-bit).
+ *
+ *  @param packer A pointer to a packer instance
+ *  @param out The message to be decompressed
+ *  @param outlen The length of the output message
+ *  @param dist The symbol distribution
+ *  @param bits The number of bits per uncoded symbol
+ *  @return SC_FUNC_SUCCESS indicates success, SC_FUNC_FAILURE otherwise
+ */
+SINT32 bac_decode_64_8(sc_packer_t *packer, SINT8 *out, size_t outlen,
+    const UINT64 *dist, SINT32 bits, SINT32 offset);

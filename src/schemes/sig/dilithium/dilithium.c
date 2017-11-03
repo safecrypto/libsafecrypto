@@ -88,21 +88,18 @@ SINT32 dilithium_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
         (flags[0] & SC_FLAG_0_ENTROPY_STRONGSWAN)?     SC_ENTROPY_STRONGSWAN :
         (flags[0] & SC_FLAG_0_ENTROPY_HUFFMAN_STATIC)? SC_ENTROPY_HUFFMAN_STATIC :
                                                        SC_ENTROPY_NONE;
-    sc->coding_pub_key.entropy_coder    = NULL;
     sc->coding_priv_key.type            =
         (flags[0] & SC_FLAG_0_ENTROPY_BAC)?            SC_ENTROPY_BAC :
         (flags[0] & SC_FLAG_0_ENTROPY_BAC_RLE)?        SC_ENTROPY_BAC_RLE :
         (flags[0] & SC_FLAG_0_ENTROPY_STRONGSWAN)?     SC_ENTROPY_STRONGSWAN :
         (flags[0] & SC_FLAG_0_ENTROPY_HUFFMAN_STATIC)? SC_ENTROPY_HUFFMAN_STATIC :
                                                        SC_ENTROPY_NONE;
-    sc->coding_priv_key.entropy_coder   = NULL;
     sc->coding_signature.type           =
         (flags[0] & SC_FLAG_0_ENTROPY_BAC)?            SC_ENTROPY_BAC :
         (flags[0] & SC_FLAG_0_ENTROPY_BAC_RLE)?        SC_ENTROPY_BAC_RLE :
         (flags[0] & SC_FLAG_0_ENTROPY_STRONGSWAN)?     SC_ENTROPY_STRONGSWAN :
         (flags[0] & SC_FLAG_0_ENTROPY_HUFFMAN_STATIC)? SC_ENTROPY_HUFFMAN_STATIC :
                                                        SC_ENTROPY_NONE;
-    sc->coding_signature.entropy_coder  = NULL;
 
     sc->blinding = (flags[0] & SC_FLAG_0_SAMPLE_BLINDING)?  BLINDING_SAMPLES : NORMAL_SAMPLES;
     sc->sampling_precision =

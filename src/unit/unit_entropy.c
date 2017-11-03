@@ -23,7 +23,6 @@ START_TEST(test_entropy_small_raw)
     sc_entropy_t entropy;
     sc_packer_t *packer;
     entropy.type = SC_ENTROPY_NONE;
-    entropy.entropy_coder = NULL;
     static const SINT32  p[4] = {-2, -1, 0, 1};
     SINT32 pt[4];
 
@@ -57,7 +56,6 @@ START_TEST(test_entropy_small_huffman)
     sc_entropy_t entropy;
     sc_packer_t *packer;
     entropy.type = SC_ENTROPY_NONE;
-    entropy.entropy_coder = NULL;
     static const SINT32  p[4] = {-2, -1, 0, 1};
     SINT32 pt[4];
 
@@ -88,7 +86,6 @@ START_TEST(test_entropy_large_huffman)
     sc_entropy_t entropy;
     sc_packer_t *packer;
     entropy.type = SC_ENTROPY_NONE;
-    entropy.entropy_coder = NULL;
     static const SINT32 p[32] = {102, -41, -239, 176, 146, 107, 55, 164, 61, 248, 249, 81, 79, 177, 43, 29,
         140, 134, 98, 169, -189, 10, 30, 189, -234, 0, -64, 138, -163, 202, 191, 118};
     SINT32 pt[32];

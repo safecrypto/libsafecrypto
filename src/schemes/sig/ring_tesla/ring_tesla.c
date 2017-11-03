@@ -53,11 +53,8 @@ SINT32 ring_tesla_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
 
     // Precomputation for entropy coding
     sc->coding_pub_key.type             = SC_ENTROPY_NONE;
-    sc->coding_pub_key.entropy_coder    = NULL;
     sc->coding_priv_key.type            = SC_ENTROPY_NONE;
-    sc->coding_priv_key.entropy_coder   = NULL;
     sc->coding_signature.type           = SC_ENTROPY_NONE;
-    sc->coding_signature.entropy_coder  = NULL;
 
     sc->blinding = (flags[0] & SC_FLAG_0_SAMPLE_BLINDING)?  BLINDING_SAMPLES : NORMAL_SAMPLES;
     sc->sampling_precision =
@@ -259,82 +256,16 @@ static SINT32 sig_entropy_init(safecrypto_t *sc, SINT32 set, sc_entropy_t *codin
     (void) set;
     (void) coding_signature;
 
-    /*switch (coding_signature->type)
-    {
-    case SC_ENTROPY_BAC:
-        switch (set)
-        {
-        case 4:
-            if (!bliss_bac_code_4.initialized) {
-                bliss_sig_destroy_bac(&bliss_bac_code_1);
-                bliss_sig_destroy_bac(&bliss_bac_code_3);
-                if (SC_FUNC_FAILURE == bliss_sig_create_bac(&bliss_bac_code_4)) {
-                    return SC_FUNC_FAILURE;
-                }
-                coding_signature->entropy_coder = (void *) &bliss_bac_code_4;
-            } break;
-        case 3:
-            if (!bliss_bac_code_3.initialized) {
-                bliss_sig_destroy_bac(&bliss_bac_code_1);
-                bliss_sig_destroy_bac(&bliss_bac_code_4);
-                if (SC_FUNC_FAILURE == bliss_sig_create_bac(&bliss_bac_code_3)) {
-                    return SC_FUNC_FAILURE;
-                }
-                coding_signature->entropy_coder = (void *) &bliss_bac_code_3;
-            } break;
-        case 1:
-            if (!bliss_bac_code_1.initialized) {
-                bliss_sig_destroy_bac(&bliss_bac_code_3);
-                bliss_sig_destroy_bac(&bliss_bac_code_4);
-                if (SC_FUNC_FAILURE == bliss_sig_create_bac(&bliss_bac_code_1)) {
-                    return SC_FUNC_FAILURE;
-                }
-                coding_signature->entropy_coder = (void *) &bliss_bac_code_1;
-            } break;
-        }
-        break;
-    case SC_ENTROPY_STRONGSWAN:
-        switch (set)
-        {
-            case 1:
-                bliss_sig_destroy_bac(&bliss_bac_code_1);
-                bliss_sig_destroy_bac(&bliss_bac_code_3);
-                bliss_sig_destroy_bac(&bliss_bac_code_4);
-                coding_signature->entropy_coder = (void *) &bliss_huffman_code_1;
-                break;
-            case 3:
-                bliss_sig_destroy_bac(&bliss_bac_code_1);
-                bliss_sig_destroy_bac(&bliss_bac_code_3);
-                bliss_sig_destroy_bac(&bliss_bac_code_4);
-                coding_signature->entropy_coder = (void *) &bliss_huffman_code_3;
-                break;
-            case 4:
-                bliss_sig_destroy_bac(&bliss_bac_code_1);
-                bliss_sig_destroy_bac(&bliss_bac_code_3);
-                bliss_sig_destroy_bac(&bliss_bac_code_4);
-                coding_signature->entropy_coder = (void *) &bliss_huffman_code_4;
-                break;
-        }
-        break;
-    default:
-        bliss_sig_destroy_bac(&bliss_bac_code_1);
-        bliss_sig_destroy_bac(&bliss_bac_code_3);
-        bliss_sig_destroy_bac(&bliss_bac_code_4);
-        coding_signature->entropy_coder = NULL;
-    }*/
-
     switch (coding_pub_key->type)
     {
     default:
         coding_pub_key->type = SC_ENTROPY_NONE;
-        coding_pub_key->entropy_coder = NULL;
     }
 
     switch (coding_priv_key->type)
     {
     default:
         coding_priv_key->type = SC_ENTROPY_NONE;
-        coding_priv_key->entropy_coder = NULL;
     }
 
     return SC_FUNC_SUCCESS;

@@ -66,11 +66,8 @@ SINT32 kyber_kem_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
 
     // Precomputation for entropy coding
     sc->coding_pub_key.type             = SC_ENTROPY_NONE;
-    sc->coding_pub_key.entropy_coder    = NULL;
     sc->coding_priv_key.type            = SC_ENTROPY_NONE;
-    sc->coding_priv_key.entropy_coder   = NULL;
     sc->coding_encryption.type          = SC_ENTROPY_NONE;
-    sc->coding_encryption.entropy_coder = NULL;
 
     // Allocate memory for KYBER-KEM configuration
     sc->kyber = SC_MALLOC(sizeof(kyber_cfg_t));
@@ -968,7 +965,6 @@ SINT32 kyber_kem_decapsulation(safecrypto_t *sc,
     // Create packers to obtain the data from the byte stream
     sc_entropy_t coding_raw = {
         .type = SC_ENTROPY_NONE,
-        .entropy_coder = NULL
     };
     sc_packer_t *ipacker, *opacker;
     ipacker  = utils_entropy.pack_create(sc, &sc->coding_encryption,

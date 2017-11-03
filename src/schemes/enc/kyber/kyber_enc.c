@@ -57,11 +57,8 @@ SINT32 kyber_enc_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
 
     // Precomputation for entropy coding
     sc->coding_pub_key.type             = SC_ENTROPY_NONE;
-    sc->coding_pub_key.entropy_coder    = NULL;
     sc->coding_priv_key.type            = SC_ENTROPY_NONE;
-    sc->coding_priv_key.entropy_coder   = NULL;
     sc->coding_encryption.type          = SC_ENTROPY_NONE;
-    sc->coding_encryption.entropy_coder = NULL;
 
     // Allocate memory for Ring-LWE Encryption configuration
     sc->kyber = SC_MALLOC(sizeof(kyber_cfg_t));
@@ -578,7 +575,6 @@ SINT32 kyber_enc_decrypt(safecrypto_t *sc, size_t flen, const UINT8 *from, size_
     size_t message_length;
     sc_entropy_t coding_raw = {
         .type = SC_ENTROPY_NONE,
-        .entropy_coder = NULL
     };
     sc_packer_t *ipacker, *opacker;
     const SINT16 *w, *r;

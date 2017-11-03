@@ -94,15 +94,12 @@ SINT32 ens_dlp_sig_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
     }
 
     sc->coding_pub_key.type             = SC_ENTROPY_NONE;
-    sc->coding_pub_key.entropy_coder    = NULL;
     sc->coding_priv_key.type            =
         (flags[0] & SC_FLAG_0_ENTROPY_HUFFMAN_STATIC)? SC_ENTROPY_HUFFMAN_STATIC :
                                                        SC_ENTROPY_NONE;
-    sc->coding_priv_key.entropy_coder   = NULL;
     sc->coding_signature.type           =
         (flags[0] & SC_FLAG_0_ENTROPY_HUFFMAN_STATIC)? SC_ENTROPY_HUFFMAN_STATIC :
                                                        SC_ENTROPY_NONE;
-    sc->coding_signature.entropy_coder  = NULL;
     sc->blinding = (flags[0] & SC_FLAG_0_SAMPLE_BLINDING)?  BLINDING_SAMPLES : NORMAL_SAMPLES;
     sc->sampling_precision =
         ((flags[0] & SC_FLAG_0_SAMPLE_PREC_MASK) == SC_FLAG_0_SAMPLE_32BIT)?  SAMPLING_32BIT :
@@ -842,7 +839,6 @@ static void add_recovery_msg(safecrypto_t *sc, UINT8 *m, size_t m_len, SINT32 *c
     // Use a packer to obtain (n-k)*q_bits from the input byte array
     sc_entropy_t coding_raw = {
         .type = SC_ENTROPY_NONE,
-        .entropy_coder = NULL
     };
     sc_packer_t *packer;
     packer = utils_entropy.pack_create(sc, &coding_raw, 0, m, m1_bytes, NULL, 0);
@@ -881,7 +877,6 @@ static SINT32 recover_msg(safecrypto_t *sc, UINT8 **m, size_t *m_len, SINT32 *c,
     // Use packers to obtain a byte array from the first (n-k) input ring coefficients
     sc_entropy_t coding_raw = {
         .type = SC_ENTROPY_NONE,
-        .entropy_coder = NULL
     };
     sc_packer_t *packer;
     packer = utils_entropy.pack_create(sc, &coding_raw, (n-k)*(M1_BITS(q_bits)), NULL, 0, &buffer, &buffer_len);
@@ -1301,7 +1296,6 @@ SINT32 ens_dlp_sig_sign(safecrypto_t *sc, const UINT8 *m, size_t m_len, UINT8 **
     // Output an encoded byte stream representing the secret key SK
     sc_entropy_t coding_raw = {
         .type = SC_ENTROPY_NONE,
-        .entropy_coder = NULL
     };
     sc_packer_t *packer;
     packer = utils_entropy.pack_create(sc, &coding_raw,
@@ -1456,7 +1450,6 @@ SINT32 ens_dlp_sig_sign_recovery(safecrypto_t *sc, UINT8 **m, size_t *m_len, UIN
     // Output an encoded byte stream representing the secret key SK
     sc_entropy_t coding_raw = {
         .type = SC_ENTROPY_NONE,
-        .entropy_coder = NULL
     };
     sc_packer_t *packer;
     size_t m1_bits  = (n - k) * (M1_BITS(q_bits));

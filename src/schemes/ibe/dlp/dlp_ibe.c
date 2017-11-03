@@ -85,23 +85,19 @@ SINT32 dlp_ibe_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
 
     // Precomputation for entropy coding
     sc->coding_pub_key.type             = SC_ENTROPY_NONE;
-    sc->coding_pub_key.entropy_coder    = NULL;
     sc->coding_priv_key.type            =
         (flags[0] & SC_FLAG_0_ENTROPY_BAC)?            SC_ENTROPY_BAC :
         (flags[0] & SC_FLAG_0_ENTROPY_BAC_RLE)?        SC_ENTROPY_BAC_RLE :
         (flags[0] & SC_FLAG_0_ENTROPY_STRONGSWAN)?     SC_ENTROPY_STRONGSWAN :
         (flags[0] & SC_FLAG_0_ENTROPY_HUFFMAN_STATIC)? SC_ENTROPY_HUFFMAN_STATIC :
                                                        SC_ENTROPY_NONE;
-    sc->coding_priv_key.entropy_coder   = NULL;
     sc->coding_user_key.type            =
         (flags[0] & SC_FLAG_0_ENTROPY_BAC)?            SC_ENTROPY_BAC :
         (flags[0] & SC_FLAG_0_ENTROPY_BAC_RLE)?        SC_ENTROPY_BAC_RLE :
         (flags[0] & SC_FLAG_0_ENTROPY_STRONGSWAN)?     SC_ENTROPY_STRONGSWAN :
         (flags[0] & SC_FLAG_0_ENTROPY_HUFFMAN_STATIC)? SC_ENTROPY_HUFFMAN_STATIC :
                                                        SC_ENTROPY_NONE;
-    sc->coding_user_key.entropy_coder   = NULL;
     sc->coding_encryption.type          = SC_ENTROPY_NONE;
-    sc->coding_encryption.entropy_coder = NULL;
     sc->blinding = (flags[0] & SC_FLAG_0_SAMPLE_BLINDING)?  BLINDING_SAMPLES : NORMAL_SAMPLES;
     sc->sampling_precision =
         ((flags[0] & SC_FLAG_0_SAMPLE_PREC_MASK) == SC_FLAG_0_SAMPLE_32BIT)?  SAMPLING_32BIT :
@@ -704,13 +700,13 @@ SINT32 dlp_ibe_privkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
     sc_packer_t *packer = utils_entropy.pack_create(sc, &sc->coding_priv_key,
         2 * n * (q_bits_1 + q_bits_2), NULL, 0, key, key_len);
     entropy_poly_encode_32(packer, n, privkey, q_bits_1,
-        SIGNED_COEFF, 0, sc->coding_priv_key.type, &packer->sc->stats.components[SC_STAT_PRIV_KEY][0].bits_coded);
+        SIGNED_COEFF, sc->coding_priv_key.type, 0, &packer->sc->stats.components[SC_STAT_PRIV_KEY][0].bits_coded);
     entropy_poly_encode_32(packer, n, privkey + n, q_bits_1,
-        SIGNED_COEFF, 0, sc->coding_priv_key.type, &packer->sc->stats.components[SC_STAT_PRIV_KEY][1].bits_coded);
+        SIGNED_COEFF, sc->coding_priv_key.type, 0, &packer->sc->stats.components[SC_STAT_PRIV_KEY][1].bits_coded);
     entropy_poly_encode_32(packer, n, privkey + 2*n, q_bits_2,
-        SIGNED_COEFF, 1, sc->coding_priv_key.type, &packer->sc->stats.components[SC_STAT_PRIV_KEY][2].bits_coded);
+        SIGNED_COEFF, sc->coding_priv_key.type, 1, &packer->sc->stats.components[SC_STAT_PRIV_KEY][2].bits_coded);
     entropy_poly_encode_32(packer, n, privkey + 3*n, q_bits_2,
-        SIGNED_COEFF, 1, sc->coding_priv_key.type, &packer->sc->stats.components[SC_STAT_PRIV_KEY][3].bits_coded);
+        SIGNED_COEFF, sc->coding_priv_key.type, 1, &packer->sc->stats.components[SC_STAT_PRIV_KEY][3].bits_coded);
 
     // Extract the buffer with the polynomial f and release the packer resources
     utils_entropy.pack_get_buffer(packer, key, key_len);
@@ -938,7 +934,6 @@ SINT32 dlp_ibe_extract(safecrypto_t *sc, size_t idlen, const UINT8 *id,
     // Output an encoded byte stream representing the secret key SK
     sc_entropy_t coding_raw = {
         .type = SC_ENTROPY_NONE,
-        .entropy_coder = NULL
     };
     sc_packer_t *packer;
     packer = utils_entropy.pack_create(sc, &coding_raw,
@@ -1025,7 +1020,6 @@ SINT32 dlp_ibe_secret_key(safecrypto_t *sc, size_t sklen, const UINT8 *sk)
     // Store the assigned secret key
     sc_entropy_t sk_coding;
     sk_coding.type          = SC_ENTROPY_NONE;
-    sk_coding.entropy_coder = NULL;
     sc_packer_t *packer = utils_entropy.pack_create(sc, &sk_coding,
         n * q_bits, sk, sklen, NULL, 0);
     entropy_poly_decode_32(packer, n, sc->dlp_ibe->user_key, q_bits,
@@ -1417,7 +1411,6 @@ SINT32 dlp_ibe_decrypt(safecrypto_t *sc, size_t flen, const UINT8 *from,
     // Create the output byte stream
     sc_entropy_t coding_raw = {
         .type = SC_ENTROPY_NONE,
-        .entropy_coder = NULL
     };
     sc_packer_t *opacker;
     opacker = utils_entropy.pack_create(sc, &coding_raw,

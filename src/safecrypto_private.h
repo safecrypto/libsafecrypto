@@ -34,8 +34,12 @@
 /// Definitions for the maximum permited length of a filename
 #define SC_MAX_FILENAME_LEN   128
 
-// The maximum number of entries in the algorithm table
+/// The maximum number of entries in the algorithm table
 #define ALG_TABLE_MAX   14
+
+/// The maximum number of distributions for lossless compression
+#define ENTROPY_MAX_DIST     8
+
 
 // Globally define the reduction method
 #ifdef HAVE_AVX2
@@ -249,6 +253,9 @@ struct _safecrypto {
     random_sampling_e sampling;         ///< The sampling scheme to be used
     UINT32 sampling_precision;          ///< Sampling precision (bits)
     sample_blinding_e blinding;         ///< Enable sample blinding
+
+    void* dist[ENTROPY_MAX_DIST];       ///< Distributions used for lossless compression purposes
+    size_t dist_n[ENTROPY_MAX_DIST];    ///< log base 2 of the size of the distribution
 
     const utils_arith_ntt_t  *sc_ntt;
     const utils_arith_poly_t *sc_poly;

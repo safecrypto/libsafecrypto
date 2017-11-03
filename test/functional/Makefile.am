@@ -36,7 +36,8 @@ endif WITH_ARITH_INTEGER_MP
 
 if WITH_BLISS_B_SIG
 TESTS                   += func_alg_bliss_b \
-                           func_alg_bliss_b_huffman
+                           func_alg_bliss_b_huffman \
+                           func_alg_bliss_b_bac
 endif WITH_BLISS_B_SIG
 
 if WITH_RING_TESLA_SIG
@@ -257,6 +258,12 @@ func_alg_bliss_b_huffman_SOURCES     = func_alg_bliss_b.c \
 func_alg_bliss_b_huffman_LDADD       = $(top_builddir)/libs/libsafecrypto.la -lm
 func_alg_bliss_b_huffman_CFLAGS      = -DUSE_HUFFMAN_STATIC_ENTROPY
 func_alg_bliss_b_huffman_LDFLAGS     = -static
+
+func_alg_bliss_b_bac_SOURCES         = func_alg_bliss_b.c \
+                                       $(top_srcdir)/include/safecrypto.h
+func_alg_bliss_b_bac_LDADD           = $(top_builddir)/libs/libsafecrypto.la -lm
+func_alg_bliss_b_bac_CFLAGS          = -DUSE_BAC_ENTROPY
+func_alg_bliss_b_bac_LDFLAGS         = -static
 endif WITH_BLISS_B_SIG
 
 if WITH_RING_TESLA_SIG
