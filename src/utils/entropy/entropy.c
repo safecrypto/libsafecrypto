@@ -80,12 +80,12 @@ SINT32 entropy_poly_encode_32(sc_packer_t *packer, size_t n, const SINT32 *p,
 
 	if (SC_ENTROPY_HUFFMAN_STATIC == type) {
 		if (UNSIGNED_COEFF == signedness) {
-            SINT32 beta = bits - 7;
+            SINT32 beta = bits - 6;
             if (beta < 0) beta = 0;
 			retval = encode_huffman_unsigned_32(packer, n, p, bits - beta, beta);
 		}
 		else {
-            SINT32 beta = bits - 6;
+            SINT32 beta = bits - 7;
             if (beta < 0) beta = 0;
 			retval = encode_huffman_signed_32(packer, n, p, bits - beta, beta);
 		}
@@ -119,12 +119,12 @@ SINT32 entropy_poly_decode_32(sc_packer_t *packer, size_t n, SINT32 *p,
 
 	if (SC_ENTROPY_HUFFMAN_STATIC == type) {
     	if (UNSIGNED_COEFF == signedness) {
-            SINT32 beta = bits - 7;
+            SINT32 beta = bits - 6;
             if (beta < 0) beta = 0;
 	    	retval = decode_huffman_unsigned_32(packer, n, p, bits - beta, beta);
 	    }
 	    else {
-            SINT32 beta = bits - 6;
+            SINT32 beta = bits - 7;
             if (beta < 0) beta = 0;
     		retval = decode_huffman_signed_32(packer, n, p, bits - beta, beta);
     	}
@@ -163,12 +163,12 @@ SINT32 entropy_poly_encode_16(sc_packer_t *packer, size_t n, const SINT16 *p,
 
 	if (SC_ENTROPY_HUFFMAN_STATIC == type) {
 		if (UNSIGNED_COEFF == signedness) {
-            SINT32 beta = bits - 7;
+            SINT32 beta = bits - 6;
             if (beta < 0) beta = 0;
 			retval = encode_huffman_unsigned_16(packer, n, p, bits - beta, beta);
 		}
 		else {
-            SINT32 beta = bits - 6;
+            SINT32 beta = bits - 7;
             if (beta < 0) beta = 0;
 			retval = encode_huffman_signed_16(packer, n, p, bits - beta, beta);
 		}
@@ -202,12 +202,12 @@ SINT32 entropy_poly_decode_16(sc_packer_t *packer, size_t n, SINT16 *p,
 
 	if (SC_ENTROPY_HUFFMAN_STATIC == type) {
     	if (UNSIGNED_COEFF == signedness) {
-            SINT32 beta = bits - 7;
+            SINT32 beta = bits - 6;
             if (beta < 0) beta = 0;
 	    	retval = decode_huffman_unsigned_16(packer, n, p, bits - beta, beta);
 	    }
 	    else {
-            SINT32 beta = bits - 6;
+            SINT32 beta = bits - 7;
             if (beta < 0) beta = 0;
     		retval = decode_huffman_signed_16(packer, n, p, bits - beta, beta);
     	}
@@ -246,12 +246,12 @@ SINT32 entropy_poly_encode_8(sc_packer_t *packer, size_t n, const SINT8 *p,
 
     if (SC_ENTROPY_HUFFMAN_STATIC == type) {
         if (UNSIGNED_COEFF == signedness) {
-            SINT32 beta = bits - 7;
+            SINT32 beta = bits - 6;
             if (beta < 0) beta = 0;
             retval = encode_huffman_unsigned_8(packer, n, p, bits - beta, beta);
         }
         else {
-            SINT32 beta = bits - 6;
+            SINT32 beta = bits - 7;
             if (beta < 0) beta = 0;
             retval = encode_huffman_signed_8(packer, n, p, bits - beta, beta);
         }
@@ -285,12 +285,12 @@ SINT32 entropy_poly_decode_8(sc_packer_t *packer, size_t n, SINT8 *p,
 
     if (SC_ENTROPY_HUFFMAN_STATIC == type) {
         if (UNSIGNED_COEFF == signedness) {
-            SINT32 beta = bits - 7;
+            SINT32 beta = bits - 6;
             if (beta < 0) beta = 0;
             retval = decode_huffman_unsigned_8(packer, n, p, bits - beta, beta);
         }
         else {
-            SINT32 beta = bits - 6;
+            SINT32 beta = bits - 7;
             if (beta < 0) beta = 0;
             retval = decode_huffman_signed_8(packer, n, p, bits - beta, beta);
         }

@@ -100,6 +100,17 @@ int main(void)
         SC_PRNG_THREADING_NONE, 0x00100000);
     prng_init(prng_ctx, NULL, 0);
 
+#ifdef USE_HUFFMAN_STATIC_ENTROPY
+    UINT32 flags[2] = {SC_FLAG_0_ENTROPY_HUFFMAN_STATIC, SC_FLAG_NONE};
+    sc_entropy_type_e coding = SC_ENTROPY_HUFFMAN_STATIC;
+#else
+    UINT32 flags[2] = {SC_FLAG_NONE};
+    sc_entropy_type_e coding = SC_ENTROPY_NONE;
+#endif
+
+    flags[0] |= SC_FLAG_MORE;
+    flags[1] |= SC_FLAG_1_CSPRNG_AES_CTR_DRBG;
+
     SC_TIMER_INSTANCE(keygen_timer);
     SC_TIMER_INSTANCE(enc_timer);
     SC_TIMER_INSTANCE(dec_timer);
@@ -113,9 +124,6 @@ int main(void)
         length = (0 == i)? 32 : 64;
 
         printf("Message length: %6d bytes\n", (int)length);
-
-        UINT32 flags[2] = {SC_FLAG_MORE, SC_FLAG_1_CSPRNG_AES_CTR_DRBG};
-        sc_entropy_type_e coding = SC_ENTROPY_NONE;
 
         // Create a SAFEcrypto object
         sc = safecrypto_create(SC_SCHEME_ENC_RLWE, i, flags);

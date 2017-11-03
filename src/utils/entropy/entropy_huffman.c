@@ -211,6 +211,7 @@ SINT32 encode_huffman_unsigned_16(sc_packer_t *packer,
 
         // Huffman code the most significant bits
         if (SC_OK != encode_huffman(packer, table, value)) {
+            fprintf(stderr, "encode_huffman error!\n");
             return SC_ERROR;
         }
     }
