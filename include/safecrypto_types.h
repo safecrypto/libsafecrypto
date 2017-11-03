@@ -68,8 +68,8 @@ typedef unsigned __int128 uint128_t;
 
 /// @name Function return codes (Chosen to be OpenSSL-like)
 /**@{*/
-#define SC_FUNC_SUCCESS   1
-#define SC_FUNC_FAILURE   0
+#define SC_FUNC_SUCCESS   0
+#define SC_FUNC_FAILURE   1
 /**@}*/
 
 
