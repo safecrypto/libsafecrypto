@@ -1506,7 +1506,7 @@ SINT32 bliss_b_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
     UINT32 b_l2;
     SINT32 *c_idx = NULL;
     SINT32 *my_idx;
-    SINT32 two_pow_dm1;
+    SINT32 two_pow_dm1, not_equal;
 
     if (NULL == sc) {
         SC_LOG_ERROR(sc, SC_NULL_POINTER);
@@ -1576,6 +1576,7 @@ SINT32 bliss_b_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
     SC_PRINT_1D_INT16(sc, SC_LEVEL_DEBUG, "Received z", z, n);
     SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Received Oracle", c_idx, kappa);
 
+    const utils_arith_poly_t *sc_poly = sc->sc_poly;
     const utils_arith_ntt_t *sc_ntt = sc->sc_ntt;
     ntt_params_t *ntt    = &sc->bliss->ntt;
     ntt_params_t *ntt_2q = &sc->bliss->ntt_2q;
@@ -1589,28 +1590,7 @@ SINT32 bliss_b_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
     SC_PRINT_DEBUG(sc, "  Calculate v = t * a (mod x^n + 1)\n");
 #ifdef BLISS_USE_SPARSE_MULTIPLIER
     SINT32 tpk[512];
-    /*for (i=0; i<n; i++) {
-        tpk[i] = ((SINT16 *) sc->pubkey->key + n)[i];
-    }
-    sc_ntt->inv_ntt_32_16(tpk, ntt, tpk, w, r);*/
-    //sc_ntt->center_32(tpk, n, ntt);
-    /*fprintf(stderr, "t = ");
-    for (i=0; i<n; i++) {
-        fprintf(stderr, "%d ", t[i]);
-    }
-    fprintf(stderr, "\n");
-    fprintf(stderr, "h = ");
-    for (i=0; i<n; i++) {
-        fprintf(stderr, "%d ", tpk[i]);
-    }
-    fprintf(stderr, "\n");*/
     sparse_mul_mod_ring(v, a, t, n, ntt);
-    //sc_ntt->center_32(v, n, ntt);
-    /*fprintf(stderr, "v = ");
-    for (i=0; i<n; i++) {
-        fprintf(stderr, "%d ", v[i]);
-    }
-    fprintf(stderr, "\n");*/
 #else
     sc_ntt->fwd_ntt_32_16(v, ntt, t, w);
     sc_ntt->mul_32_pointwise_16(v, ntt, v, a);
@@ -1650,11 +1630,10 @@ SINT32 bliss_b_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
     }
 
     // Compare the given oracle data with the received information
-    for (i=0; i<kappa; i++) {
-        if (my_idx[i] != c_idx[i]) {
-            SC_LOG_ERROR(sc, SC_ERROR);
-            goto verification_failure;
-        }
+    not_equal = sc_poly->cmp_not_equal_32(my_idx, c_idx, kappa);
+    if (not_equal) {
+        SC_LOG_ERROR(sc, SC_ERROR);
+        goto verification_failure;
     }
 
     sc->stats.sig_num_verified++;

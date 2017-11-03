@@ -125,7 +125,7 @@ int main(void)
 #endif
 
     flags[0] |= SC_FLAG_MORE;
-    flags[0] |= SC_FLAG_0_SAMPLE_CDF;
+    flags[0] |= SC_FLAG_0_SAMPLE_CDF | SC_FLAG_0_SAMPLE_128BIT;
     flags[1] |= SC_FLAG_1_CSPRNG_AES_CTR_DRBG;
     flags[1] |= SC_FLAG_1_CSPRNG_USE_CALLBACK_RANDOM;
 

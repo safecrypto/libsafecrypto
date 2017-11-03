@@ -27,6 +27,11 @@
 
 typedef struct _prng_pool prng_pool_t;
 
+SINT32 poly_8_cmp_not_equal(volatile const SINT8 *in1, volatile const SINT8 *in2, size_t n);
+
+
+typedef SINT32 (*arith_poly_8_cmp_not_equal)(volatile const SINT8 *, volatile const SINT8 *, size_t);
+
 typedef void (*arith_poly_16_copy)(SINT16 *, size_t, const SINT16 *);
 typedef void (*arith_poly_16_reset)(SINT16 *, size_t, size_t);
 typedef void (*arith_poly_16_add_16_scalar)(SINT16 *, size_t, SINT16);
@@ -37,6 +42,8 @@ typedef void (*arith_poly_16_sub_16)(SINT16 *, size_t, const SINT16 *, const SIN
 typedef void (*arith_poly_16_add_single_16)(SINT16 *, size_t, const SINT16 *);
 typedef void (*arith_poly_16_sub_single_16)(SINT16 *, size_t, const SINT16 *);
 typedef void (*arith_poly_16_mul_16)(SINT16 *, size_t, const SINT16 *, const SINT16 *);
+typedef void (*arith_poly_16_mod_negate)(SINT16 *, size_t, SINT16, const SINT16 *);
+typedef SINT32 (*arith_poly_16_cmp_not_equal)(volatile const SINT16 *, volatile const SINT16 *, size_t);
 typedef void (*arith_poly_16_uniform)(prng_ctx_t *, SINT16 *, size_t, const UINT16 *, size_t);
 typedef SINT32 (*arith_poly_16_degree)(const SINT16 *, size_t);
 
@@ -51,6 +58,7 @@ typedef void (*arith_poly_32_add_single_32)(SINT32 *, size_t, const SINT32 *);
 typedef void (*arith_poly_32_sub_single_32)(SINT32 *, size_t, const SINT32 *);
 typedef void (*arith_poly_32_mul_32)(SINT32 *, size_t, const SINT32 *, const SINT32 *);
 typedef void (*arith_poly_32_mod_negate)(SINT32 *, size_t, SINT32, const SINT32 *);
+typedef SINT32 (*arith_poly_32_cmp_not_equal)(volatile const SINT32 *, volatile const SINT32 *, size_t);
 typedef void (*arith_poly_32_uniform)(prng_ctx_t *, SINT32 *, size_t, const UINT16 *, size_t);
 typedef SINT32 (*arith_poly_32_degree)(const SINT32 *, size_t);
 
@@ -63,6 +71,7 @@ typedef void (*arith_z2_uniform)(prng_ctx_t *, SINT32 *, size_t, size_t);
 
 SC_STRUCT_PACK_START
 typedef struct _utils_arith_poly {
+    arith_poly_8_cmp_not_equal  cmp_not_equal_8;
     arith_poly_16_copy          copy_16;
     arith_poly_16_reset         reset_16;
     arith_poly_16_add_16_scalar add_16_scalar;
@@ -73,6 +82,8 @@ typedef struct _utils_arith_poly {
     arith_poly_16_add_single_16 add_single_16;
     arith_poly_16_sub_single_16 sub_single_16;
     arith_poly_16_mul_16        mul_16;
+    arith_poly_16_mod_negate    mod_negate_16;
+    arith_poly_16_cmp_not_equal cmp_not_equal_16;
     arith_poly_16_uniform       uniform_16;
     arith_poly_16_degree        degree_16;
     arith_poly_32_copy          copy_32;
@@ -86,6 +97,7 @@ typedef struct _utils_arith_poly {
     arith_poly_32_sub_single_32 sub_single_32;
     arith_poly_32_mul_32        mul_32;
     arith_poly_32_mod_negate    mod_negate_32;
+    arith_poly_32_cmp_not_equal cmp_not_equal_32;
     arith_poly_32_uniform       uniform_32;
     arith_poly_32_degree        degree_32;
     arith_poly_32_bin_inv       bin_inv_32;

@@ -163,6 +163,16 @@ void poly_32_mod_negate(SINT32 *out, size_t n, SINT32 q, const SINT32 *in)
     }
 }
 
+SINT32 poly_32_cmp_not_equal(volatile const SINT32 *in1, volatile const SINT32 *in2, size_t n)
+{
+    size_t i;
+    volatile SINT32 not_equal = 0;
+    for (i=n; i--;) {
+        not_equal |= in1[i] ^ in2[i];
+    }
+    return not_equal;
+}
+
 SINT32 poly_32_degree(const SINT32 *h, size_t n)
 {
     SINT32 deg = -1;

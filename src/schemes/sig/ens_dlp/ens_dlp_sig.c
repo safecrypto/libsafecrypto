@@ -1703,7 +1703,7 @@ SINT32 ens_dlp_sig_verify_recovery(safecrypto_t *sc, UINT8 **m, size_t *m_len,
     SINT16 *h_ntt;
 #endif
     SINT16 *h;
-    SINT32 *c, *s1, *s2, *s1_ntt;
+    SINT32 *c, *s1, *s2, *s1_ntt, not_equal;
     UINT8 md[64];
 
     // Obtain all the constants and variables
@@ -1834,11 +1834,11 @@ SINT32 ens_dlp_sig_verify_recovery(safecrypto_t *sc, UINT8 **m, size_t *m_len,
     SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Verify t", s1 + n - k, k);
 
     // Verify that H'(m1||m2) = t2
-    for (i=k; i--;) {
-        if (s1[i] != s1[n-k+i]) {
-            sc->stats.sig_num_unverified++;
-            goto error_return;
-        }
+    // Done in constant time to counteract leaks
+    not_equal = sc_poly->cmp_not_equal_32(s1, s1 + n - k, k);
+    if (not_equal) {
+        sc->stats.sig_num_unverified++;
+        goto error_return;
     }
 
     // Reset the temporary memory

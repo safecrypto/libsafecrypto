@@ -923,7 +923,7 @@ SINT32 ring_tesla_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
 SINT32 ring_tesla_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
     const UINT8 *sigbuf, size_t siglen)
 {
-    SINT32 i;
+    SINT32 i, not_equal;
     SINT32 *t, *z, *c, *w1, *w2;
     SINT32 *t1, *t2;
     UINT16 n, q_bits, omega;
@@ -1030,10 +1030,10 @@ SINT32 ring_tesla_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
     oracle(sc, w1, w2, t, n, m, m_len, md);
     SC_PRINT_1D_UINT8(sc, SC_LEVEL_DEBUG, "c'", md, 64);
 
-    for (i = 0; i < 64; i++) {
-        if (md[i] != sigmd[i]) {
-            goto verification_failure;
-        }
+    not_equal = sc_poly->cmp_not_equal_8(md, sigmd, 64);
+    if (not_equal) {
+        sc->stats.sig_num_unverified++;
+        goto verification_failure;
     }
 
     SC_MEMZERO(sc->temp, 5 * n * sizeof(SINT32));

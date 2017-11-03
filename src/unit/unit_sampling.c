@@ -33,7 +33,7 @@
 
 
 #ifdef HAVE_CDF_GAUSSIAN_SAMPLING
-#if defined(HAVE_128BIT) && !defined(DISABLE_HIGH_PREC_GAUSSIAN)
+#if !defined(DISABLE_HIGH_PREC_GAUSSIAN)
 START_TEST(test_gaussian_create_128)
 {
     SINT32 retcode;
@@ -83,13 +83,32 @@ START_TEST(test_gaussian_range_128)
     ck_assert_ptr_ne(gauss, NULL);
 
     gauss_cdf_128_t *gauss_data = (gauss_cdf_128_t *) gauss;
-    ck_assert_int_eq(gauss_data->cdf[0], 0);
+#if 32 == SC_LIMB_BITS
+    ck_assert_int_eq(gauss_data->cdf[0].w[3], 0);
+    ck_assert_int_eq(gauss_data->cdf[0].w[2], 0);
+    ck_assert_int_eq(gauss_data->cdf[0].w[1], 0);
+    ck_assert_int_eq(gauss_data->cdf[0].w[0], 0);
+#else
+    ck_assert_int_eq(gauss_data->cdf[0].w[1], 0);
+    ck_assert_int_eq(gauss_data->cdf[0].w[0], 0);
+#endif
     for (i=1; i<gauss_data->cdf_size-1; i++) {
-        fprintf(stderr, "%zu %016lX%016lX\n", i, (UINT64)(gauss_data->cdf[i] >> 64), (UINT64)(gauss_data->cdf[i] & 0xFFFFFFFFFFFFFFFF));
+#if 32 == SC_LIMB_BITS
+        fprintf(stderr, "%zu %08lX%08lX\n", i, gauss_data->cdf[i].w[3], gauss_data->cdf[i].w[2], gauss_data->cdf[i].w[1], gauss_data->cdf[i].w[0]);
+#else
+        fprintf(stderr, "%zu %016lX%016lX\n", i, gauss_data->cdf[i].w[1], gauss_data->cdf[i].w[0]);
+#endif
         //ck_assert_uint_ge(gauss_data->cdf[i], gauss_data->cdf[i-1]);
     }
-    ck_assert_uint_eq(gauss_data->cdf[gauss_data->cdf_size-1] & 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF);
-    ck_assert_uint_eq(gauss_data->cdf[gauss_data->cdf_size-1] >> 64, 0xFFFFFFFFFFFFFFFF);
+#if 32 == SC_LIMB_BITS
+    ck_assert_uint_eq(gauss_data->cdf[gauss_data->cdf_size-1].w[3], 0xFFFFFFFF);
+    ck_assert_uint_eq(gauss_data->cdf[gauss_data->cdf_size-1].w[2], 0xFFFFFFFF);
+    ck_assert_uint_eq(gauss_data->cdf[gauss_data->cdf_size-1].w[1], 0xFFFFFFFF);
+    ck_assert_uint_eq(gauss_data->cdf[gauss_data->cdf_size-1].w[0], 0xFFFFFFFF);
+#else
+    ck_assert_uint_eq(gauss_data->cdf[gauss_data->cdf_size-1].w[1], 0xFFFFFFFFFFFFFFFF);
+    ck_assert_uint_eq(gauss_data->cdf[gauss_data->cdf_size-1].w[0], 0xFFFFFFFFFFFFFFFF);
+#endif
 
     for (i=0; i<(1 << 16); i++) {
         SINT32 sample = gaussian_cdf_sample_128(gauss);
@@ -778,7 +797,7 @@ Suite *gaussian_suite(void)
     /* Test cases */
 #ifdef HAVE_CDF_GAUSSIAN_SAMPLING
     tc_cdf = tcase_create("CDF");
-#if defined(HAVE_128BIT) && !defined(DISABLE_HIGH_PREC_GAUSSIAN)
+#if !defined(DISABLE_HIGH_PREC_GAUSSIAN)
     tcase_add_test(tc_cdf, test_gaussian_create_128);
     tcase_add_test(tc_cdf, test_gaussian_destroy_bad_128);
     tcase_add_test(tc_cdf, test_gaussian_range_128);

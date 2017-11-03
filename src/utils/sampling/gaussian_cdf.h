@@ -27,19 +27,27 @@ extern prng_ctx_t * gaussian_cdf_get_prng_128(void *sampler);
 extern prng_ctx_t * gaussian_cdf_get_prng_64(void *sampler);
 extern prng_ctx_t * gaussian_cdf_get_prng_32(void *sampler);
 
-#if defined(HAVE_128BIT) && !defined(DISABLE_HIGH_PREC_GAUSSIAN)
+#if !defined(DISABLE_HIGH_PREC_GAUSSIAN)
+extern void * gaussian_cdf_create_256(prng_ctx_t *prng_ctx,
+	FLOAT tail, float sigma, size_t max_lut_bytes, sample_blinding_e blinding);
+extern SINT32 gaussian_cdf_destroy_256(void **sampler);
+extern SINT32 gaussian_cdf_sample_256(void *sampler);
+
+extern void * gaussian_cdf_create_192(prng_ctx_t *prng_ctx,
+	FLOAT tail, float sigma, size_t max_lut_bytes, sample_blinding_e blinding);
+extern SINT32 gaussian_cdf_destroy_192(void **sampler);
+extern SINT32 gaussian_cdf_sample_192(void *sampler);
+
 extern void * gaussian_cdf_create_128(prng_ctx_t *prng_ctx,
 	FLOAT tail, float sigma, size_t max_lut_bytes, sample_blinding_e blinding);
 extern SINT32 gaussian_cdf_destroy_128(void **sampler);
 extern SINT32 gaussian_cdf_sample_128(void *sampler);
 #endif
 
-#ifdef HAVE_64BIT
 extern void * gaussian_cdf_create_64(prng_ctx_t *prng_ctx,
 	FLOAT tail, float sigma, size_t max_lut_bytes, sample_blinding_e blinding);
 extern SINT32 gaussian_cdf_destroy_64(void **sampler);
 extern SINT32 gaussian_cdf_sample_64(void *sampler);
-#endif
 
 extern void * gaussian_cdf_create_32(prng_ctx_t *prng_ctx,
 	FLOAT tail, float sigma, size_t max_lut_bytes, sample_blinding_e blinding);

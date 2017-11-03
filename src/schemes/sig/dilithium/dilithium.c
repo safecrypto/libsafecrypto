@@ -1729,7 +1729,7 @@ SINT32 dilithium_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
 #else
     utils_crypto_xof_t *xof;
 #endif
-    SINT32 *t0, *t1, *w, *w1, *y, *c, *temp, *ntt_c, *z, *h;
+    SINT32 *t0, *t1, *w, *w1, *y, *c, *temp, *ntt_c, *z, *h, not_equal;
     UINT8 *w1_bytes;
     UINT32 n, q, q_bits, z_bits, alpha, beta, omega_bits, gamma_1, l, k, d;
     const UINT8 *r;
@@ -1906,12 +1906,11 @@ SINT32 dilithium_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
 
     // Check the output of the H function against the received value
     // in the signature
-    for (i=0; i<n; i++) {
-        if (temp[i] != c[i]) {
-            SC_LOG_ERROR(sc, SC_ERROR);
-            SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Received c was", c, n);
-            goto finish_free;
-        }
+    not_equal = sc_poly->cmp_not_equal_32(temp, c, n);
+    if (not_equal) {
+        SC_LOG_ERROR(sc, SC_ERROR);
+        SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Received c was", c, n);
+        goto finish_free;
     }
 
     // If using Dilithium-G verify that ||(z1, A*z1 - c*t1) - alpha*w1)|| < B
