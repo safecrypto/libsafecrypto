@@ -276,12 +276,26 @@ SINT32 configure_sampler(utils_sampling_t *sampling_table, random_sampling_e typ
             success = SC_FUNC_SUCCESS;
         }
 #endif
-#if defined(HAVE_128BIT) && !defined(DISABLE_HIGH_PREC_GAUSSIAN)
+#if !defined(DISABLE_HIGH_PREC_GAUSSIAN)
         else if (SAMPLING_128BIT == precision) {
             sampling_table->create   = gaussian_cdf_create_128;
             sampling_table->destroy  = gaussian_cdf_destroy_128;
             sampling_table->get_prng = gaussian_cdf_get_prng_128;
             sampling_table->sample   = gaussian_cdf_sample_128;
+            success = SC_FUNC_SUCCESS;
+        }
+        else if (SAMPLING_192BIT == precision) {
+            sampling_table->create   = gaussian_cdf_create_192;
+            sampling_table->destroy  = gaussian_cdf_destroy_192;
+            sampling_table->get_prng = gaussian_cdf_get_prng_128;
+            sampling_table->sample   = gaussian_cdf_sample_192;
+            success = SC_FUNC_SUCCESS;
+        }
+        else if (SAMPLING_256BIT == precision) {
+            sampling_table->create   = gaussian_cdf_create_256;
+            sampling_table->destroy  = gaussian_cdf_destroy_256;
+            sampling_table->get_prng = gaussian_cdf_get_prng_128;
+            sampling_table->sample   = gaussian_cdf_sample_256;
             success = SC_FUNC_SUCCESS;
         }
 #endif

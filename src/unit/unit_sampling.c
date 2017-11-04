@@ -82,32 +82,32 @@ START_TEST(test_gaussian_range_128)
     void *gauss = gaussian_cdf_create_128(prng_ctx, 12, 100.0f, 64, NORMAL_SAMPLES);
     ck_assert_ptr_ne(gauss, NULL);
 
-    gauss_cdf_128_t *gauss_data = (gauss_cdf_128_t *) gauss;
+    gauss_cdf_high_t *gauss_data = (gauss_cdf_high_t *) gauss;
 #if 32 == SC_LIMB_BITS
-    ck_assert_int_eq(gauss_data->cdf[0].w[3], 0);
-    ck_assert_int_eq(gauss_data->cdf[0].w[2], 0);
-    ck_assert_int_eq(gauss_data->cdf[0].w[1], 0);
-    ck_assert_int_eq(gauss_data->cdf[0].w[0], 0);
+    ck_assert_int_eq(gauss_data->cdf_128[0].w[3], 0);
+    ck_assert_int_eq(gauss_data->cdf_128[0].w[2], 0);
+    ck_assert_int_eq(gauss_data->cdf_128[0].w[1], 0);
+    ck_assert_int_eq(gauss_data->cdf_128[0].w[0], 0);
 #else
-    ck_assert_int_eq(gauss_data->cdf[0].w[1], 0);
-    ck_assert_int_eq(gauss_data->cdf[0].w[0], 0);
+    ck_assert_int_eq(gauss_data->cdf_128[0].w[1], 0);
+    ck_assert_int_eq(gauss_data->cdf_128[0].w[0], 0);
 #endif
     for (i=1; i<gauss_data->cdf_size-1; i++) {
 #if 32 == SC_LIMB_BITS
-        fprintf(stderr, "%zu %08lX%08lX\n", i, gauss_data->cdf[i].w[3], gauss_data->cdf[i].w[2], gauss_data->cdf[i].w[1], gauss_data->cdf[i].w[0]);
+        fprintf(stderr, "%zu %08lX%08lX\n", i, gauss_data->cdf_128[i].w[3], gauss_data->cdf_128[i].w[2], gauss_data->cdf_128[i].w[1], gauss_data->cdf_128[i].w[0]);
 #else
-        fprintf(stderr, "%zu %016lX%016lX\n", i, gauss_data->cdf[i].w[1], gauss_data->cdf[i].w[0]);
+        fprintf(stderr, "%zu %016lX%016lX\n", i, gauss_data->cdf_128[i].w[1], gauss_data->cdf_128[i].w[0]);
 #endif
-        //ck_assert_uint_ge(gauss_data->cdf[i], gauss_data->cdf[i-1]);
+        //ck_assert_uint_ge(gauss_data->cdf_128[i], gauss_data->cdf_128[i-1]);
     }
 #if 32 == SC_LIMB_BITS
-    ck_assert_uint_eq(gauss_data->cdf[gauss_data->cdf_size-1].w[3], 0xFFFFFFFF);
-    ck_assert_uint_eq(gauss_data->cdf[gauss_data->cdf_size-1].w[2], 0xFFFFFFFF);
-    ck_assert_uint_eq(gauss_data->cdf[gauss_data->cdf_size-1].w[1], 0xFFFFFFFF);
-    ck_assert_uint_eq(gauss_data->cdf[gauss_data->cdf_size-1].w[0], 0xFFFFFFFF);
+    ck_assert_uint_eq(gauss_data->cdf_128[gauss_data->cdf_size-1].w[3], 0xFFFFFFFF);
+    ck_assert_uint_eq(gauss_data->cdf_128[gauss_data->cdf_size-1].w[2], 0xFFFFFFFF);
+    ck_assert_uint_eq(gauss_data->cdf_128[gauss_data->cdf_size-1].w[1], 0xFFFFFFFF);
+    ck_assert_uint_eq(gauss_data->cdf_128[gauss_data->cdf_size-1].w[0], 0xFFFFFFFF);
 #else
-    ck_assert_uint_eq(gauss_data->cdf[gauss_data->cdf_size-1].w[1], 0xFFFFFFFFFFFFFFFF);
-    ck_assert_uint_eq(gauss_data->cdf[gauss_data->cdf_size-1].w[0], 0xFFFFFFFFFFFFFFFF);
+    ck_assert_uint_eq(gauss_data->cdf_128[gauss_data->cdf_size-1].w[1], 0xFFFFFFFFFFFFFFFF);
+    ck_assert_uint_eq(gauss_data->cdf_128[gauss_data->cdf_size-1].w[0], 0xFFFFFFFFFFFFFFFF);
 #endif
 
     for (i=0; i<(1 << 16); i++) {
