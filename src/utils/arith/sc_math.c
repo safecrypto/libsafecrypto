@@ -20,6 +20,14 @@
 #include <math.h>
 
 
+
+volatile SINT32 sc_const_time_lessthan(volatile UINT32 a, volatile UINT32 b)
+{
+    return ((((a ^ b) & ((a - b) ^ b)) ^ (a - b)) & 0x80000000) >> 31;
+}
+
+
+
 // NOTE: M_LN2 (log_e 2) is defined in math.h as 0.69314718055994530942
 
 // See Nicol N. Schraudolph: A Fast, Compact Approximation of the Exponential Function

@@ -29,9 +29,6 @@
 #endif
 
 
-#define SC_LESSTHAN_ARITH(a, b)  (((a ^ b) & ((a - b) ^ b)) ^ (a - b))
-
-
 /// A union used to store up to 256-bit values
 typedef struct _u256 {
 #if 32 == SC_LIMB_BITS
@@ -125,7 +122,7 @@ static SINT32 compare_ge_prec(volatile const sc_ulimb_t *x, volatile const sc_ul
         sc_ulimb_t a      = x[i];
         sc_ulimb_t b      = y[i];
         sc_ulimb_t equal  = !(a ^ b);
-        sc_ulimb_t x_lt_y = SC_LESSTHAN_ARITH(a, b) & SC_LIMB_HIGHBIT;
+        sc_ulimb_t x_lt_y = sc_const_time_lessthan(a, b);
         retval = !x_lt_y || (equal && retval);
     }
     return retval;

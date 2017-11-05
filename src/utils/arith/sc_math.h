@@ -28,6 +28,13 @@
 /// @}
 
 
+/// Arithmetic comparison functions (constant-time)
+/// @{
+/// Return 1 if less than, 0 otherwise
+volatile SINT32 sc_const_time_lessthan(volatile UINT32 a, volatile UINT32 b);
+/// @}
+
+
 
 /// Fast math estimation routines
 /// @{

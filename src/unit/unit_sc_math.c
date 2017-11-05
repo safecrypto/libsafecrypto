@@ -16,6 +16,28 @@
 #include <math.h>
 
 
+START_TEST(test_constant_time_less_than)
+{
+    UINT32 cmp;
+    cmp = sc_const_time_lessthan(0, 0);
+    ck_assert_uint_eq(cmp, 0);
+    cmp = sc_const_time_lessthan(0, 0xFFFFFFFF);
+    ck_assert_uint_eq(cmp, 1);
+    cmp = sc_const_time_lessthan(0xFFFFFFFF, 0);
+    ck_assert_uint_eq(cmp, 0);
+    cmp = sc_const_time_lessthan(0xFFFFFFFF, 0xFFFFFFFF);
+    ck_assert_uint_eq(cmp, 0);
+    cmp = sc_const_time_lessthan(0, 1);
+    ck_assert_uint_eq(cmp, 1);
+    cmp = sc_const_time_lessthan(1, 0);
+    ck_assert_uint_eq(cmp, 0);
+    cmp = sc_const_time_lessthan(1, 1);
+    ck_assert_uint_eq(cmp, 0);
+    cmp = sc_const_time_lessthan(1, 2);
+    ck_assert_uint_eq(cmp, 1);
+}
+END_TEST
+
 START_TEST(test_parity_8)
 {
     UINT32 parity;
@@ -797,12 +819,16 @@ END_TEST
 Suite *sc_math_suite(void)
 {
     Suite *s;
-    TCase *tc_parity, *tc_hamming, *tc_ctz, *tc_clz, *tc_rev, *tc_log2,
+    TCase *tc_constant, *tc_parity, *tc_hamming, *tc_ctz, *tc_clz, *tc_rev, *tc_log2,
           *tc_ceil_log2, *tc_rot, *tc_endianness;
 
     s = suite_create("SC_MATH");
 
     /* Test cases */
+    tc_constant = tcase_create("CONSTANT_TIME");
+    tcase_add_test(tc_constant, test_constant_time_less_than);
+    suite_add_tcase(s, tc_constant);
+
     tc_parity = tcase_create("PARITY");
     tcase_add_test(tc_parity, test_parity_8);
     tcase_add_test(tc_parity, test_parity_16);

@@ -122,6 +122,35 @@ START_TEST(test_gaussian_range_128)
     prng_destroy(prng_ctx);
 }
 END_TEST
+
+START_TEST(test_gaussian_shuffle_128)
+{
+    size_t i;
+    SINT32 retcode;
+    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM,
+        SC_PRNG_THREADING_NONE, 0x00100000);
+    prng_init(prng_ctx, NULL, 0);
+
+    utils_sampling_t *sampler = create_sampler(CDF_GAUSSIAN_SAMPLING, SAMPLING_128BIT, SHUFFLE_SAMPLES, 512,
+        SAMPLING_DISABLE_BOOTSTRAP, prng_ctx, 10, 250);
+    ck_assert_ptr_ne(sampler, NULL);
+
+    SINT32 samples[512];
+    for (i=0; i<512; i++) {
+        samples[i] = 0x7FFFFFFF;
+    }
+    retcode = sampler->vector_32(prng_ctx, sampler, sampler->gauss, samples, 512);
+    ck_assert_int_eq(retcode, SC_FUNC_SUCCESS);
+    for (i=0; i<512; i++) {
+        ck_assert_int_ne(samples[i], 0x7FFFFFFF);
+    }
+
+    retcode = destroy_sampler(&sampler);
+    ck_assert_int_eq(retcode, SC_FUNC_SUCCESS);
+    ck_assert_ptr_eq(sampler, NULL);
+    prng_destroy(prng_ctx);
+}
+END_TEST
 #endif
 
 #ifdef HAVE_64BIT
@@ -189,6 +218,35 @@ START_TEST(test_gaussian_range_64)
     retcode = gaussian_cdf_destroy_64(&gauss);
     ck_assert_int_eq(retcode, SC_FUNC_SUCCESS);
     ck_assert_ptr_eq(gauss, NULL);
+    prng_destroy(prng_ctx);
+}
+END_TEST
+
+START_TEST(test_gaussian_shuffle_64)
+{
+    size_t i;
+    SINT32 retcode;
+    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM,
+        SC_PRNG_THREADING_NONE, 0x00100000);
+    prng_init(prng_ctx, NULL, 0);
+
+    utils_sampling_t *sampler = create_sampler(CDF_GAUSSIAN_SAMPLING, SAMPLING_64BIT, SHUFFLE_SAMPLES, 512,
+        SAMPLING_DISABLE_BOOTSTRAP, prng_ctx, 10, 250);
+    ck_assert_ptr_ne(sampler, NULL);
+
+    SINT32 samples[512];
+    for (i=0; i<512; i++) {
+        samples[i] = 0x7FFFFFFF;
+    }
+    retcode = sampler->vector_32(prng_ctx, sampler, sampler->gauss, samples, 512);
+    ck_assert_int_eq(retcode, SC_FUNC_SUCCESS);
+    for (i=0; i<512; i++) {
+        ck_assert_int_ne(samples[i], 0x7FFFFFFF);
+    }
+
+    retcode = destroy_sampler(&sampler);
+    ck_assert_int_eq(retcode, SC_FUNC_SUCCESS);
+    ck_assert_ptr_eq(sampler, NULL);
     prng_destroy(prng_ctx);
 }
 END_TEST
@@ -708,6 +766,35 @@ START_TEST(test_bernoulli_range)
     prng_destroy(prng_ctx);
 }
 END_TEST
+
+START_TEST(test_bernoulli_shuffle_64)
+{
+    size_t i;
+    SINT32 retcode;
+    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM,
+        SC_PRNG_THREADING_NONE, 0x00100000);
+    prng_init(prng_ctx, NULL, 0);
+
+    utils_sampling_t *sampler = create_sampler(BERNOULLI_GAUSSIAN_SAMPLING, SAMPLING_64BIT, SHUFFLE_SAMPLES, 512,
+        SAMPLING_DISABLE_BOOTSTRAP, prng_ctx, 10, 250);
+    ck_assert_ptr_ne(sampler, NULL);
+
+    SINT32 samples[512];
+    for (i=0; i<512; i++) {
+        samples[i] = 0x7FFFFFFF;
+    }
+    retcode = sampler->vector_32(prng_ctx, sampler, sampler->gauss, samples, 512);
+    ck_assert_int_eq(retcode, SC_FUNC_SUCCESS);
+    for (i=0; i<512; i++) {
+        ck_assert_int_ne(samples[i], 0x7FFFFFFF);
+    }
+
+    retcode = destroy_sampler(&sampler);
+    ck_assert_int_eq(retcode, SC_FUNC_SUCCESS);
+    ck_assert_ptr_eq(sampler, NULL);
+    prng_destroy(prng_ctx);
+}
+END_TEST
 #endif
 
 START_TEST(test_mw_create)
@@ -830,11 +917,13 @@ Suite *gaussian_suite(void)
     tcase_add_test(tc_cdf, test_gaussian_create_128);
     tcase_add_test(tc_cdf, test_gaussian_destroy_bad_128);
     tcase_add_test(tc_cdf, test_gaussian_range_128);
+    tcase_add_test(tc_cdf, test_gaussian_shuffle_128);
 #endif
 #ifdef HAVE_64BIT
     tcase_add_test(tc_cdf, test_gaussian_create_64);
     tcase_add_test(tc_cdf, test_gaussian_destroy_bad_64);
     tcase_add_test(tc_cdf, test_gaussian_range_64);
+    tcase_add_test(tc_cdf, test_gaussian_shuffle_64);
 #endif
     tcase_add_test(tc_cdf, test_gaussian_create_32);
     tcase_add_test(tc_cdf, test_gaussian_destroy_bad_32);
@@ -882,6 +971,7 @@ Suite *gaussian_suite(void)
     tcase_add_test(tc_bernoulli, test_bernoulli_create);
     tcase_add_test(tc_bernoulli, test_bernoulli_destroy_bad);
     tcase_add_test(tc_bernoulli, test_bernoulli_table);
+    tcase_add_test(tc_bernoulli, test_bernoulli_shuffle_64);
     tcase_add_test(tc_bernoulli, test_bernoulli_range);
     suite_add_tcase(s, tc_bernoulli);
 #endif
