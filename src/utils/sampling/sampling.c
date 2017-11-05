@@ -152,6 +152,58 @@ static SINT32 blinding_sample_vector_32(prng_ctx_t *ctx,
     return SC_FUNC_SUCCESS;
 }
 
+/// Return a random unbiased integer in the range 0 to x inclusive
+static size_t rand_range(prng_ctx_t *ctx, size_t x)
+{
+    size_t y, rem;
+    rem  = 0xFFFFFFFF % x;
+restart:
+    // Obtain a random integer in the range 0 to (2^16-1) inclusive
+    y = prng_32(ctx);
+
+    // Discard y if it is greater than or equal to the largest multiple of x
+    if (y >= (0xFFFFFFFF - rem)) {
+        goto restart;
+    }
+
+    // Discard y if its largest multiple is less than or equal to x
+    return y % x;
+}
+
+static SINT32 shuffle_sample_vector_16(prng_ctx_t *ctx,
+    const utils_sampling_t *sampling, void *gauss, SINT16 *v, size_t n)
+{
+   size_t i, j;
+
+    v[0] = sampling->sample(gauss);
+    for (i=1; i<n; i++) {
+        j = rand_range(ctx, i);
+        if (j != i) {
+            v[i] = v[j];
+        }
+        v[j] = sampling->sample(gauss);
+    }
+
+    return SC_FUNC_SUCCESS;
+}
+
+static SINT32 shuffle_sample_vector_32(prng_ctx_t *ctx,
+    const utils_sampling_t *sampling, void *gauss, SINT32 *v, size_t n)
+{
+    size_t i, j;
+
+    v[0] = sampling->sample(gauss);
+    for (i=1; i<n; i++) {
+        j = rand_range(ctx, i);
+        if (j != i) {
+            v[i] = v[j];
+        }
+        v[j] = sampling->sample(gauss);
+    }
+
+    return SC_FUNC_SUCCESS;
+}
+
 static SINT32 sample_vector_16(prng_ctx_t *ctx,
     const utils_sampling_t *sampling, void *gauss, SINT16 *v, size_t n)
 {
@@ -387,13 +439,23 @@ SINT32 configure_sampler(utils_sampling_t *sampling_table, random_sampling_e typ
     default:;
     }
 
-    if (BLINDING_SAMPLES == blinding) {
-        sampling_table->vector_32 = blinding_sample_vector_32;
-        sampling_table->vector_16 = blinding_sample_vector_16;
-    }
-    else {
-        sampling_table->vector_32 = sample_vector_32;
-        sampling_table->vector_16 = sample_vector_16;
+    switch (blinding)
+    {
+        case SHUFFLE_SAMPLES:
+        {
+            sampling_table->vector_32 = shuffle_sample_vector_32;
+            sampling_table->vector_16 = shuffle_sample_vector_16;
+        } break;
+        case BLINDING_SAMPLES:
+        {
+            sampling_table->vector_32 = blinding_sample_vector_32;
+            sampling_table->vector_16 = blinding_sample_vector_16;
+        } break;
+        case NORMAL_SAMPLES:
+        {
+            sampling_table->vector_32 = sample_vector_32;
+            sampling_table->vector_16 = sample_vector_16;
+        } break;
     }
 
     sampling_table->precision = precision;

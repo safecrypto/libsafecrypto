@@ -381,21 +381,21 @@ void * gaussian_cdf_create_128(prng_ctx_t *prng_ctx, FLOAT tail, FLOAT sigma, si
 {
     (void) max_lut_bytes;
 
-    gaussian_cdf_create_high(prng_ctx, tail, sigma, blinding, 128);
+    return gaussian_cdf_create_high(prng_ctx, tail, sigma, blinding, 128);
 }
 
 void * gaussian_cdf_create_192(prng_ctx_t *prng_ctx, FLOAT tail, FLOAT sigma, size_t max_lut_bytes, sample_blinding_e blinding)
 {
     (void) max_lut_bytes;
 
-    gaussian_cdf_create_high(prng_ctx, tail, sigma, blinding, 192);
+    return gaussian_cdf_create_high(prng_ctx, tail, sigma, blinding, 192);
 }
 
 void * gaussian_cdf_create_256(prng_ctx_t *prng_ctx, FLOAT tail, FLOAT sigma, size_t max_lut_bytes, sample_blinding_e blinding)
 {
     (void) max_lut_bytes;
 
-    gaussian_cdf_create_high(prng_ctx, tail, sigma, blinding, 256);
+    return gaussian_cdf_create_high(prng_ctx, tail, sigma, blinding, 256);
 }
 
 SINT32 gaussian_cdf_destroy_128(void **sampler)

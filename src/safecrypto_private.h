@@ -147,6 +147,7 @@ void sc_swap_copy_32(void* to, SINT32 index, const void* from, size_t length);
 typedef enum sample_blinding {
     NORMAL_SAMPLES = 0,
     BLINDING_SAMPLES,
+    SHUFFLE_SAMPLES,
 } sample_blinding_e;
 
 /// A list of the random sampling schemes that are available

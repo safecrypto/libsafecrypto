@@ -262,6 +262,35 @@ START_TEST(test_gaussian_range_32)
     prng_destroy(prng_ctx);
 }
 END_TEST
+
+START_TEST(test_gaussian_shuffle_32)
+{
+    size_t i;
+    SINT32 retcode;
+    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM,
+        SC_PRNG_THREADING_NONE, 0x00100000);
+    prng_init(prng_ctx, NULL, 0);
+
+    utils_sampling_t *sampler = create_sampler(CDF_GAUSSIAN_SAMPLING, SAMPLING_32BIT, SHUFFLE_SAMPLES, 512,
+        SAMPLING_DISABLE_BOOTSTRAP, prng_ctx, 10, 250);
+    ck_assert_ptr_ne(sampler, NULL);
+
+    SINT32 samples[512];
+    for (i=0; i<512; i++) {
+        samples[i] = 0x7FFFFFFF;
+    }
+    retcode = sampler->vector_32(prng_ctx, sampler, sampler->gauss, samples, 512);
+    ck_assert_int_eq(retcode, SC_FUNC_SUCCESS);
+    for (i=0; i<512; i++) {
+        ck_assert_int_ne(samples[i], 0x7FFFFFFF);
+    }
+
+    retcode = destroy_sampler(&sampler);
+    ck_assert_int_eq(retcode, SC_FUNC_SUCCESS);
+    ck_assert_ptr_eq(sampler, NULL);
+    prng_destroy(prng_ctx);
+}
+END_TEST
 #endif
 
 #ifdef HAVE_KNUTH_YAO_GAUSSIAN_SAMPLING
@@ -810,6 +839,7 @@ Suite *gaussian_suite(void)
     tcase_add_test(tc_cdf, test_gaussian_create_32);
     tcase_add_test(tc_cdf, test_gaussian_destroy_bad_32);
     tcase_add_test(tc_cdf, test_gaussian_range_32);
+    tcase_add_test(tc_cdf, test_gaussian_shuffle_32);
     suite_add_tcase(s, tc_cdf);
 #endif
 
