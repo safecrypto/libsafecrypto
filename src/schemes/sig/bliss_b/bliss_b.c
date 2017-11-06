@@ -341,6 +341,7 @@ SINT32 bliss_b_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
         SC_FREE(sc->bliss, sizeof(bliss_cfg_t));
         return SC_FUNC_FAILURE;
     }
+    set_discard(sc->sc_gauss, sc->pattern & SCA_PATTERN_SAMPLE_DISCARD_MASK);
 
 #ifdef HAVE_MULTITHREADING
     sc->bliss->sc_gauss_1 = create_sampler(sc->sampling,
@@ -352,6 +353,7 @@ SINT32 bliss_b_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
         SC_FREE(sc->bliss, sizeof(bliss_cfg_t));
         return SC_FUNC_FAILURE;
     }
+    set_discard(sc->bliss->sc_gauss_1, sc->pattern & SCA_PATTERN_SAMPLE_DISCARD_MASK);
 #endif
 
 #ifdef USE_RUNTIME_NTT_TABLES

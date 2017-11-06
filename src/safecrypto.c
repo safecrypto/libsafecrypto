@@ -437,10 +437,10 @@ static safecrypto_t * init_safecrypto(sc_scheme_e scheme, const UINT32 *flags)
 
             // Enable the random discarding of a proportion of the samples at a specified rate
             sc->pattern |=
-                (flags[2] & SC_FLAG_2_SAMPLE_SCA_DISCARD_LO)? SCA_PATTERN_SAMPLE_DISCARD_LO :
-                (flags[2] & SC_FLAG_2_SAMPLE_SCA_DISCARD_MD)? SCA_PATTERN_SAMPLE_DISCARD_MD :
-                (flags[2] & SC_FLAG_2_SAMPLE_SCA_DISCARD_HI)? SCA_PATTERN_SAMPLE_DISCARD_HI :
-                                                              SCA_PATTERN_DISABLE;
+                (SC_FLAG_2_SAMPLE_SCA_DISCARD_HI == (flags[2] & SC_FLAG_2_SAMPLE_SCA_DISCARD_HI))? SCA_PATTERN_SAMPLE_DISCARD_HI :
+                (SC_FLAG_2_SAMPLE_SCA_DISCARD_MD == (flags[2] & SC_FLAG_2_SAMPLE_SCA_DISCARD_MD))? SCA_PATTERN_SAMPLE_DISCARD_MD :
+                (SC_FLAG_2_SAMPLE_SCA_DISCARD_LO == (flags[2] & SC_FLAG_2_SAMPLE_SCA_DISCARD_LO))? SCA_PATTERN_SAMPLE_DISCARD_LO :
+                                                                                                   SCA_PATTERN_DISABLE;
 
             // Perform random read access of LUTs associated with Gaussian sampling
             if (flags[2] & SC_FLAG_2_SAMPLE_CACHE_ACCESS) {

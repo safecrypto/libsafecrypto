@@ -154,6 +154,7 @@ typedef enum sample_blinding {
 /// @{
 #define SCA_PATTERN_DISABLE               0x00000000   ///< Disable all masking mechanisms
 #define SCA_PATTERN_SAMPLE_CACHE_ACCESS   0x00000001   ///< Enable random cache access of any Gaussian sample LUT
+#define SCA_PATTERN_SAMPLE_DISCARD_MASK   0x00000006
 #define SCA_PATTERN_SAMPLE_DISCARD_LO     0x00000002   ///< Enable discarding Gaussian samples at a low rate (6.25%)
 #define SCA_PATTERN_SAMPLE_DISCARD_MD     0x00000004   ///< Enable discarding Gaussian samples at a medium rate (12.5%)
 #define SCA_PATTERN_SAMPLE_DISCARD_HI     0x00000006   ///< Enable discarding Gaussian samples at a high rate (25%)

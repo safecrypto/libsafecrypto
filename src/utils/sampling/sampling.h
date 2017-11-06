@@ -78,6 +78,7 @@ typedef struct _utils_sampling {
     FLOAT                             sigma2;
     void                             *gauss;
     prng_ctx_t                       *prng_ctx;
+    UINT32                            discard;
     void                             *bootstrap;
 } SC_STRUCT_PACKED utils_sampling_t;
 SC_STRUCT_PACK_END
@@ -90,6 +91,9 @@ extern utils_sampling_t * create_sampler(random_sampling_e type,
 
 /// Destroy an instance of a Gaussian sampler and set the pointer to NULL
 extern SINT32 destroy_sampler(utils_sampling_t **sampler);
+
+/// Configure the sampler to discard samples
+extern SINT32 set_discard(utils_sampling_t *sampler, UINT32 discard);
 
 /// Return a sample using the specified Gaussian sampler
 extern SINT32 get_sample(utils_sampling_t *sampler);
