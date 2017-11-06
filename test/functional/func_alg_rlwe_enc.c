@@ -101,7 +101,7 @@ int main(void)
     prng_init(prng_ctx, NULL, 0);
 
 #ifdef USE_HUFFMAN_STATIC_ENTROPY
-    UINT32 flags[2] = {SC_FLAG_0_ENTROPY_HUFFMAN_STATIC, SC_FLAG_NONE};
+    UINT32 flags[2] = {SC_FLAG_0_ENTROPY_HUFFMAN, SC_FLAG_NONE};
     sc_entropy_type_e coding = SC_ENTROPY_HUFFMAN_STATIC;
 #else
     UINT32 flags[2] = {SC_FLAG_NONE};

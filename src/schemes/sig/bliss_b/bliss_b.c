@@ -189,14 +189,10 @@ SINT32 bliss_b_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
     sc->coding_pub_key.type             = SC_ENTROPY_NONE;
     sc->coding_priv_key.type            = SC_ENTROPY_NONE;
     sc->coding_signature.type           =
-        (flags[0] & SC_FLAG_0_ENTROPY_BAC)?            SC_ENTROPY_BAC :
-        (flags[0] & SC_FLAG_0_ENTROPY_HUFFMAN_STATIC)? SC_ENTROPY_HUFFMAN_STATIC :
-                                                       SC_ENTROPY_NONE;
+        (flags[0] & SC_FLAG_0_ENTROPY_BAC)?     SC_ENTROPY_BAC :
+        (flags[0] & SC_FLAG_0_ENTROPY_HUFFMAN)? SC_ENTROPY_HUFFMAN_STATIC :
+                                                SC_ENTROPY_NONE;
 
-    // Determine if blinding countermeasures are to be enabled
-    sc->blinding =
-        (flags[0] & SC_FLAG_0_SAMPLE_BLINDING)? BLINDING_SAMPLES :
-                                                NORMAL_SAMPLES;
     sc->sampling_precision =
         ((flags[0] & SC_FLAG_0_SAMPLE_PREC_MASK) == SC_FLAG_0_SAMPLE_32BIT)?  SAMPLING_32BIT :
         ((flags[0] & SC_FLAG_0_SAMPLE_PREC_MASK) == SC_FLAG_0_SAMPLE_64BIT)?  SAMPLING_64BIT :

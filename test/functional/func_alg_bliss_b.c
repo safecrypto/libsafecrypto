@@ -102,16 +102,8 @@ int main(void)
     hash = utils_crypto_hash_create(SC_HASH_SHA2_512);
 
 #ifdef USE_HUFFMAN_STATIC_ENTROPY
-    UINT32 flags[2] = {SC_FLAG_0_ENTROPY_HUFFMAN_STATIC};
+    UINT32 flags[2] = {SC_FLAG_0_ENTROPY_HUFFMAN};
     sc_entropy_type_e coding = SC_ENTROPY_HUFFMAN_STATIC;
-#else
-#ifdef USE_STRONGSWAN_HUFFMAN_ENTROPY
-    UINT32 flags[2] = {SC_FLAG_0_ENTROPY_STRONGSWAN};
-    sc_entropy_type_e coding = SC_ENTROPY_STRONGSWAN;
-#else
-#ifdef USE_BAC_RLE_ENTROPY
-    UINT32 flags[2] = {SC_FLAG_0_ENTROPY_BAC_RLE};
-    sc_entropy_type_e coding = SC_ENTROPY_BAC_RLE;
 #else
 #ifdef USE_BAC_ENTROPY
     UINT32 flags[2] = {SC_FLAG_0_ENTROPY_BAC};
@@ -119,8 +111,6 @@ int main(void)
 #else
     UINT32 flags[2] = {SC_FLAG_NONE};
     sc_entropy_type_e coding = SC_ENTROPY_NONE;
-#endif
-#endif
 #endif
 #endif
 
@@ -140,11 +130,6 @@ int main(void)
     snprintf(disp_msg, 128, "%-20s", "Series Test");
 
     for (i=MIN_PARAM_SET; i<=MAX_PARAM_SET; i++) {
-
-#ifdef USE_STRONGSWAN_HUFFMAN_ENTROPY
-        if (2 == i) continue;
-        if (0 == i) continue;
-#endif
 
         SC_TIMER_RESET(keygen_timer);
         SC_TIMER_RESET(sign_timer);

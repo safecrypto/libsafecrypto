@@ -56,7 +56,6 @@ SINT32 ring_tesla_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
     sc->coding_priv_key.type            = SC_ENTROPY_NONE;
     sc->coding_signature.type           = SC_ENTROPY_NONE;
 
-    sc->blinding = (flags[0] & SC_FLAG_0_SAMPLE_BLINDING)?  BLINDING_SAMPLES : NORMAL_SAMPLES;
     sc->sampling_precision =
         ((flags[0] & SC_FLAG_0_SAMPLE_PREC_MASK) == SC_FLAG_0_SAMPLE_32BIT)?  SAMPLING_32BIT :
         ((flags[0] & SC_FLAG_0_SAMPLE_PREC_MASK) == SC_FLAG_0_SAMPLE_64BIT)?  SAMPLING_64BIT :

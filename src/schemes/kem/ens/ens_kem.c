@@ -100,8 +100,6 @@ SINT32 ens_kem_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
 
     n = sc->ens_kem->params->n;
 
-    sc->blinding = (flags[0] & SC_FLAG_0_SAMPLE_BLINDING)?  BLINDING_SAMPLES : NORMAL_SAMPLES;
-
     // Initialise the reduction scheme
     sc->ens_kem->ntt_optimisation =
         (flags[0] & SC_FLAG_0_REDUCTION_REFERENCE)? SC_NTT_REFERENCE :

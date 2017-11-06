@@ -90,12 +90,8 @@ int main(void)
     prng_init(prng_ctx, NULL, 0);
 
 #ifdef USE_HUFFMAN_STATIC_ENTROPY
-    UINT32 flags[2] = {SC_FLAG_0_ENTROPY_HUFFMAN_STATIC, SC_FLAG_NONE};
+    UINT32 flags[2] = {SC_FLAG_0_ENTROPY_HUFFMAN, SC_FLAG_NONE};
     sc_entropy_type_e coding = SC_ENTROPY_HUFFMAN_STATIC;
-#else
-#ifdef USE_BAC_RLE_ENTROPY
-    UINT32 flags[2] = {SC_FLAG_0_ENTROPY_BAC_RLE, SC_FLAG_NONE};
-    sc_entropy_type_e coding = SC_ENTROPY_BAC_RLE;
 #else
 #ifdef USE_BAC_ENTROPY
     UINT32 flags[2] = {SC_FLAG_0_ENTROPY_BAC, SC_FLAG_NONE};
@@ -103,7 +99,6 @@ int main(void)
 #else
     UINT32 flags[2] = {SC_FLAG_NONE, SC_FLAG_NONE};
     sc_entropy_type_e coding = SC_ENTROPY_NONE;
-#endif
 #endif
 #endif
 

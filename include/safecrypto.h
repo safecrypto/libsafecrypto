@@ -52,9 +52,7 @@ extern "C" {
 /// Word 0:
 /// @{
 #define SC_FLAG_0_ENTROPY_BAC                0x00000001  ///< BAC compression
-#define SC_FLAG_0_ENTROPY_BAC_RLE            0x00000002  ///< BAC with RLE compression
-#define SC_FLAG_0_ENTROPY_STRONGSWAN         0x00000004  ///< strongSwan compatible Huffman compression
-#define SC_FLAG_0_ENTROPY_HUFFMAN_STATIC     0x00000008  ///< Huffman compression
+#define SC_FLAG_0_ENTROPY_HUFFMAN            0x00000002  ///< Huffman compression
 #define SC_FLAG_0_SAMPLE_PREC_MASK           0x00000070  ///< A mask used to isloate the Gaussian sample precision bits
 #define SC_FLAG_0_SAMPLE_DEFAULT             0x00000000  ///< Use default Gaussian sampling precision
 #define SC_FLAG_0_SAMPLE_32BIT               0x00000010  ///< Use 32-bit Gaussian sampling precision
@@ -62,7 +60,6 @@ extern "C" {
 #define SC_FLAG_0_SAMPLE_128BIT              0x00000030  ///< Use 128-bit Gaussian sampling precision
 #define SC_FLAG_0_SAMPLE_192BIT              0x00000040  ///< Use 192-bit Gaussian sampling precision
 #define SC_FLAG_0_SAMPLE_256BIT              0x00000050  ///< Use 256-bit Gaussian sampling precision
-#define SC_FLAG_0_SAMPLE_BLINDING            0x00000100  ///< Enable blinding countermeasures
 #define SC_FLAG_0_SAMPLE_CDF                 0x00000200  ///< CDF Gaussian sampler
 #define SC_FLAG_0_SAMPLE_KNUTH_YAO           0x00000400  ///< Knuth Yao Gaussian sampler
 #define SC_FLAG_0_SAMPLE_ZIGGURAT            0x00000800  ///< Ziggurat gaussian sampler
@@ -113,6 +110,13 @@ extern "C" {
 
 /// Word 2:
 /// @{
+#define SC_FLAG_2_SAMPLE_SCA_DISCARD_LO      0x00000001  ///< Enable discarding Gaussian samples at a low rate (6.25%)
+#define SC_FLAG_2_SAMPLE_SCA_DISCARD_MD      0x00000002  ///< Enable discarding Gaussian samples at a low rate (12.5%)
+#define SC_FLAG_2_SAMPLE_SCA_DISCARD_HI      0x00000003  ///< Enable discarding Gaussian samples at a low rate (25%)
+#define SC_FLAG_2_SAMPLE_CACHE_ACCESS        0x00000004  ///< Enable random cache access of any Gaussian sample LUT
+#define SC_FLAG_2_SAMPLE_NON_CT_MASK         0x00000008  ///< Enable the masking of non-constant time Gaussian sampling
+#define SC_FLAG_2_SAMPLE_SCA_SHUFFLE         0x00000010  ///< Enable Gaussian shuffling countermeasures
+#define SC_FLAG_2_SAMPLE_SCA_BLINDING        0x00000020  ///< Enable Gaussian blinding countermeasures
 #define SC_FLAG_2_MEMORY_TEMP_EXTERNAL       0x10000000  ///< Use an external memory array to store intermediate data
 /// @}
 

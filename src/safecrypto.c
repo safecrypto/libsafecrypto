@@ -423,6 +423,37 @@ static safecrypto_t * init_safecrypto(sc_scheme_e scheme, const UINT32 *flags)
     // Disable sample blinding by default
     sc->blinding = NORMAL_SAMPLES;
 
+    // Disable pattern masking by default
+    sc->pattern  = SCA_PATTERN_DISABLE;
+
+    if (flags[0] & SC_FLAG_MORE) {
+        if (flags[1] & SC_FLAG_MORE) {
+            // Enable blinding (mixing together with randomized order) or
+            // shuffling (on-the-fly) of the Gaussian samples
+            sc->blinding =
+                (flags[2] & SC_FLAG_2_SAMPLE_SCA_BLINDING)? BLINDING_SAMPLES :
+                (flags[2] & SC_FLAG_2_SAMPLE_SCA_SHUFFLE)?  SHUFFLE_SAMPLES :
+                                                            NORMAL_SAMPLES;
+
+            // Enable the random discarding of a proportion of the samples at a specified rate
+            sc->pattern |=
+                (flags[2] & SC_FLAG_2_SAMPLE_SCA_DISCARD_LO)? SCA_PATTERN_SAMPLE_DISCARD_LO :
+                (flags[2] & SC_FLAG_2_SAMPLE_SCA_DISCARD_MD)? SCA_PATTERN_SAMPLE_DISCARD_MD :
+                (flags[2] & SC_FLAG_2_SAMPLE_SCA_DISCARD_HI)? SCA_PATTERN_SAMPLE_DISCARD_HI :
+                                                              SCA_PATTERN_DISABLE;
+
+            // Perform random read access of LUTs associated with Gaussian sampling
+            if (flags[2] & SC_FLAG_2_SAMPLE_CACHE_ACCESS) {
+                sc->pattern |= SCA_PATTERN_SAMPLE_CACHE_ACCESS;
+            }
+
+            // Mask the operations of non-constant-time algorithms
+            if (flags[2] & SC_FLAG_2_SAMPLE_NON_CT_MASK) {
+                sc->pattern |= SCA_PATTERN_SAMPLE_NON_CT_MASK;
+            }
+        }
+    }
+
     // Initialise the error buffer
     sc->error_queue = err_create();
 
@@ -871,11 +902,11 @@ SINT32 safecrypto_verify_with_recovery(safecrypto_t *sc, UINT8 **m, size_t *mlen
 const char * safecrypto_processing_stats(safecrypto_t *sc)
 {
     if (check_safecrypto(sc) != SC_FUNC_SUCCESS)
-        return SC_FUNC_FAILURE;
+        return NULL;
 
     if (safecrypto_algorithms[sc->alg_index].processing_stats == NULL) {
         SC_LOG_ERROR(sc, SC_INVALID_FUNCTION_CALL);
-        return SC_FUNC_FAILURE;
+        return NULL;
     }
 
     return safecrypto_algorithms[sc->alg_index].processing_stats(sc);
@@ -884,7 +915,7 @@ const char * safecrypto_processing_stats(safecrypto_t *sc)
 const sc_statistics_t * safecrypto_get_stats(safecrypto_t *sc)
 {
     if (check_safecrypto(sc) != SC_FUNC_SUCCESS)
-        return SC_FUNC_FAILURE;
+        return NULL;
 
     return &sc->stats;
 }

@@ -20,6 +20,10 @@
 #include "safecrypto_types.h"
 #include <stdio.h>
 
+#include <limits.h>
+#ifndef NATIVE_WORD_SIZE
+#define NATIVE_WORD_SIZE   __WORDSIZE
+#endif
 
 /// Macro definitions for mathematical constants that are not defined by C99
 /// @{
@@ -31,7 +35,11 @@
 /// Arithmetic comparison functions (constant-time)
 /// @{
 /// Return 1 if less than, 0 otherwise
+#if NATIVE_WORD_SIZE == 64
+volatile SINT32 sc_const_time_lessthan(volatile UINT64 a, volatile UINT64 b);
+#else
 volatile SINT32 sc_const_time_lessthan(volatile UINT32 a, volatile UINT32 b);
+#endif
 /// @}
 
 

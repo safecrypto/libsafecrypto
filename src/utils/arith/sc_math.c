@@ -20,11 +20,17 @@
 #include <math.h>
 
 
-
+#if NATIVE_WORD_SIZE == 64
+volatile SINT32 sc_const_time_lessthan(volatile UINT64 a, volatile UINT64 b)
+{
+    return ((((a ^ b) & ((a - b) ^ b)) ^ (a - b)) & 0x8000000000000000L) >> 63;
+}
+#else
 volatile SINT32 sc_const_time_lessthan(volatile UINT32 a, volatile UINT32 b)
 {
     return ((((a ^ b) & ((a - b) ^ b)) ^ (a - b)) & 0x80000000) >> 31;
 }
+#endif
 
 
 

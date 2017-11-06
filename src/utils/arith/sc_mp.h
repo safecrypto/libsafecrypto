@@ -25,7 +25,9 @@
 
 
 #include <limits.h>
+#ifndef NATIVE_WORD_SIZE
 #define NATIVE_WORD_SIZE   __WORDSIZE
+#endif
 
 #if !defined(USE_SAFECRYPTO_MULTIPLE_PRECISION)
 #include <gmp.h>

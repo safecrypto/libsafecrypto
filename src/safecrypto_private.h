@@ -150,6 +150,18 @@ typedef enum sample_blinding {
     SHUFFLE_SAMPLES,
 } sample_blinding_e;
 
+/// Pattern masking techniques
+/// @{
+#define SCA_PATTERN_DISABLE               0x00000000   ///< Disable all masking mechanisms
+#define SCA_PATTERN_SAMPLE_CACHE_ACCESS   0x00000001   ///< Enable random cache access of any Gaussian sample LUT
+#define SCA_PATTERN_SAMPLE_DISCARD_LO     0x00000002   ///< Enable discarding Gaussian samples at a low rate (6.25%)
+#define SCA_PATTERN_SAMPLE_DISCARD_MD     0x00000004   ///< Enable discarding Gaussian samples at a medium rate (12.5%)
+#define SCA_PATTERN_SAMPLE_DISCARD_HI     0x00000006   ///< Enable discarding Gaussian samples at a high rate (25%)
+#define SCA_PATTERN_SAMPLE_NON_CT_MASK    0x00000008   ///< Enable the masking of non-constant time Gaussian sampling
+#define SCA_PATTERN_SAMPLE_LUT_MOVE       0x00000010   ///< Enable the transfer of the Gaussian sample table(s) to a new address
+                                                       ///  for every cryptographic operation (dynamic memory must be used)
+/// @}
+
 /// A list of the random sampling schemes that are available
 #define SAMPLING_LIST(m) \
     m(CDF_GAUSSIAN_SAMPLING) \
@@ -253,7 +265,8 @@ struct _safecrypto {
     utils_sampling_t *sc_gauss;         ///< A Gaussian Sampler
     random_sampling_e sampling;         ///< The sampling scheme to be used
     UINT32 sampling_precision;          ///< Sampling precision (bits)
-    sample_blinding_e blinding;         ///< Enable sample blinding
+    sample_blinding_e blinding;         ///< Enable sample blinding or shuffling countermeasures (scheme independendt)
+    UINT32 pattern;                     ///< A bitfield used to enable techniques to mask the pattern of algorithms and memory access
 
     void* dist[ENTROPY_MAX_DIST];       ///< Distributions used for lossless compression purposes
     size_t dist_n[ENTROPY_MAX_DIST];    ///< log base 2 of the size of the distribution
