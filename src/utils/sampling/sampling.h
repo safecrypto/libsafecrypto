@@ -58,16 +58,8 @@ typedef void * (*utils_sampling_create)(prng_ctx_t*, FLOAT, FLOAT,
 typedef SINT32 (*utils_sampling_destroy)(void **);
 typedef prng_ctx_t * (*utils_sampling_get_prng)(void *);
 typedef SINT32 (*utils_sampling_sample)(void *);
-typedef SINT32 (*utils_sampling_vector_sample_16)(prng_ctx_t *,
-    const utils_sampling_t *, void *, SINT16 *, size_t);
-typedef SINT32 (*utils_sampling_vector_sample_32)(prng_ctx_t *,
-    const utils_sampling_t *, void *, SINT32 *, size_t);
-typedef SINT32 (*utils_sampling_vector_sample_flt)(prng_ctx_t *,
-    const utils_sampling_t *, void *, FLOAT *, size_t);
-typedef SINT32 (*utils_sampling_vector_sample_dbl)(prng_ctx_t *,
-    const utils_sampling_t *, void *, DOUBLE *, size_t);
-typedef SINT32 (*utils_sampling_vector_sample_ldbl)(prng_ctx_t *,
-    const utils_sampling_t *, void *, LONGDOUBLE *, size_t);
+typedef SINT32 (*utils_sampling_vector_sample_16)(const utils_sampling_t *, SINT16 *, size_t, SINT32);
+typedef SINT32 (*utils_sampling_vector_sample_32)(const utils_sampling_t *, SINT32 *, size_t, SINT32);
 /// @}
 
 /// A struct defining the configuration of the Gaussian sampler and all
@@ -80,14 +72,12 @@ typedef struct _utils_sampling {
     utils_sampling_sample             sample;
     utils_sampling_vector_sample_16   vector_16;
     utils_sampling_vector_sample_32   vector_32;
-    utils_sampling_vector_sample_flt  vector_flt;
-    utils_sampling_vector_sample_dbl  vector_dbl;
-    utils_sampling_vector_sample_ldbl vector_long_dbl;
     sample_precision_e                precision;
     SINT32                            dimension;
     sample_bootstrap_e                bootstrapped;
     FLOAT                             sigma2;
     void                             *gauss;
+    prng_ctx_t                       *prng_ctx;
     void                             *bootstrap;
 } SC_STRUCT_PACKED utils_sampling_t;
 SC_STRUCT_PACK_END

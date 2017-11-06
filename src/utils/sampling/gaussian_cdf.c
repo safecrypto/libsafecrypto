@@ -185,12 +185,14 @@ static SINT32 binary_search_256(u256_t x, const u256_t *l, SINT32 n)
     return a;
 }
 
-void gauss_cdf_create_high_precision(prng_ctx_t *prng_ctx, gauss_cdf_high_t *gauss, size_t num_words, size_t precision, FLOAT sigma, sample_blinding_e blinding)
+void gauss_cdf_create_high_precision(prng_ctx_t *prng_ctx, gauss_cdf_high_t *gauss, size_t num_words,
+    size_t precision, FLOAT sigma, sample_blinding_e blinding)
 {
     size_t i, j;
     sc_mpf_t s, d, e, t0, t1, sigma128, half128, two_sqrt_2pi, sqrt_1_2;
 
-    sc_mpf_set_precision(precision);  // Note: Additional guard bits in the precision improve the rounding to zero at higher addresses
+    // Note: Additional guard bits in the precision improve the rounding to zero at higher addresses
+    sc_mpf_set_precision(precision);
 
     sc_mpf_init(&s);
     sc_mpf_init(&d);
@@ -319,7 +321,8 @@ finish:
     sc_mpf_clear_constants();
 }
 
-static void * gaussian_cdf_create_high(prng_ctx_t *prng_ctx, FLOAT tail, FLOAT sigma, sample_blinding_e blinding, size_t precision)
+static void * gaussian_cdf_create_high(prng_ctx_t *prng_ctx, FLOAT tail, FLOAT sigma,
+    sample_blinding_e blinding, size_t precision)
 {
     SINT32 bits;
     size_t k = 0;//find_kldiv_k(max_lut_bytes, tail, &sigma);

@@ -139,7 +139,7 @@ START_TEST(test_gaussian_shuffle_128)
     for (i=0; i<512; i++) {
         samples[i] = 0x7FFFFFFF;
     }
-    retcode = sampler->vector_32(prng_ctx, sampler, sampler->gauss, samples, 512);
+    retcode = sampler->vector_32(sampler, samples, 512, 0);
     ck_assert_int_eq(retcode, SC_FUNC_SUCCESS);
     for (i=0; i<512; i++) {
         ck_assert_int_ne(samples[i], 0x7FFFFFFF);
@@ -238,7 +238,7 @@ START_TEST(test_gaussian_shuffle_64)
     for (i=0; i<512; i++) {
         samples[i] = 0x7FFFFFFF;
     }
-    retcode = sampler->vector_32(prng_ctx, sampler, sampler->gauss, samples, 512);
+    retcode = sampler->vector_32(sampler, samples, 512, 0);
     ck_assert_int_eq(retcode, SC_FUNC_SUCCESS);
     for (i=0; i<512; i++) {
         ck_assert_int_ne(samples[i], 0x7FFFFFFF);
@@ -337,7 +337,7 @@ START_TEST(test_gaussian_shuffle_32)
     for (i=0; i<512; i++) {
         samples[i] = 0x7FFFFFFF;
     }
-    retcode = sampler->vector_32(prng_ctx, sampler, sampler->gauss, samples, 512);
+    retcode = sampler->vector_32(sampler, samples, 512, 0);
     ck_assert_int_eq(retcode, SC_FUNC_SUCCESS);
     for (i=0; i<512; i++) {
         ck_assert_int_ne(samples[i], 0x7FFFFFFF);

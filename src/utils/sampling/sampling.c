@@ -49,21 +49,12 @@
 #endif
 
 
-static SINT32 sample_vector_16(prng_ctx_t *ctx,
-    const utils_sampling_t *sampling, void *gauss, SINT16 *v, size_t n);
-static SINT32 sample_vector_32(prng_ctx_t *ctx,
-    const utils_sampling_t *sampling, void *gauss, SINT32 *v, size_t n);
-static SINT32 sample_vector_flt(prng_ctx_t *ctx,
-    const utils_sampling_t *sampling, void *gauss, FLOAT *v, size_t n);
-static SINT32 sample_vector_dbl(prng_ctx_t *ctx,
-    const utils_sampling_t *sampling, void *gauss, DOUBLE *v, size_t n);
-static SINT32 sample_vector_long_dbl(prng_ctx_t *ctx,
-    const utils_sampling_t *sampling, void *gauss, LONGDOUBLE *v, size_t n);
+static SINT32 sample_vector_16(const utils_sampling_t *sampling, SINT16 *v, size_t n, SINT32 centre);
+static SINT32 sample_vector_32(const utils_sampling_t *sampling, SINT32 *v, size_t n, SINT32 centre);
 
 static utils_sampling_t utils_sampling_table = {
     gaussian_cdf_create_32, gaussian_cdf_destroy_32, gaussian_cdf_get_prng_32,
     gaussian_cdf_sample_32, sample_vector_16, sample_vector_32,
-    sample_vector_flt, sample_vector_dbl, sample_vector_long_dbl,
 #ifdef HAVE_64BIT
     SAMPLING_64BIT,
 #else
@@ -71,86 +62,6 @@ static utils_sampling_t utils_sampling_table = {
 #endif
     256, SAMPLING_DISABLE_BOOTSTRAP, 0.0f, NULL, NULL
 };
-
-static void permute_16(prng_ctx_t *ctx, SINT16 *v, size_t n)
-{
-    SINT16 t;
-    size_t i;
-    UINT16 r, mask = n - 1;
-
-    for (i=0; i<n; i++) {
-#if 1
-        do {
-            r = prng_16(ctx) & mask;
-        } while (r < i);
-        size_t j = r;
-#else
-        r = prng_16(ctx);   // random position
-        size_t j = r & mask;
-#endif
-
-        t = v[i];                 // swap entries
-        v[i] = v[j];
-        v[j] = t;
-    }
-}
-
-static void permute_32(prng_ctx_t *ctx, SINT32 *v, size_t n)
-{
-    SINT32 t;
-    size_t i;
-    UINT16 r, mask = n - 1;
-
-    for (i=0; i<n; i++) {
-#if 1
-        do {
-            r = prng_16(ctx) & mask;
-        } while (r < i);
-        size_t j = r;
-#else
-        r = prng_16(ctx);   // random position
-        size_t j = r & mask;
-#endif
-
-        t = v[i];                 // swap entries
-        v[i] = v[j];
-        v[j] = t;
-    }
-}
-
-static SINT32 blinding_sample_vector_16(prng_ctx_t *ctx,
-    const utils_sampling_t *sampling, void *gauss, SINT16 *v, size_t n)
-{
-    size_t i;
-
-    for (i=0; i<n; i++) {
-        v[i] = sampling->sample(gauss);
-    }
-    permute_16(ctx, v, n);
-    for (i=0; i<n; i++) {
-        v[i] -= sampling->sample(gauss);
-    }
-    permute_16(ctx, v, n);
-
-    return SC_FUNC_SUCCESS;
-}
-
-static SINT32 blinding_sample_vector_32(prng_ctx_t *ctx,
-    const utils_sampling_t *sampling, void *gauss, SINT32 *v, size_t n)
-{
-    size_t i;
-
-    for (i=0; i<n; i++) {
-        v[i] = sampling->sample(gauss);
-    }
-    permute_32(ctx, v, n);
-    for (i=0; i<n; i++) {
-        v[i] -= sampling->sample(gauss);
-    }
-    permute_32(ctx, v, n);
-
-    return SC_FUNC_SUCCESS;
-}
 
 /// Return a random unbiased integer in the range 0 to x inclusive
 static size_t rand_range(prng_ctx_t *ctx, size_t x)
@@ -170,10 +81,11 @@ restart:
     return y % x;
 }
 
-static SINT32 shuffle_sample_vector_16(prng_ctx_t *ctx,
-    const utils_sampling_t *sampling, void *gauss, SINT16 *v, size_t n)
+static SINT32 shuffle_sample_vector_16(const utils_sampling_t *sampling, SINT16 *v, size_t n, SINT32 centre)
 {
    size_t i, j;
+   void *gauss     = sampling->gauss;
+   prng_ctx_t *ctx = sampling->prng_ctx;
 
     v[0] = sampling->sample(gauss);
     for (i=1; i<n; i++) {
@@ -181,16 +93,17 @@ static SINT32 shuffle_sample_vector_16(prng_ctx_t *ctx,
         if (j != i) {
             v[i] = v[j];
         }
-        v[j] = sampling->sample(gauss);
+        v[j] = sampling->sample(gauss) + centre;
     }
 
     return SC_FUNC_SUCCESS;
 }
 
-static SINT32 shuffle_sample_vector_32(prng_ctx_t *ctx,
-    const utils_sampling_t *sampling, void *gauss, SINT32 *v, size_t n)
+static SINT32 shuffle_sample_vector_32(const utils_sampling_t *sampling, SINT32 *v, size_t n, SINT32 centre)
 {
     size_t i, j;
+    void *gauss     = sampling->gauss;
+    prng_ctx_t *ctx = sampling->prng_ctx;
 
     v[0] = sampling->sample(gauss);
     for (i=1; i<n; i++) {
@@ -198,72 +111,69 @@ static SINT32 shuffle_sample_vector_32(prng_ctx_t *ctx,
         if (j != i) {
             v[i] = v[j];
         }
-        v[j] = sampling->sample(gauss);
+        v[j] = sampling->sample(gauss) + centre;
     }
 
     return SC_FUNC_SUCCESS;
 }
 
-static SINT32 sample_vector_16(prng_ctx_t *ctx,
-    const utils_sampling_t *sampling, void *gauss, SINT16 *v, size_t n)
+static SINT32 blinding_sample_vector_16(const utils_sampling_t *sampling, SINT16 *v, size_t n, SINT32 centre)
 {
-    (void) ctx;
-    size_t i;
+    size_t i, j;
+    void *gauss     = sampling->gauss;
+    prng_ctx_t *ctx = sampling->prng_ctx;
 
-    for (i=0; i<n; i++) {
-        v[i] = sampling->sample(gauss);
+    shuffle_sample_vector_16(sampling, v, n, centre);
+    v[0] = sampling->sample(gauss);
+    for (i=1; i<n; i++) {
+        j = rand_range(ctx, i);
+        if (j != i) {
+            v[i] = v[j];
+        }
+        v[j] -= sampling->sample(gauss) + centre;
     }
 
     return SC_FUNC_SUCCESS;
 }
 
-static SINT32 sample_vector_32(prng_ctx_t *ctx,
-    const utils_sampling_t *sampling, void *gauss, SINT32 *v, size_t n)
+static SINT32 blinding_sample_vector_32(const utils_sampling_t *sampling, SINT32 *v, size_t n, SINT32 centre)
 {
-    (void) ctx;
-    size_t i;
+    size_t i, j;
+    void *gauss     = sampling->gauss;
+    prng_ctx_t *ctx = sampling->prng_ctx;
 
-    for (i=0; i<n; i++) {
-        v[i] = sampling->sample(gauss);
+    shuffle_sample_vector_32(sampling, v, n, centre);
+    v[0] = sampling->sample(gauss);
+    for (i=1; i<n; i++) {
+        j = rand_range(ctx, i);
+        if (j != i) {
+            v[i] = v[j];
+        }
+        v[j] -= sampling->sample(gauss) + centre;
     }
 
     return SC_FUNC_SUCCESS;
 }
 
-static SINT32 sample_vector_flt(prng_ctx_t *ctx,
-    const utils_sampling_t *sampling, void *gauss, FLOAT *v, size_t n)
+static SINT32 sample_vector_16(const utils_sampling_t *sampling, SINT16 *v, size_t n, SINT32 centre)
 {
-    (void) ctx;
     size_t i;
+    void *gauss     = sampling->gauss;
 
     for (i=0; i<n; i++) {
-        v[i] = (FLOAT) sampling->sample(gauss);
+        v[i] = sampling->sample(gauss) + centre;
     }
 
     return SC_FUNC_SUCCESS;
 }
 
-static SINT32 sample_vector_dbl(prng_ctx_t *ctx,
-    const utils_sampling_t *sampling, void *gauss, DOUBLE *v, size_t n)
+static SINT32 sample_vector_32(const utils_sampling_t *sampling, SINT32 *v, size_t n, SINT32 centre)
 {
-    (void) ctx;
     size_t i;
+    void *gauss     = sampling->gauss;
 
     for (i=0; i<n; i++) {
-        v[i] = (DOUBLE) sampling->sample(gauss);
-    }
-
-    return SC_FUNC_SUCCESS;
-}
-
-static SINT32 sample_vector_long_dbl(prng_ctx_t *ctx,
-    const utils_sampling_t *sampling, void *gauss, LONGDOUBLE *v, size_t n)
-{
-    (void) ctx;
-    size_t i;
-
-    for (i=0; i<n; i++) {
-        v[i] = (LONGDOUBLE) sampling->sample(gauss);
+        v[i] = sampling->sample(gauss) + centre;
     }
 
     return SC_FUNC_SUCCESS;
@@ -479,6 +389,8 @@ utils_sampling_t * create_sampler(random_sampling_e type,
         return NULL;
     }
 
+    sampler->prng_ctx = prng_ctx;
+
     if (SAMPLING_MW_BOOTSTRAP == bootstrapped) {
         sampler->sigma2 = sigma * sigma;
 
@@ -557,9 +469,7 @@ SINT32 get_vector_16(utils_sampling_t *sampler, SINT16 *v, size_t n, FLOAT centr
         }
     }
     else {
-        for (i=0; i<n; i++) {
-            v[i] = sampler->sample(sampler->gauss) + (SINT32) centre;
-        }
+        sampler->vector_16(sampler, v, n, (SINT32) centre);
     }
 
     return SC_FUNC_SUCCESS;
@@ -575,9 +485,7 @@ SINT32 get_vector_32(utils_sampling_t *sampler, SINT32 *v, size_t n, FLOAT centr
         }
     }
     else {
-        for (i=0; i<n; i++) {
-            v[i] = sampler->sample(sampler->gauss) + (SINT32) centre;
-        }
+        sampler->vector_32(sampler, v, n, (SINT32) centre);
     }
 
     return SC_FUNC_SUCCESS;
