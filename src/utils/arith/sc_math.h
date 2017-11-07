@@ -29,6 +29,19 @@
 
 
 
+/// Range limiting functions - the return value is min <= x <= max
+/// @{
+#if defined(HAVE_128BIT) && defined(__x86_64__)
+SINT128 sc_range_limit_s128(SINT128 x, SINT128 min, SINT128 max);
+#endif
+#ifdef HAVE_64BIT
+SINT64 sc_range_limit_s64(SINT64 x, SINT64 min, SINT64 max);
+#endif
+SINT32 sc_range_limit_s32(SINT32 x, SINT32 min, SINT32 max);
+SINT16 sc_range_limit_s16(SINT16 x, SINT16 min, SINT16 max);
+SINT8 sc_range_limit_s8(SINT8 x, SINT8 min, SINT8 max);
+/// @}
+
 /// Fast math estimation routines
 /// @{
 DOUBLE sc_exp_dbl_coarse(DOUBLE y);
