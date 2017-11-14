@@ -20,9 +20,8 @@ TESTS                    = func_safecrypto \
                            func_sc_math \
                            func_ntt \
                            func_alg_2way_ake \
-                           func_alg_2way_ake_huffman
-
-#                           func_signatures_schemes
+                           func_alg_2way_ake_huffman \
+                           func_signatures_schemes
 
 if WITH_MULTITHREADING
 TESTS                   += func_threading
@@ -340,9 +339,9 @@ func_alg_ens_enc_huffman_CFLAGS      = -DUSE_HUFFMAN_STATIC_ENTROPY
 func_alg_ens_kem_huffman_LDFLAGS     = -static
 endif WITH_ENS_KEM
 
-#func_signatures_schemes_SOURCES      = func_signatures_schemes.c \
-#                                       $(top_srcdir)/include/safecrypto.h
-#func_signatures_schemes_LDADD        =  $(top_builddir)/libs/libsafecrypto.la -lm
-#func_signatures_schemes_LDFLAGS      = -static
+func_signatures_schemes_SOURCES      = func_signatures_schemes.c \
+                                       $(top_srcdir)/include/safecrypto.h
+func_signatures_schemes_LDADD        =  $(top_builddir)/libs/libsafecrypto.la -lm
+func_signatures_schemes_LDFLAGS      = -static
 
 endif

@@ -1282,15 +1282,21 @@ SINT32 bliss_b_sign(safecrypto_t *sc, const UINT8 *m, size_t m_len,
 #else
     z = (SINT16 *) (c_idx + kappa);
 #endif
-    a = (SINT16 *) sc->pubkey->key;
-    f = (SINT16 *) sc->privkey->key;
-    g = (SINT16 *) (sc->privkey->key + n * sizeof(SINT16));
 
     // Check for an uninitialised key pair
-    if (NULL == a || NULL == f || NULL == g) {
+    if (NULL == sc->pubkey || NULL == sc->privkey) {
         SC_LOG_ERROR(sc, SC_NULL_POINTER);
         return SC_FUNC_FAILURE;
     }
+    if (NULL == sc->pubkey->key || NULL == sc->privkey->key) {
+        SC_LOG_ERROR(sc, SC_NULL_POINTER);
+        return SC_FUNC_FAILURE;
+    }
+
+    // Assign pointers for the key-pair
+    a = (SINT16 *) sc->pubkey->key;
+    f = (SINT16 *) sc->privkey->key;
+    g = (SINT16 *) (sc->privkey->key + n * sizeof(SINT16));
 
     const utils_arith_poly_t *sc_poly = sc->sc_poly;
     const utils_arith_vec_t *sc_vec = sc->sc_vec;
@@ -1538,13 +1544,15 @@ SINT32 bliss_b_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
     my_idx = v + n;
     c_idx = my_idx + kappa;
     z = (SINT16 *)PTR_ALIGN((SINT16 *)(c_idx + kappa), 16, 4);//(SINT16 *)(c_idx + 2*kappa);
-    a = ((SINT16 *) sc->pubkey->key) + n;
 
     // Check for an uninitialised public key
-    if (NULL == a) {
+    if (NULL == sc->pubkey || NULL == sc->pubkey->key) {
         SC_LOG_ERROR(sc, SC_NULL_POINTER);
         return SC_FUNC_FAILURE;
     }
+
+    // Assign a pointer for the public key
+    a = ((SINT16 *) sc->pubkey->key) + n;
 
     SC_PRINT_1D_UINT8(sc, SC_LEVEL_DEBUG, "Compressed signature",
         sigbuf, siglen);
