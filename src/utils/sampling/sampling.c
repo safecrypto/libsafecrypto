@@ -85,7 +85,7 @@ restart:
 static UINT32 set_threshold(UINT32 discard)
 {
     UINT32 thresh = (SCA_PATTERN_SAMPLE_DISCARD_LO == discard)? 1 << (32 - 4) :
-                    (SCA_PATTERN_SAMPLE_DISCARD_MD == discard)? 1 << (32 - 3) :
+                    (SCA_PATTERN_SAMPLE_DISCARD_MD == discard)? 1 << (32 - 2) :
                     (SCA_PATTERN_SAMPLE_DISCARD_HI == discard)? 1 << (32 - 1) :
                                                                 0;
     return thresh;
@@ -149,16 +149,18 @@ static SINT32 blinding_sample_vector_16(const utils_sampling_t *sampling, SINT16
     void *gauss     = sampling->gauss;
     prng_ctx_t *ctx = sampling->prng_ctx;
     UINT32 thresh   = set_threshold(sampling->discard);
+    UINT32 mask     = n - 1;
 
     shuffle_sample_vector_16(sampling, v, n, centre);
-    v[0] = sampling->sample(gauss);
-    for (i=1; i<n; i++) {
-        j = rand_range(ctx, i);
-        if (j != i) {
-            v[i] = v[j];
-        }
-        v[j] -= sampling->sample(gauss) + centre;
-        i   -= discard_sample(ctx, thresh);
+    for (i=0; i<n; i++) {
+        v[i] -= sampling->sample(gauss);
+    }
+    for (i=0; i<n; i++) {
+        SINT16 temp;
+        j = i & mask;
+        temp = v[i];
+        v[i] = v[j];
+        v[j] = temp;
     }
 
     return SC_FUNC_SUCCESS;
@@ -170,16 +172,18 @@ static SINT32 blinding_sample_vector_32(const utils_sampling_t *sampling, SINT32
     void *gauss     = sampling->gauss;
     prng_ctx_t *ctx = sampling->prng_ctx;
     UINT32 thresh   = set_threshold(sampling->discard);
+    UINT32 mask     = n - 1;
 
     shuffle_sample_vector_32(sampling, v, n, centre);
-    v[0] = sampling->sample(gauss);
-    for (i=1; i<n; i++) {
-        j = rand_range(ctx, i);
-        if (j != i) {
-            v[i] = v[j];
-        }
-        v[j] -= sampling->sample(gauss) + centre;
-        i   -= discard_sample(ctx, thresh);
+    for (i=0; i<n; i++) {
+        v[i] -= sampling->sample(gauss);
+    }
+    for (i=0; i<n; i++) {
+        SINT32 temp;
+        j = i & mask;
+        temp = v[i];
+        v[i] = v[j];
+        v[j] = temp;
     }
 
     return SC_FUNC_SUCCESS;

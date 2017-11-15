@@ -119,7 +119,7 @@ int main(void)
     flags[1]  = SC_FLAG_1_CSPRNG_AES_CTR_DRBG;
     flags[1] |= SC_FLAG_1_CSPRNG_USE_CALLBACK_RANDOM;
     flags[1] |= SC_FLAG_MORE;
-    flags[2]  = SC_FLAG_2_SAMPLE_SCA_DISCARD_LO | SC_FLAG_2_SAMPLE_SCA_SHUFFLE;
+    flags[2]  = 0;//SC_FLAG_2_SAMPLE_SCA_BLINDING;
 
     SC_TIMER_INSTANCE(keygen_timer);
     SC_TIMER_INSTANCE(sign_timer);
