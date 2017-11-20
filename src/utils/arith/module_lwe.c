@@ -892,7 +892,7 @@ SINT32 high_order_bits(UINT8 *out, const SINT32 *in, size_t n,
     UINT32 hexmask = 0xFFFFFFFF;
     __m256i b_m   = _mm256_setr_epi32(alpha->u.ntt32.m, 0, alpha->u.ntt32.m, 0, alpha->u.ntt32.m, 0, alpha->u.ntt32.m, 0);
     __m256i b_q   = _mm256_setr_epi32(alpha->u.ntt32.q, 0, alpha->u.ntt32.q, 0, alpha->u.ntt32.q, 0, alpha->u.ntt32.q, 0);
-    __m256i b_q2  = _mm256_setr_epi32((alpha->u.ntt32.q>>1)-1, 0, (alpha->u.ntt32.q>>1)-1, 0, (alpha->u.ntt32.q>>1)-1, 0, (alpha->u.ntt32.q>>1)-1, 0);
+    __m256i b_q2  = _mm256_setr_epi32((alpha->u.ntt32.q>>1), 0, (alpha->u.ntt32.q>>1), 0, (alpha->u.ntt32.q>>1), 0, (alpha->u.ntt32.q>>1), 0);
     __m256i p_qm1 = _mm256_setr_epi32(p->u.ntt32.q-1, 0, p->u.ntt32.q-1, 0, p->u.ntt32.q-1, 0, p->u.ntt32.q-1, 0);
     __m256i mask  = _mm256_setr_epi32(hexmask, 0, hexmask, 0, hexmask, 0, hexmask, 0);
     __m128i shift = _mm_setr_epi32(alpha->u.ntt32.k, alpha->u.ntt32.k, alpha->u.ntt32.k, alpha->u.ntt32.k);
