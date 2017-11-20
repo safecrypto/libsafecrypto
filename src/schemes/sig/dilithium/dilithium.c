@@ -1093,7 +1093,7 @@ static void make_g_hint(SINT32 *h, const SINT32 *r, const SINT32 *z, size_t n,
         SINT32 r1 = round_alpha(r[i], &t, alpha, p);
         SINT32 r0 = round_alpha(sum, &t, alpha, p);
         h[i] = (r0 - r1) & m_mask;
-        if (h[i] >= (m >> 1)) {
+        if (h[i] > (m >> 1)) {
             h[i] -= m;
         }
     }
