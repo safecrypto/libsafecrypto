@@ -117,7 +117,7 @@ void decompose_g(SINT32 *t1, SINT32 *t0, const SINT32 *in, size_t n,
         SINT32 t, dividend;
         MODULE_LWE_BARRETT_REDUCTION(t, *v, alpha_k, alpha_m, alpha_q);
 
-        t -= (t >= thresh) * alpha_q;
+        t -= (t > thresh) * alpha_q;
         dividend = *v++ - t;
         if (dividend >= (q - 1)) {
             *t1++ = 0;
