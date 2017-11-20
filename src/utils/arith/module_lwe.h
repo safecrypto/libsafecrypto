@@ -117,7 +117,7 @@ SC_INLINE UINT32 round_alpha(const UINT32 a, SINT32 *a0, const ntt_params_t *alp
 
     // *a0 = temp mod alpha_q
     MODULE_LWE_BARRETT_REDUCTION(*a0, a, alpha_k, alpha_m, alpha_q);
-    if (*a0 >= (alpha_q >> 1)) {
+    if (*a0 > (alpha_q >> 1)) {
         *a0 -= alpha_q;
     }
     a1 = a - *a0;

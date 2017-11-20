@@ -533,6 +533,7 @@ void NTT_FUNC_NAME(ntt32_fft_32)(SINT32 *v, const ntt_params_t *p, const SINT32 
     size_t i, j, k, l;
     SINT32 x, y;
     size_t n = p->n;
+    const SINT32 q = p->u.ntt32.q;
 
 #if defined(_ENABLE_AVX2_INTRINSICS)
     // Create Barret reduction constant vectors
@@ -592,6 +593,7 @@ void NTT_FUNC_NAME(ntt32_fft_32)(SINT32 *v, const ntt_params_t *p, const SINT32 
             // w[0] is always 1
             for (k = 0; k < n; k += i_next) {
                 x = v[k + i];
+                x = sc_mod_limit_s32(x, q);
                 v[k + i] = v[k] - x;
                 v[k] = v[k] + x;
             }

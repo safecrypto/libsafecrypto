@@ -31,6 +31,12 @@
 #include "safecrypto.h"
 
 
+// See http://nadeausoftware.com/articles/2012/10/c_c_tip_how_detect_compiler_name_and_version_using_compiler_predefined_macros
+
+/// Define a macro for detection of GNU GCC
+#define GNU_GCC_COMPILER (defined(__GNUC__) && !defined(__clang__) && !defined(__INTEL_COMPILER))
+
+
 /// Definitions for the maximum permited length of a filename
 #define SC_MAX_FILENAME_LEN   128
 

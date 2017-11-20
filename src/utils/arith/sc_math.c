@@ -20,6 +20,8 @@
 #include <math.h>
 
 
+//-------------------------- Constant-time comparison -------------------------//
+
 #if NATIVE_WORD_SIZE == 64
 volatile SINT32 sc_const_time_lessthan(volatile UINT64 a, volatile UINT64 b)
 {
@@ -32,6 +34,96 @@ volatile SINT32 sc_const_time_lessthan(volatile UINT32 a, volatile UINT32 b)
 }
 #endif
 
+
+//------------------------------ Range limiting -------------------------------//
+
+#if defined(HAVE_128BIT) && defined(__x86_64__)
+SINT128 sc_mod_limit_s128(SINT128 x, SINT128 q)
+{
+#if defined(GNU_GCC_COMPILER) && (__STDC_VERSION__ >= 199901L)
+    x -= (x >= q) * q;
+    x += (x <= -q) * q;
+#else
+    if (x >= q) {
+        x -= q;
+    }
+    if (x <= -q) {
+        x += q;
+    }
+#endif
+    return x;
+}
+
+#endif
+#ifdef HAVE_64BIT
+SINT64 sc_mod_limit_s64(SINT64 x, SINT64 q)
+{
+#if defined(GNU_GCC_COMPILER) && (__STDC_VERSION__ >= 199901L)
+    x -= (x >= q) * q;
+    x += (x <= -q) * q;
+#else
+    if (x >= q) {
+        x -= q;
+    }
+    if (x <= -q) {
+        x += q;
+    }
+#endif
+    return x;
+}
+
+#endif
+SINT32 sc_mod_limit_s32(SINT32 x, SINT32 q)
+{
+#if defined(GNU_GCC_COMPILER) && (__STDC_VERSION__ >= 199901L)
+    x -= (x >= q) * q;
+    x += (x <= -q) * q;
+#else
+    if (x >= q) {
+        x -= q;
+    }
+    if (x <= -q) {
+        x += q;
+    }
+#endif
+    return x;
+}
+
+SINT16 sc_mod_limit_s16(SINT16 x, SINT16 q)
+{
+#if defined(GNU_GCC_COMPILER) && (__STDC_VERSION__ >= 199901L)
+    x -= (x >= q) * q;
+    x += (x <= -q) * q;
+#else
+    if (x >= q) {
+        x -= q;
+    }
+    if (x <= -q) {
+        x += q;
+    }
+#endif
+    return x;
+}
+
+SINT8 sc_mod_limit_s8(SINT8 x, SINT8 q)
+{
+#if defined(GNU_GCC_COMPILER) && (__STDC_VERSION__ >= 199901L)
+    x -= (x >= q) * q;
+    x += (x <= -q) * q;
+#else
+    if (x >= q) {
+        x -= q;
+    }
+    if (x <= -q) {
+        x += q;
+    }
+#endif
+    return x;
+}
+
+
+
+//---------------------------------- Math functions -----------------------------------//
 
 
 // NOTE: M_LN2 (log_e 2) is defined in math.h as 0.69314718055994530942

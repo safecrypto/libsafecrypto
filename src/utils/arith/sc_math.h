@@ -44,6 +44,19 @@ volatile SINT32 sc_const_time_lessthan(volatile UINT32 a, volatile UINT32 b);
 
 
 
+/// Range limiting functions - the return value is -q <= x <= q
+/// @{
+#if defined(HAVE_128BIT) && defined(__x86_64__)
+SINT128 sc_range_limit_s128(SINT128 x, SINT128 q);
+#endif
+#ifdef HAVE_64BIT
+SINT64 sc_range_limit_s64(SINT64 x, SINT64 q);
+#endif
+SINT32 sc_range_limit_s32(SINT32 x, SINT32 q);
+SINT16 sc_range_limit_s16(SINT16 x, SINT16 q);
+SINT8 sc_range_limit_s8(SINT8 x, SINT8 q);
+/// @}
+
 /// Fast math estimation routines
 /// @{
 DOUBLE sc_exp_dbl_coarse(DOUBLE y);
