@@ -110,7 +110,7 @@ END_TEST
 
 START_TEST(test_safecrypto_get_signature_schemes)
 {
-    const sc_sig_scheme_t* schemes = safecrypto_get_signature_schemes();
+    const sc_pkc_scheme_t* schemes = safecrypto_get_signature_schemes();
     while (NULL != schemes) {
 #if !defined(DISABLE_SIGNATURES)
         int valid = 0;
@@ -131,6 +131,63 @@ START_TEST(test_safecrypto_get_signature_schemes)
 #endif
 #if !defined(DISABLE_SIG_DLP)
         valid |= SC_SCHEME_SIG_DLP == schemes->scheme || SC_SCHEME_SIG_DLP_WITH_RECOVERY == schemes->scheme;
+#endif
+        ck_assert_int_ne(valid, 0);
+#endif
+
+        schemes = schemes->next;
+    }
+}
+END_TEST
+
+START_TEST(test_safecrypto_get_encryption_schemes)
+{
+    const sc_pkc_scheme_t* schemes = safecrypto_get_encryption_schemes();
+    while (NULL != schemes) {
+#if !defined(DISABLE_ENCRYPTION)
+        int valid = 0;
+#if !defined(DISABLE_ENC_RLWE)
+        valid |= SC_SCHEME_ENC_RLWE == schemes->scheme;
+#endif
+#if !defined(DISABLE_ENC_KYBER)
+        valid |= SC_SCHEME_ENC_KYBER_CPA == schemes->scheme;
+#endif
+        ck_assert_int_ne(valid, 0);
+#endif
+
+        schemes = schemes->next;
+    }
+}
+END_TEST
+
+START_TEST(test_safecrypto_get_kem_schemes)
+{
+    const sc_pkc_scheme_t* schemes = safecrypto_get_kem_schemes();
+    while (NULL != schemes) {
+#if !defined(DISABLE_SIGNATURES)
+        int valid = 0;
+#if !defined(DISABLE_KEM_ENS)
+        valid |= SC_SCHEME_KEM_ENS == schemes->scheme;
+#endif
+#if !defined(DISABLE_KEM_KYBER)
+        valid |= SC_SCHEME_KEM_KYBER == schemes->scheme;
+#endif
+        ck_assert_int_ne(valid, 0);
+#endif
+
+        schemes = schemes->next;
+    }
+}
+END_TEST
+
+START_TEST(test_safecrypto_get_ibe_schemes)
+{
+    const sc_pkc_scheme_t* schemes = safecrypto_get_ibe_schemes();
+    while (NULL != schemes) {
+#if !defined(DISABLE_SIGNATURES)
+        int valid = 0;
+#if !defined(DISABLE_IBE_DLP)
+        valid |= SC_SCHEME_IBE_DLP == schemes->scheme;
 #endif
         ck_assert_int_ne(valid, 0);
 #endif
@@ -333,6 +390,9 @@ Suite *safecrypto_suite(void)
     tcase_add_test(tc_basic, test_safecrypto_initial_api_null);
     tcase_add_test(tc_basic, test_safecrypto_initial_api_temp_ram);
     tcase_add_test(tc_basic, test_safecrypto_get_signature_schemes);
+    tcase_add_test(tc_basic, test_safecrypto_get_encryption_schemes);
+    tcase_add_test(tc_basic, test_safecrypto_get_kem_schemes);
+    tcase_add_test(tc_basic, test_safecrypto_get_ibe_schemes);
     suite_add_tcase(s, tc_basic);
 
     tc_limits = tcase_create("LIMITS");

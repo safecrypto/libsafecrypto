@@ -137,11 +137,11 @@ typedef struct _utils_crypto_hash safecrypto_hash_t;
 typedef struct _utils_crypto_xof safecrypto_xof_t;
 
 /// A struct used to parse a linked list of supported public key signature schemes
-struct sc_sig_scheme {
+struct sc_pkc_scheme {
     sc_scheme_e           scheme;
-    struct sc_sig_scheme *next;
+    struct sc_pkc_scheme *next;
 };
-typedef struct sc_sig_scheme sc_sig_scheme_t;
+typedef struct sc_pkc_scheme sc_pkc_scheme_t;
 
 
 /** @name Library version
@@ -174,9 +174,27 @@ extern const char *safecrypto_get_configure_invocation(void);
 
 /** @brief Obtain a linked list containing the signature schemes supported by SAFEcrypto
  *
- *  @return A pointer to the first sc_sig_scheme_t node in the linked list
+ *  @return A pointer to the first sc_pkc_scheme_t node in the linked list
  */
-extern const sc_sig_scheme_t *safecrypto_get_signature_schemes(void);
+extern const sc_pkc_scheme_t *safecrypto_get_signature_schemes(void);
+
+/** @brief Obtain a linked list containing the encryption schemes supported by SAFEcrypto
+ *
+ *  @return A pointer to the first sc_pkc_scheme_t node in the linked list
+ */
+extern const sc_pkc_scheme_t *safecrypto_get_encryption_schemes(void);
+
+/** @brief Obtain a linked list containing the KEM schemes supported by SAFEcrypto
+ *
+ *  @return A pointer to the first sc_pkc_scheme_t node in the linked list
+ */
+extern const sc_pkc_scheme_t *safecrypto_get_kem_schemes(void);
+
+/** @brief Obtain a linked list containing the IBE schemes supported by SAFEcrypto
+ *
+ *  @return A pointer to the first sc_pkc_scheme_t node in the linked list
+ */
+extern const sc_pkc_scheme_t *safecrypto_get_ibe_schemes(void);
 /**@}*/
 
 

@@ -204,8 +204,18 @@ static safecrypto_alg_t safecrypto_algorithms[] = {
 // A function pointer used as a callback function for an extenral entropy source
 extern prng_entropy_callback entropy_callback;
 
-// A linked list that lists all supported signature schemes
-static sc_sig_scheme_t g_signature_schemes[SC_SCHEME_MAX];
+// A linked list that lists all supported PKC signature schemes
+static sc_pkc_scheme_t g_pkc_signature_schemes[SC_SCHEME_MAX];
+
+// A linked list that lists all supported PKC encryption schemes
+static sc_pkc_scheme_t g_pkc_encryption_schemes[SC_SCHEME_MAX];
+
+// A linked list that lists all supported PKC KEM schemes
+static sc_pkc_scheme_t g_pkc_kem_schemes[SC_SCHEME_MAX];
+
+// A linked list that lists all supported PKC IBE schemes
+static sc_pkc_scheme_t g_pkc_ibe_schemes[SC_SCHEME_MAX];
+
 
 /****************************************************************************
  * PRIVATE FUNCTIONS
@@ -490,7 +500,7 @@ static safecrypto_t * init_safecrypto(sc_scheme_e scheme, const UINT32 *flags)
     return NULL;
 }
 
-static void add_scheme_node(sc_sig_scheme_t *list, sc_scheme_e scheme)
+static void add_scheme_node(sc_pkc_scheme_t *list, sc_scheme_e scheme)
 {
     size_t i = 0;
     while (NULL != list[i].next) {
@@ -531,37 +541,83 @@ const char *safecrypto_get_configure_invocation(void)
     return CONFIGURE_INVOCATION;
 }
 
-const sc_sig_scheme_t *safecrypto_get_signature_schemes(void)
+const sc_pkc_scheme_t *safecrypto_get_signature_schemes(void)
 {
-    g_signature_schemes[0].scheme = SC_SCHEME_NONE;
-    g_signature_schemes[0].next   = NULL;
+    g_pkc_signature_schemes[0].scheme = SC_SCHEME_NONE;
+    g_pkc_signature_schemes[0].next   = NULL;
 
 #if !defined(DISABLE_SIGNATURES)
 #if !defined(DISABLE_SIG_BLISS_B)
-    add_scheme_node(g_signature_schemes, SC_SCHEME_SIG_BLISS);
+    add_scheme_node(g_pkc_signature_schemes, SC_SCHEME_SIG_BLISS);
 #endif
 #if !defined(DISABLE_SIG_DILITHIUM)
-    add_scheme_node(g_signature_schemes, SC_SCHEME_SIG_DILITHIUM);
+    add_scheme_node(g_pkc_signature_schemes, SC_SCHEME_SIG_DILITHIUM);
 #endif
 #if !defined(DISABLE_SIG_DILITHIUM_G)
-    add_scheme_node(g_signature_schemes, SC_SCHEME_SIG_DILITHIUM_G);
+    add_scheme_node(g_pkc_signature_schemes, SC_SCHEME_SIG_DILITHIUM_G);
 #endif
 #if !defined(DISABLE_SIG_RING_TESLA)
-    add_scheme_node(g_signature_schemes, SC_SCHEME_SIG_RING_TESLA);
+    add_scheme_node(g_pkc_signature_schemes, SC_SCHEME_SIG_RING_TESLA);
 #endif
 #if !defined(DISABLE_SIG_ENS)
-    add_scheme_node(g_signature_schemes, SC_SCHEME_SIG_ENS);
-    add_scheme_node(g_signature_schemes, SC_SCHEME_SIG_ENS_WITH_RECOVERY);
+    add_scheme_node(g_pkc_signature_schemes, SC_SCHEME_SIG_ENS);
+    add_scheme_node(g_pkc_signature_schemes, SC_SCHEME_SIG_ENS_WITH_RECOVERY);
 #endif
 #if !defined(DISABLE_SIG_DLP)
-    add_scheme_node(g_signature_schemes, SC_SCHEME_SIG_DLP);
-    add_scheme_node(g_signature_schemes, SC_SCHEME_SIG_DLP_WITH_RECOVERY);
+    add_scheme_node(g_pkc_signature_schemes, SC_SCHEME_SIG_DLP);
+    add_scheme_node(g_pkc_signature_schemes, SC_SCHEME_SIG_DLP_WITH_RECOVERY);
 #endif
-#else
-    {SC_SCHEME_NONE, NULL},
 #endif
 
-    return (SC_SCHEME_NONE == g_signature_schemes[0].scheme)? NULL : g_signature_schemes;
+    return (SC_SCHEME_NONE == g_pkc_signature_schemes[0].scheme)? NULL : g_pkc_signature_schemes;
+}
+
+const sc_pkc_scheme_t *safecrypto_get_encryption_schemes(void)
+{
+    g_pkc_encryption_schemes[0].scheme = SC_SCHEME_NONE;
+    g_pkc_encryption_schemes[0].next   = NULL;
+
+#if !defined(DISABLE_ENCRYPTION)
+#if !defined(DISABLE_ENC_RLWE)
+    add_scheme_node(g_pkc_encryption_schemes, SC_SCHEME_ENC_RLWE);
+#endif
+#if !defined(DISABLE_ENC_KYBER)
+    add_scheme_node(g_pkc_encryption_schemes, SC_SCHEME_ENC_KYBER_CPA);
+#endif
+#endif
+
+    return (SC_SCHEME_NONE == g_pkc_encryption_schemes[0].scheme)? NULL : g_pkc_encryption_schemes;
+}
+
+const sc_pkc_scheme_t *safecrypto_get_kem_schemes(void)
+{
+    g_pkc_kem_schemes[0].scheme = SC_SCHEME_NONE;
+    g_pkc_kem_schemes[0].next   = NULL;
+
+#if !defined(DISABLE_KEM)
+#if !defined(DISABLE_KEM_ENS)
+    add_scheme_node(g_pkc_kem_schemes, SC_SCHEME_KEM_ENS);
+#endif
+#if !defined(DISABLE_KEM_KYBER)
+    add_scheme_node(g_pkc_kem_schemes, SC_SCHEME_KEM_KYBER);
+#endif
+#endif
+
+    return (SC_SCHEME_NONE == g_pkc_kem_schemes[0].scheme)? NULL : g_pkc_kem_schemes;
+}
+
+const sc_pkc_scheme_t *safecrypto_get_ibe_schemes(void)
+{
+    g_pkc_ibe_schemes[0].scheme = SC_SCHEME_NONE;
+    g_pkc_ibe_schemes[0].next   = NULL;
+
+#if !defined(DISABLE_IBE)
+#if !defined(DISABLE_IBE_DLP)
+    add_scheme_node(g_pkc_ibe_schemes, SC_SCHEME_IBE_DLP);
+#endif
+#endif
+
+    return (SC_SCHEME_NONE == g_pkc_ibe_schemes[0].scheme)? NULL : g_pkc_ibe_schemes;
 }
 
 SINT32 safecrypto_set_debug_level(safecrypto_t *sc, sc_debug_level_e level)
