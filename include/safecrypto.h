@@ -136,6 +136,13 @@ typedef struct _utils_crypto_hash safecrypto_hash_t;
 /// Forward declaration of the XOF struct (user does not require a definition)
 typedef struct _utils_crypto_xof safecrypto_xof_t;
 
+/// A struct used to parse a linked list of supported public key signature schemes
+struct sc_sig_scheme {
+    sc_scheme_e           scheme;
+    struct sc_sig_scheme *next;
+};
+typedef struct sc_sig_scheme sc_sig_scheme_t;
+
 
 /** @name Library version
  *  Functions used to provide the library version.
@@ -165,6 +172,11 @@ extern const char *safecrypto_get_version_string(void);
  */
 extern const char *safecrypto_get_configure_invocation(void);
 
+/** @brief Obtain a linked list containing the signature schemes supported by SAFEcrypto
+ *
+ *  @return A pointer to the first sc_sig_scheme_t node in the linked list
+ */
+extern const sc_sig_scheme_t *safecrypto_get_signature_schemes(void);
 /**@}*/
 
 

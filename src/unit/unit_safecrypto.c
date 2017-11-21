@@ -108,6 +108,38 @@ START_TEST(test_safecrypto_initial_api)
 }
 END_TEST
 
+START_TEST(test_safecrypto_get_signature_schemes)
+{
+    const sc_sig_scheme_t* schemes = safecrypto_get_signature_schemes();
+    while (NULL != schemes) {
+#if !defined(DISABLE_SIGNATURES)
+        int valid = 0;
+#if !defined(DISABLE_SIG_BLISS_B)
+        valid |= SC_SCHEME_SIG_BLISS == schemes->scheme;
+#endif
+#if !defined(DISABLE_SIG_DILITHIUM)
+        valid |= SC_SCHEME_SIG_DILITHIUM == schemes->scheme;
+#endif
+#if !defined(DISABLE_SIG_DILITHIUM_G)
+        valid |= SC_SCHEME_SIG_DILITHIUM_G == schemes->scheme;
+#endif
+#if !defined(DISABLE_SIG_RING_TESLA)
+        valid |= SC_SCHEME_SIG_RING_TESLA == schemes->scheme;
+#endif
+#if !defined(DISABLE_SIG_ENS)
+        valid |= SC_SCHEME_SIG_ENS == schemes->scheme || SC_SCHEME_SIG_ENS_WITH_RECOVERY == schemes->scheme;
+#endif
+#if !defined(DISABLE_SIG_DLP)
+        valid |= SC_SCHEME_SIG_DLP == schemes->scheme || SC_SCHEME_SIG_DLP_WITH_RECOVERY == schemes->scheme;
+#endif
+        ck_assert_int_ne(valid, 0);
+#endif
+
+        schemes = schemes->next;
+    }
+}
+END_TEST
+
 START_TEST(test_safecrypto_initial_api_multiple)
 {
     int32_t retcode;
@@ -300,6 +332,7 @@ Suite *safecrypto_suite(void)
     tcase_add_test(tc_basic, test_safecrypto_initial_api_multiple);
     tcase_add_test(tc_basic, test_safecrypto_initial_api_null);
     tcase_add_test(tc_basic, test_safecrypto_initial_api_temp_ram);
+    tcase_add_test(tc_basic, test_safecrypto_get_signature_schemes);
     suite_add_tcase(s, tc_basic);
 
     tc_limits = tcase_create("LIMITS");
