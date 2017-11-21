@@ -65,7 +65,8 @@ START_TEST(test_safecrypto_initial_api)
 {
     int32_t retcode;
     uint32_t version, errcode;
-    char *version_str;
+    const char *version_str;
+    const char *invocation_str;
     char version_str_actual[32] = {0};
     char version_str_check[32];
     safecrypto_t *sc;
@@ -88,6 +89,9 @@ START_TEST(test_safecrypto_initial_api)
     version_str_check[strlen(version_str_actual)] = 0;
     ck_assert_str_eq(version_str_check, version_str_actual);
     ck_assert_str_eq(version_str+strlen(version_str)-1, "]");
+
+    invocation_str = safecrypto_get_configure_invocation();
+    ck_assert_str_eq(invocation_str, CONFIGURE_INVOCATION);
 
     level = safecrypto_get_debug_level(sc);
 #ifdef DEBUG

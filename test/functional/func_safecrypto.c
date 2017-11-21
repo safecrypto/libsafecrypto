@@ -22,7 +22,7 @@
 int main(void)
 {
 	UINT32 version = safecrypto_get_version();
-	char *version_string = safecrypto_get_version_string();
+	const char *version_string = safecrypto_get_version_string();
 
 	fprintf(stderr, "libsafecrypto v%08X (%s)\n",
 		version, version_string);

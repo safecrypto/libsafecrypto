@@ -1,4 +1,12 @@
 
+# Obtain the configure invocation command
+CMD  := $(shell $(top_srcdir)/config.status --config)
+CMD2 := $(subst $\',,$(CMD))
+
+# C preprocessor flags
+AM_CPPFLAGS             += -DCONFIGURE_INVOCATION='"$(CMD2)"'
+
+
 SUBDIRS                  = . crypto
 
 

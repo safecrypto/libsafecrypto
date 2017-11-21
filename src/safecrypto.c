@@ -501,9 +501,14 @@ UINT32 safecrypto_get_version(void)
                     (PATCH_VERSION      ));
 }
 
-char* safecrypto_get_version_string(void)
+const char* safecrypto_get_version_string(void)
 {
     return BUILD_STRING;
+}
+
+const char *safecrypto_get_configure_invocation(void)
+{
+    return CONFIGURE_INVOCATION;
 }
 
 SINT32 safecrypto_set_debug_level(safecrypto_t *sc, sc_debug_level_e level)

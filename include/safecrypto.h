@@ -151,7 +151,20 @@ extern UINT32 safecrypto_get_version(void);
  * 
  *  @return A string representing the SAFEcrypto version number
  */
-extern char *safecrypto_get_version_string(void);
+extern const char *safecrypto_get_version_string(void);
+/**@}*/
+
+
+/** @name Library capabilities
+ *  Functions used to determine the library capabilities.
+ */
+/**@{*/
+/** @brief Retrieve the configure invocation command used when building the library
+ *
+ *  @return A C-string pointer
+ */
+extern const char *safecrypto_get_configure_invocation(void);
+
 /**@}*/
 
 

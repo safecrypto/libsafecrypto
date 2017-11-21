@@ -46,7 +46,7 @@ UINT32 SAFEcrypto::GetVersion()
 
 std::string SAFEcrypto::GetVersionString()
 {
-	char *version = safecrypto_get_version_string();
+	const char *version = safecrypto_get_version_string();
 	std::string str(version);
 	return str;
 }
