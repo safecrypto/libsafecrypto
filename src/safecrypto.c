@@ -216,6 +216,12 @@ static sc_pkc_scheme_t g_pkc_kem_schemes[SC_SCHEME_MAX];
 // A linked list that lists all supported PKC IBE schemes
 static sc_pkc_scheme_t g_pkc_ibe_schemes[SC_SCHEME_MAX];
 
+// A linked list that lists all supported hash schemes
+static sc_hash_t g_hash_schemes[SC_HASH_MAX];
+
+// A linked list that lists all supported XOF schemes
+static sc_xof_t g_xof_schemes[SC_XOF_MAX];
+
 
 /****************************************************************************
  * PRIVATE FUNCTIONS
@@ -508,6 +514,24 @@ static void add_scheme_node(sc_pkc_scheme_t *list, sc_scheme_e scheme)
     }
 
     if (0 == i && SC_SCHEME_NONE == list[0].scheme) {
+        list[0].scheme   = scheme;
+        list[0].next     = NULL;
+    }
+    else {
+        list[i+1].scheme = scheme;
+        list[i+1].next   = NULL;
+        list[i].next     = &list[i+1];
+    }
+}
+
+static void add_hash_node(sc_hash_t *list, sc_hash_e scheme)
+{
+    size_t i = 0;
+    while (NULL != list[i].next) {
+        i++;
+    }
+
+    if (0 == i && SC_HASH_MAX == list[0].scheme) {
         list[0].scheme   = scheme;
         list[0].next     = NULL;
     }
@@ -1035,6 +1059,36 @@ const sc_statistics_t * safecrypto_get_stats(safecrypto_t *sc)
 }
 
 
+const sc_hash_t *safecrypto_get_hash_schemes(void)
+{
+    g_hash_schemes[0].scheme = SC_HASH_MAX;
+    g_hash_schemes[0].next   = NULL;
+
+#if defined(ENABLE_SHA2)
+    add_hash_node(g_hash_schemes, SC_HASH_SHA2_512);
+    add_hash_node(g_hash_schemes, SC_HASH_SHA2_384);
+    add_hash_node(g_hash_schemes, SC_HASH_SHA2_256);
+    add_hash_node(g_hash_schemes, SC_HASH_SHA2_224);
+#endif
+#if defined(ENABLE_SHA3)
+    add_hash_node(g_hash_schemes, SC_HASH_SHA3_512);
+    add_hash_node(g_hash_schemes, SC_HASH_SHA3_384);
+    add_hash_node(g_hash_schemes, SC_HASH_SHA3_256);
+    add_hash_node(g_hash_schemes, SC_HASH_SHA3_224);
+#endif
+#if defined(ENABLE_BLAKE2)
+    add_hash_node(g_hash_schemes, SC_HASH_BLAKE2_512);
+    add_hash_node(g_hash_schemes, SC_HASH_BLAKE2_384);
+    add_hash_node(g_hash_schemes, SC_HASH_BLAKE2_256);
+    add_hash_node(g_hash_schemes, SC_HASH_BLAKE2_224);
+#endif
+#if defined(ENABLE_WHIRLPOOL)
+    add_hash_node(g_hash_schemes, SC_HASH_WHIRLPOOL_512);
+#endif
+
+    return (SC_HASH_MAX == g_hash_schemes[0].scheme)? NULL : g_hash_schemes;
+}
+
 safecrypto_hash_t * safecrypto_hash_create(sc_hash_e type)
 {
     return utils_crypto_hash_create(type);
@@ -1070,6 +1124,19 @@ SINT32 safecrypto_hash_final(safecrypto_hash_t *hash, UINT8 *md)
     return hash_final(hash, md);
 }
 
+
+const sc_xof_t *safecrypto_get_xof_schemes(void)
+{
+    g_xof_schemes[0].scheme = SC_XOF_MAX;
+    g_xof_schemes[0].next   = NULL;
+
+#if defined(ENABLE_SHA3)
+    add_hash_node(g_xof_schemes, SC_XOF_SHAKE256);
+    add_hash_node(g_xof_schemes, SC_XOF_SHAKE128);
+#endif
+
+    return (SC_XOF_MAX == g_xof_schemes[0].scheme)? NULL : g_xof_schemes;
+}
 
 safecrypto_xof_t * safecrypto_xof_create(sc_xof_e type)
 {

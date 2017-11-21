@@ -12,6 +12,7 @@
 #include "safecrypto.h"
 #include "safecrypto_private.h"
 #include "safecrypto_version.h"
+#include "utils/crypto/prng_types.h"
 
 START_TEST(test_safecrypto_create_private)
 {
@@ -191,6 +192,55 @@ START_TEST(test_safecrypto_get_ibe_schemes)
 #endif
         ck_assert_int_ne(valid, 0);
 #endif
+
+        schemes = schemes->next;
+    }
+}
+END_TEST
+
+START_TEST(test_safecrypto_get_hash_schemes)
+{
+    const sc_hash_t* schemes = safecrypto_get_hash_schemes();
+    while (NULL != schemes) {
+        int valid = 0;
+#if defined(ENABLE_SHA2)
+        valid |= SC_HASH_SHA2_512 == schemes->scheme;
+        valid |= SC_HASH_SHA2_384 == schemes->scheme;
+        valid |= SC_HASH_SHA2_256 == schemes->scheme;
+        valid |= SC_HASH_SHA2_224 == schemes->scheme;
+#endif
+#if defined(ENABLE_SHA3)
+        valid |= SC_HASH_SHA3_512 == schemes->scheme;
+        valid |= SC_HASH_SHA3_384 == schemes->scheme;
+        valid |= SC_HASH_SHA3_256 == schemes->scheme;
+        valid |= SC_HASH_SHA3_224 == schemes->scheme;
+#endif
+#if defined(ENABLE_BLAKE2)
+        valid |= SC_HASH_BLAKE2_512 == schemes->scheme;
+        valid |= SC_HASH_BLAKE2_384 == schemes->scheme;
+        valid |= SC_HASH_BLAKE2_256 == schemes->scheme;
+        valid |= SC_HASH_BLAKE2_224 == schemes->scheme;
+#endif
+#if defined(ENABLE_WHIRLPOOL)
+        valid |= SC_HASH_WHIRLPOOL_512 == schemes->scheme;
+#endif
+        ck_assert_int_ne(valid, 0);
+
+        schemes = schemes->next;
+    }
+}
+END_TEST
+
+START_TEST(test_safecrypto_get_xof_schemes)
+{
+    const sc_xof_t* schemes = safecrypto_get_xof_schemes();
+    while (NULL != schemes) {
+        int valid = 0;
+#if defined(ENABLE_SHA3)
+        valid |= SC_XOF_SHAKE256 == schemes->scheme;
+        valid |= SC_XOF_SHAKE128 == schemes->scheme;
+#endif
+        ck_assert_int_ne(valid, 0);
 
         schemes = schemes->next;
     }
@@ -393,6 +443,8 @@ Suite *safecrypto_suite(void)
     tcase_add_test(tc_basic, test_safecrypto_get_encryption_schemes);
     tcase_add_test(tc_basic, test_safecrypto_get_kem_schemes);
     tcase_add_test(tc_basic, test_safecrypto_get_ibe_schemes);
+    tcase_add_test(tc_basic, test_safecrypto_get_hash_schemes);
+    tcase_add_test(tc_basic, test_safecrypto_get_xof_schemes);
     suite_add_tcase(s, tc_basic);
 
     tc_limits = tcase_create("LIMITS");

@@ -143,6 +143,20 @@ struct sc_pkc_scheme {
 };
 typedef struct sc_pkc_scheme sc_pkc_scheme_t;
 
+/// A struct used to parse a linked list of supported hash schemes
+struct sc_hash {
+    sc_hash_e       scheme;
+    struct sc_hash *next;
+};
+typedef struct sc_hash sc_hash_t;
+
+/// A struct used to parse a linked list of supported XOF schemes
+struct sc_xof {
+    sc_xof_e       scheme;
+    struct sc_xof *next;
+};
+typedef struct sc_xof sc_xof_t;
+
 
 /** @name Library version
  *  Functions used to provide the library version.
@@ -610,6 +624,13 @@ extern SINT32 safecrypto_ake_2way_final(safecrypto_t *sc_sig, safecrypto_t *sc_k
  *  Functions used to provide message hashing functionality.
  */
 /**@{*/
+
+/** @brief Obtain a linked list containing the hash schemes supported by SAFEcrypto
+ *
+ *  @return A pointer to the first sc_hash_t node in the linked list
+ */
+extern const sc_hash_t *safecrypto_get_hash_schemes(void);
+
 /** @brief Create an instance of the selected hash function
  *
  *  @param type The type of hash function
@@ -672,6 +693,13 @@ extern SINT32 safecrypto_hash_final(safecrypto_hash_t *hash, UINT8 *md);
  *  Functions used to provide XOF functionality.
  */
 /**@{*/
+
+/** @brief Obtain a linked list containing the XOF schemes supported by SAFEcrypto
+ *
+ *  @return A pointer to the first sc_xof_t node in the linked list
+ */
+extern const sc_xof_t *safecrypto_get_xof_schemes(void);
+
 /** @brief Create an instance of the selected XOF function
  *
  *  @param type The type of XOF function
