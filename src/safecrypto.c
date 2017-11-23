@@ -542,6 +542,24 @@ static void add_hash_node(sc_hash_t *list, sc_hash_e scheme)
     }
 }
 
+static void add_xof_node(sc_xof_t *list, sc_xof_e scheme)
+{
+    size_t i = 0;
+    while (NULL != list[i].next) {
+        i++;
+    }
+
+    if (0 == i && SC_XOF_MAX == list[0].scheme) {
+        list[0].scheme   = scheme;
+        list[0].next     = NULL;
+    }
+    else {
+        list[i+1].scheme = scheme;
+        list[i+1].next   = NULL;
+        list[i].next     = &list[i+1];
+    }
+}
+
 
 /*****************************************************************************
  * PUBLIC FUNCTIONS
@@ -1131,8 +1149,8 @@ const sc_xof_t *safecrypto_get_xof_schemes(void)
     g_xof_schemes[0].next   = NULL;
 
 #if defined(ENABLE_SHA3)
-    add_hash_node(g_xof_schemes, SC_XOF_SHAKE256);
-    add_hash_node(g_xof_schemes, SC_XOF_SHAKE128);
+    add_xof_node(g_xof_schemes, SC_XOF_SHAKE256);
+    add_xof_node(g_xof_schemes, SC_XOF_SHAKE128);
 #endif
 
     return (SC_XOF_MAX == g_xof_schemes[0].scheme)? NULL : g_xof_schemes;
