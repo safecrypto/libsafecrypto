@@ -70,6 +70,9 @@
 #endif
 #endif
 
+/// Assume that the H(id) function returns a poly ring in the NTT domain
+#define H_NTT_OPTIMISATION
+
 
 /// A struct use to store DLP IBE scheme variables
 SC_STRUCT_PACK_START

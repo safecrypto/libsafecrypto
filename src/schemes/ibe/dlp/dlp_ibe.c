@@ -833,6 +833,10 @@ SINT32 dlp_ibe_extract(safecrypto_t *sc, size_t idlen, const UINT8 *id,
     LONGDOUBLE sig;
     gpv_t gpv;
     UINT32 gaussian_flags = 0;
+#ifdef H_NTT_OPTIMISATION
+    const SINT32 *w, *r;
+    ntt_params_t *ntt;
+#endif
 #if defined(DLP_IBE_EFFICIENT_GAUSSIAN_SAMPLING)
     gaussian_flags = GPV_GAUSSIAN_SAMPLE_EFFICIENT;
 #elif defined(DLP_IBE_GAUSSIAN_SAMPLE_MW_BOOTSTRAP)
@@ -878,6 +882,12 @@ SINT32 dlp_ibe_extract(safecrypto_t *sc, size_t idlen, const UINT8 *id,
 
     // Translate the ID into a polynomial using a random oracle
     id_function(sc, id, idlen, c);
+#ifdef H_NTT_OPTIMISATION
+    w        = sc->dlp_ibe->params->w;
+    r        = sc->dlp_ibe->params->r;
+    ntt      = &sc->dlp_ibe->ntt;
+    sc->sc_ntt->inv_ntt_32_32_large(c, ntt, c, w, r);
+#endif
 
     // Obtain the Gram Scmidt orthogonalisation of the polynomial basis
     GSO_TYPE *b_gs SC_DEFAULT_ALIGNED = NULL;
@@ -1194,7 +1204,9 @@ SINT32 dlp_ibe_encrypt(safecrypto_t *sc,
         sc->sc_ntt->mul_32_pointwise(u, ntt, e3, h_ntt);
         sc_ntt->inv_ntt_32_32_large(u, ntt, u, w, r);
     }
+#ifndef H_NTT_OPTIMISATION
     sc_ntt->fwd_ntt_32_32_large(c, ntt, c, w);
+#endif
     sc->sc_ntt->mul_32_pointwise(v, ntt, e3, c);
     sc_ntt->inv_ntt_32_32_large(v, ntt, v, w, r);
 #else
@@ -1213,7 +1225,9 @@ SINT32 dlp_ibe_encrypt(safecrypto_t *sc,
 #endif
 #else
     sc_ntt->fwd_ntt_32_32_large(e3, ntt, e3, w);
+#ifndef H_NTT_OPTIMISATION
     sc_ntt->fwd_ntt_32_32_large(c, ntt, c, w);
+#endif
     sc->sc_ntt->mul_32_pointwise(u, ntt, e3, h_ntt);
     sc->sc_ntt->mul_32_pointwise(v, ntt, e3, c);
     sc_ntt->inv_ntt_32_32_large(u, ntt, u, w, r);
