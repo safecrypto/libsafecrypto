@@ -228,7 +228,7 @@ extern safecrypto_t *safecrypto_create(sc_scheme_e scheme, SINT32 set,
 
 /** @brief Destroy a SAFEcrypto object
  *  @param sc A pointer to a safecrypto object
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_destroy(safecrypto_t *sc);
 /**@}*/
@@ -242,7 +242,7 @@ extern SINT32 safecrypto_destroy(safecrypto_t *sc);
  *  @param sc A pointer to a safecrypto object
  *  @param mem A pointer to a memory array
  *  @param len The size (in bytes) of the memory array (aligned to SC_DEFAULT_ALIGNED)
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_scratch_external(safecrypto_t *sc, void *mem, size_t len);
 
@@ -253,7 +253,7 @@ extern SINT32 safecrypto_scratch_external(safecrypto_t *sc, void *mem, size_t le
 /** @brief Set an intermediate memory pointer
  *  @param sc A pointer to a safecrypto object
  *  @param len A pointer to the size (in bytes) of the memory array
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_scratch_size(safecrypto_t *sc, size_t *len);
 
@@ -263,7 +263,7 @@ extern SINT32 safecrypto_scratch_size(safecrypto_t *sc, size_t *len);
 /**@{*/
 /** @brief Set a callback function pointer
  *  @param sc A pointer to a func_get_random_entropy function
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_entropy_callback(safecrypto_entropy_cb_func fn_entropy);
 /**@}*/
@@ -277,7 +277,7 @@ extern SINT32 safecrypto_entropy_callback(safecrypto_entropy_cb_func fn_entropy)
  *  @param level The debug verboseness
  *  @param sc A pointer to a safecrypto object
  *  @param level The user specified debug verbosity
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_set_debug_level(safecrypto_t *sc, sc_debug_level_e level);
 
@@ -318,7 +318,7 @@ extern void safecrypto_err_clear_error(safecrypto_t *sc);
 /** @brief Create a SAFEcrypto key-pair and store it in the SAFEcrypto struct.
  *
  *  @param sc A pointer to a safecrypto object
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_keygen(safecrypto_t *sc);
 
@@ -327,7 +327,7 @@ extern SINT32 safecrypto_keygen(safecrypto_t *sc);
  *  @param sc A pointer to a safecrypto object
  *  @param pub Entropy coding to be applied to the public key
  *  @param priv Entropy coding to be applied to the private key
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_set_key_coding(safecrypto_t *sc, sc_entropy_type_e pub,
     sc_entropy_type_e priv);
@@ -337,7 +337,7 @@ extern SINT32 safecrypto_set_key_coding(safecrypto_t *sc, sc_entropy_type_e pub,
  *  @param sc A pointer to a safecrypto object
  *  @param pub Entropy coding to be applied to the public key
  *  @param priv Entropy coding to be applied to the private key polynomial
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_get_key_coding(safecrypto_t *sc, sc_entropy_type_e *pub,
     sc_entropy_type_e *priv);
@@ -347,7 +347,7 @@ extern SINT32 safecrypto_get_key_coding(safecrypto_t *sc, sc_entropy_type_e *pub
  *  @param sc A pointer to a safecrypto object
  *  @param key A serialized public key
  *  @param key_len The length of the key array
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_public_key_load(safecrypto_t *sc, const UINT8 *key, size_t keylen);
 
@@ -356,7 +356,7 @@ extern SINT32 safecrypto_public_key_load(safecrypto_t *sc, const UINT8 *key, siz
  *  @param sc A pointer to a safecrypto object
  *  @param key A serialized private key
  *  @param key_len The length of the key array
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_private_key_load(safecrypto_t *sc, const UINT8 *key, size_t keylen);
 
@@ -365,7 +365,7 @@ extern SINT32 safecrypto_private_key_load(safecrypto_t *sc, const UINT8 *key, si
  *  @param sc A pointer to a safecrypto object
  *  @param key A serialized public key
  *  @param keylen The size of the returned public key
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_public_key_encode(safecrypto_t *sc, UINT8 **key, size_t *keylen);
 
@@ -374,7 +374,7 @@ extern SINT32 safecrypto_public_key_encode(safecrypto_t *sc, UINT8 **key, size_t
  *  @param sc A pointer to a safecrypto object
  *  @param key A serialized private key
  *  @param keylen The size of the returned private key
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_private_key_encode(safecrypto_t *sc, UINT8 **key, size_t *keylen);
 
@@ -391,7 +391,7 @@ extern SINT32 safecrypto_private_key_encode(safecrypto_t *sc, UINT8 **key, size_
  *  @param c_len Ciphertext length
  *  @param k Output master key
  *  @param k_len Master key length
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_encapsulation(safecrypto_t *sc,
 	  UINT8 **c, size_t *c_len,
@@ -404,7 +404,7 @@ extern SINT32 safecrypto_encapsulation(safecrypto_t *sc,
  *  @param c_len Ciphertext length
  *  @param k Output master key
  *  @param k_len Master key length
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_decapsulation(safecrypto_t *sc,
 	  const UINT8 *c, size_t c_len,
@@ -415,7 +415,7 @@ extern SINT32 safecrypto_decapsulation(safecrypto_t *sc,
  *  @param sc Object containing key pair and lattice parameters
  *  @param sklen The size of the user secret key in bytes
  *  @param sk The user secret key obtained from the Private Key Generator
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_secret_key(safecrypto_t *sc, size_t sklen, const UINT8 *sk);
 
@@ -426,7 +426,7 @@ extern SINT32 safecrypto_secret_key(safecrypto_t *sc, size_t sklen, const UINT8 
  *  @param id The User ID
  *  @param sklen The size of the user secret key in bytes
  *  @param sk The output user secret key
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_ibe_extract(safecrypto_t *sc, size_t idlen, const UINT8 *id,
     size_t *sklen, UINT8 **sk);
@@ -440,7 +440,7 @@ extern SINT32 safecrypto_ibe_extract(safecrypto_t *sc, size_t idlen, const UINT8
  *  @param from The input message
  *  @param tlen The size of the ciphertext array in bytes
  *  @param to The output ciphertext
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_ibe_public_encrypt(safecrypto_t *sc,
     size_t idlen, const UINT8 *id,
@@ -454,7 +454,7 @@ extern SINT32 safecrypto_ibe_public_encrypt(safecrypto_t *sc,
  *  @param from The input message
  *  @param tlen The size of the ciphertext array in bytes
  *  @param to The output ciphertext
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_public_encrypt(safecrypto_t *sc,
     size_t flen, const UINT8 *from, size_t *tlen, UINT8 **to);
@@ -466,7 +466,7 @@ extern SINT32 safecrypto_public_encrypt(safecrypto_t *sc,
  *  @param from The input ciphertext
  *  @param tlen The size of the output message in bytes
  *  @param to The output message
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_private_decrypt(safecrypto_t *sc,
     size_t flen, const UINT8 *from, size_t *tlen, UINT8 **to);
@@ -478,7 +478,7 @@ extern SINT32 safecrypto_private_decrypt(safecrypto_t *sc,
  *  @param mlen The size of the message array in bytes
  *  @param sigret The output signature
  *  @param siglen The size of the signature array in bytes
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_sign(safecrypto_t *sc, const UINT8 *m, size_t mlen,
     UINT8 **sigret, size_t *siglen);
@@ -503,7 +503,7 @@ extern SINT32 safecrypto_verify(safecrypto_t *sc, const UINT8 *m, size_t mlen,
  *  @param mlen The size of the message array in bytes when called, modified upon return
  *  @param sigret The output signature
  *  @param siglen The size of the signature array in bytes
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_sign_with_recovery(safecrypto_t *sc, UINT8 **m, size_t *mlen,
     UINT8 **sigret, size_t *siglen);
@@ -558,7 +558,7 @@ extern const sc_statistics_t * safecrypto_get_stats(safecrypto_t *sc);
  *  @param kem_len The length of the output KEM encapsulation key
  *  @param sig A signature of the output KEM encapsulation key
  *  @param sig_len The length of the signature
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_ake_2way_init(safecrypto_t *sc_sig, safecrypto_t *sc_kem,
     UINT8 **kem, size_t *kem_len, UINT8 **sig, size_t *sig_len);
@@ -641,7 +641,7 @@ extern safecrypto_hash_t * safecrypto_hash_create(sc_hash_e type);
 /** @brief Destroy an instance of a hash and release all memory resources
  *
  *  @param hash A pointer to the hash struct
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_hash_destroy(safecrypto_hash_t *hash);
 
@@ -662,7 +662,7 @@ extern size_t safecrypto_hash_length(safecrypto_hash_t *hash);
 /** @brief The common hash API function used to initialise
  *
  *  @param hash A pointer to the hash struct
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_hash_init(safecrypto_hash_t *hash);
 
@@ -671,7 +671,7 @@ extern SINT32 safecrypto_hash_init(safecrypto_hash_t *hash);
  *  @param hash A pointer to the hash struct
  *  @param data A pointer to the memory array containing message bytes
  *  @param len The length of the message data array
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_hash_update(safecrypto_hash_t *hash, const UINT8 *data, size_t len);
 
@@ -679,7 +679,7 @@ extern SINT32 safecrypto_hash_update(safecrypto_hash_t *hash, const UINT8 *data,
  *
  *  @param hash A pointer to the hash struct
  *  @param md A pointer to the message digest
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_hash_final(safecrypto_hash_t *hash, UINT8 *md);
 /**@}*/
@@ -710,7 +710,7 @@ extern safecrypto_xof_t * safecrypto_xof_create(sc_xof_e type);
 /** @brief Destroy an instance of a XOF and release all memory resources
  *
  *  @param xof A pointer to the XOF struct
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_xof_destroy(safecrypto_xof_t* xof);
 
@@ -724,7 +724,7 @@ extern sc_xof_e safecrypto_xof_type(safecrypto_xof_t *xof);
 /** @brief Initialise a XOF instance
  *
  *  @param xof A pointer to the XOF struct
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_xof_init(safecrypto_xof_t *xof);
 
@@ -733,14 +733,14 @@ extern SINT32 safecrypto_xof_init(safecrypto_xof_t *xof);
  *  @param xof A pointer to the XOF struct
  *  @param data A pointer to the memory array containing message bytes
  *  @param len The length of the message data array
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_xof_absorb(safecrypto_xof_t *xof, const UINT8 *data, size_t len);
 
 /** @brief XOF API function used to finalize the XOF input
  *
  *  @param xof A pointer to the XOF struct
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_xof_final(safecrypto_xof_t *xof);
 
@@ -749,7 +749,7 @@ extern SINT32 safecrypto_xof_final(safecrypto_xof_t *xof);
  *  @param xof A pointer to the XOF struct
  *  @param output A pointer to the memory array containing 
  *  @param len The length of the output data array
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_xof_squeeze(safecrypto_xof_t *xof, UINT8 *output, size_t len);
 /**@}*/
