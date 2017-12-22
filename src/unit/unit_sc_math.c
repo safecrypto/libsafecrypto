@@ -14,6 +14,7 @@
 #include "safecrypto_version.h"
 #include "utils/arith/sc_math.c"
 #include <math.h>
+#include <limits.h>
 
 
 START_TEST(test_constant_time_less_than)
@@ -88,7 +89,7 @@ END_TEST
 
 START_TEST(test_parity_64)
 {
-#ifdef HAVE_64BIT
+#if __WORDSIZE == 64
     UINT32 parity;
     parity = sc_bit_parity_64(0xFFFFFFFFFFFFFFFFULL);
     ck_assert_uint_eq(parity, 0);
@@ -178,7 +179,7 @@ END_TEST
 
 START_TEST(test_hamming_64)
 {
-#ifdef HAVE_64BIT
+#if __WORDSIZE == 64
     UINT64 hamming;
     hamming = sc_hamming_64(0xFFFFFFFFFFFFFFFFULL);
     ck_assert_uint_eq(hamming, 64);
@@ -241,7 +242,7 @@ END_TEST
 
 START_TEST(test_ctz_64)
 {
-#ifdef HAVE_64BIT
+#if __WORDSIZE == 64
     UINT32 ctz = sc_ctz_64(0xFFFFFFFFFFFFFFFFULL);
     ck_assert_uint_eq(ctz, 0);
     ctz = sc_ctz_64(0x0000000000000000ULL);
@@ -303,7 +304,7 @@ END_TEST
 
 START_TEST(test_clz_64)
 {
-#ifdef HAVE_64BIT
+#if __WORDSIZE == 64
     UINT32 clz = sc_clz_64(0xFFFFFFFFFFFFFFFFULL);
     ck_assert_uint_eq(clz, 0);
     clz = sc_clz_64(0x0000000000000000ULL);
@@ -343,7 +344,7 @@ END_TEST
 
 START_TEST(test_log2_64)
 {
-#ifdef HAVE_64BIT
+#if __WORDSIZE == 64
     UINT32 log2 = sc_log2_64(0xFFFFFFFFFFFFFFFFULL);
     ck_assert_uint_eq(log2, 63);
     log2 = sc_log2_64(0x0000000000000000ULL);

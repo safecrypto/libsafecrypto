@@ -477,8 +477,8 @@ START_TEST(test_resultant)
     SINT32 retval;
     sc_mpz_t gcd;
     sc_poly_mpz_t a, b;
-    FILE *stream;
 
+    FILE *stream;
     stream = freopen("/dev/null", "a", stdout);
     ck_assert_ptr_ne(stream, NULL);
     setbuf(stdout, resultant);
