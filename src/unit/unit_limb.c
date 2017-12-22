@@ -437,28 +437,24 @@ START_TEST(test_qrnnd_3by2)
 {
     sc_ulimb_t q, r1, r0, n2, n1, n0, d1, d0, d_inv;
     n2 = 0;
-    n1 = 2 << SC_LIMB_BITS2;
+    n1 = SC_LIMB_WORD(2) << SC_LIMB_BITS2;
     n0 = 0;
-    d1 = 1 << SC_LIMB_BITS2;
+    d1 = SC_LIMB_WORD(1) << SC_LIMB_BITS2;
     d0 = 0;
     d_inv = limb_inverse_3by2(d1, d0);
-    fprintf(stderr, "HERE\n");
     udiv_qrnnndd_preinv(&q, &r1, &r0, n2, n1, n0, d1, d0, d_inv);
-    fprintf(stderr, "HERE 2\n");
     ck_assert_uint_eq(q, SC_LIMB_WORD(2));
     ck_assert_uint_eq(r1, SC_LIMB_WORD(0));
     ck_assert_uint_eq(r0, SC_LIMB_WORD(0));
     n2 = 0;
-    n1 = 3 << SC_LIMB_BITS2;
+    n1 = SC_LIMB_WORD(3) << SC_LIMB_BITS2;
     n0 = 0;
-    d1 = 1 << SC_LIMB_BITS2;
+    d1 = SC_LIMB_WORD(1) << SC_LIMB_BITS2;
     d0 = SC_LIMB_HIGHBIT;
     d_inv = limb_inverse_3by2(d1, d0);
-    fprintf(stderr, "HERE 3\n");
     udiv_qrnnndd_preinv(&q, &r1, &r0, n2, n1, n0, d1, d0, d_inv);
-    fprintf(stderr, "HERE 4\n");
     ck_assert_uint_eq(q, SC_LIMB_WORD(2));
-    ck_assert_uint_eq(r1, SC_LIMB_WORD(65535));
+    ck_assert_uint_eq(r1, SC_LIMB_MASK_LOW);
     ck_assert_uint_eq(r0, SC_LIMB_WORD(0));
 }
 END_TEST
