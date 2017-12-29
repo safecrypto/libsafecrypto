@@ -136,6 +136,9 @@ typedef struct _utils_crypto_hash safecrypto_hash_t;
 /// Forward declaration of the XOF struct (user does not require a definition)
 typedef struct _utils_crypto_xof safecrypto_xof_t;
 
+/// Forward declaration of the PRNG struct (user does not require a definition)
+typedef struct prng_ctx_t safecrypto_prng_t;
+
 /// A struct used to parse a linked list of supported public key signature schemes
 struct sc_pkc_scheme {
     sc_scheme_e           scheme;
@@ -156,6 +159,13 @@ struct sc_xof {
     struct sc_xof *next;
 };
 typedef struct sc_xof sc_xof_t;
+
+/// A struct used to parse a linked list of supported XOF schemes
+struct sc_prng {
+    safecrypto_prng_e  scheme;
+    struct sc_prng    *next;
+};
+typedef struct sc_prng sc_prng_t;
 
 
 /** @name Library version
@@ -752,4 +762,66 @@ extern SINT32 safecrypto_xof_final(safecrypto_xof_t *xof);
  *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_xof_squeeze(safecrypto_xof_t *xof, UINT8 *output, size_t len);
+
 /**@}*/
+
+
+/** @name Pseudo Random Number Generator
+ *  Functions used to provide PRNG functionality.
+ */
+/**@{*/
+
+/** @brief Obtain a linked list containing the PRNG schemes supported by SAFEcrypto
+ *
+ *  @return A pointer to the first sc_prng_t node in the linked list
+ */
+extern const sc_prng_t *safecrypto_get_prng_schemes(void);
+
+/** @brief Create and initialise the PRNG for the specified type
+ *
+ *  @param type The PRNG algorithm to be used
+ *  @param seed_period The number of bytes produced before the PRNG must be re-seeded
+ *  @param cb A function pointer to the callback function used to provide seed material
+ *  @return A pointer to a PRNG object, NULL is returned upon failure
+ */
+extern safecrypto_prng_t * safecrypto_prng_create(safecrypto_prng_e type, size_t seed_period,
+    safecrypto_prng_entropy_callback cb);
+
+/** @brief Destroy the specified PRNG instance
+ *
+ *  @param ctx A pointer to the PRNG struct
+ *  @return Returns 0 on success
+ */
+extern SINT32 safecrypto_prng_destroy(safecrypto_prng_t *ctx);
+
+/** @brief Return the type of PRNG that has been configured
+ *
+ *  @param ctx A pointer to the PRNG struct
+ *  @return Returns the enumerated type describing the PRNG type
+ */
+extern safecrypto_prng_e safecrypto_prng_get_type(safecrypto_prng_t *ctx);
+
+/** @brief Reset the PRNG buffers
+ *
+ *  @param ctx A pointer to the PRNG struct
+ */
+extern void safecrypto_prng_reset(safecrypto_prng_t *ctx);
+
+/** @name PRNG functions to return specified types with random content
+ */
+/**@{*/
+#ifdef HAVE_64BIT
+extern UINT64 safecrypto_prng_64(safecrypto_prng_t *ctx);
+#endif
+extern UINT32 safecrypto_prng_32(safecrypto_prng_t *ctx);
+extern UINT16 safecrypto_prng_16(safecrypto_prng_t *ctx);
+extern UINT8 safecrypto_prng_8(safecrypto_prng_t *ctx);
+extern SINT32 safecrypto_prng_bit(safecrypto_prng_t *ctx);
+extern FLOAT safecrypto_prng_float(safecrypto_prng_t *ctx);
+extern DOUBLE safecrypto_prng_double(safecrypto_prng_t *ctx);
+extern UINT32 safecrypto_prng_var(safecrypto_prng_t *ctx, size_t n);
+extern SINT32 safecrypto_prng_mem(safecrypto_prng_t *ctx, UINT8 *mem, SINT32 length);
+/**@}*/
+
+/**@}*/
+

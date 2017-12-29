@@ -222,6 +222,9 @@ static sc_hash_t g_hash_schemes[SC_HASH_MAX];
 // A linked list that lists all supported XOF schemes
 static sc_xof_t g_xof_schemes[SC_XOF_MAX];
 
+// A linked list that lists all supported PRNG schemes
+static sc_prng_t g_prng_schemes[SC_PRNG_MAX];
+
 
 /****************************************************************************
  * PRIVATE FUNCTIONS
@@ -550,6 +553,24 @@ static void add_xof_node(sc_xof_t *list, sc_xof_e scheme)
     }
 
     if (0 == i && SC_XOF_MAX == list[0].scheme) {
+        list[0].scheme   = scheme;
+        list[0].next     = NULL;
+    }
+    else {
+        list[i+1].scheme = scheme;
+        list[i+1].next   = NULL;
+        list[i].next     = &list[i+1];
+    }
+}
+
+static void add_prng_node(sc_prng_t *list, safecrypto_prng_e scheme)
+{
+    size_t i = 0;
+    while (NULL != list[i].next) {
+        i++;
+    }
+
+    if (0 == i && SC_PRNG_MAX == list[0].scheme) {
         list[0].scheme   = scheme;
         list[0].next     = NULL;
     }
@@ -1190,3 +1211,137 @@ SINT32 safecrypto_xof_squeeze(safecrypto_xof_t *xof, UINT8 *output, size_t len)
 {
     return xof_squeeze(xof, output, len);
 }
+
+
+const sc_prng_t *safecrypto_get_prng_schemes(void)
+{
+    g_prng_schemes[0].scheme = SC_PRNG_MAX;
+    g_prng_schemes[0].next   = NULL;
+
+#if defined(SC_PRNG_SYSTEM)
+    add_prng_node(g_prng_schemes, SC_PRNG_SYSTEM);
+#endif
+#if defined(SC_PRNG_AES_CTR_DRBG)
+    add_prng_node(g_prng_schemes, SC_PRNG_AES_CTR_DRBG);
+#endif
+#if defined(SC_PRNG_AES_CTR)
+    add_prng_node(g_prng_schemes, SC_PRNG_AES_CTR);
+#endif
+#if defined(SC_PRNG_CHACHA)
+    add_prng_node(g_prng_schemes, SC_PRNG_CHACHA);
+#endif
+#if defined(SC_PRNG_SALSA)
+    add_prng_node(g_prng_schemes, SC_PRNG_SALSA);
+#endif
+#if defined(SC_PRNG_ISAAC)
+    add_prng_node(g_prng_schemes, SC_PRNG_ISAAC);
+#endif
+#if defined(SC_PRNG_KISS)
+    add_prng_node(g_prng_schemes, SC_PRNG_KISS);
+#endif
+#if defined(SC_PRNG_HASH_DRBG_SHA2_256)
+    add_prng_node(g_prng_schemes, SC_PRNG_HASH_DRBG_SHA2_256);
+#endif
+#if defined(SC_PRNG_HASH_DRBG_SHA2_512)
+    add_prng_node(g_prng_schemes, SC_PRNG_HASH_DRBG_SHA2_512);
+#endif
+#if defined(SC_PRNG_HASH_DRBG_SHA3_256)
+    add_prng_node(g_prng_schemes, SC_PRNG_HASH_DRBG_SHA3_256);
+#endif
+#if defined(SC_PRNG_HASH_DRBG_SHA3_512)
+    add_prng_node(g_prng_schemes, SC_PRNG_HASH_DRBG_SHA3_512);
+#endif
+#if defined(SC_PRNG_HASH_DRBG_BLAKE2_256)
+    add_prng_node(g_prng_schemes, SC_PRNG_HASH_DRBG_BLAKE2_256);
+#endif
+#if defined(SC_PRNG_HASH_DRBG_BLAKE2_512)
+    add_prng_node(g_prng_schemes, SC_PRNG_HASH_DRBG_BLAKE2_512);
+#endif
+#if defined(SC_PRNG_HASH_DRBG_WHIRLPOOL_512)
+    add_prng_node(g_prng_schemes, SC_PRNG_HASH_DRBG_WHIRLPOOL_512);
+#endif
+#if defined(SC_PRNG_FILE)
+    add_prng_node(g_prng_schemes, SC_PRNG_FILE);
+#endif
+#if defined(SC_PRNG_HIGH_ENTROPY)
+    add_prng_node(g_prng_schemes, SC_PRNG_HIGH_ENTROPY);
+#endif
+
+    return (SC_PRNG_MAX == g_prng_schemes[0].scheme)? NULL : g_prng_schemes;
+}
+
+safecrypto_prng_t * safecrypto_prng_create(safecrypto_prng_e type, size_t seed_period,
+    safecrypto_prng_entropy_callback cb)
+{
+    prng_ctx_t *ctx = prng_create(SC_ENTROPY_CALLBACK, type, SC_PRNG_THREADING_NONE, seed_period);
+    if (NULL == ctx) {
+        return NULL;
+    }
+
+    prng_set_entropy_callback(cb);
+    prng_init(ctx, NULL, 0);
+    return (safecrypto_prng_t*)ctx;
+}
+
+SINT32 safecrypto_prng_destroy(safecrypto_prng_t *ctx)
+{
+    prng_destroy((prng_ctx_t *)ctx);
+}
+
+safecrypto_prng_e safecrypto_prng_get_type(safecrypto_prng_t *ctx)
+{
+    return prng_get_type((prng_ctx_t *)ctx);
+}
+
+void safecrypto_prng_reset(safecrypto_prng_t *ctx)
+{
+    prng_reset((prng_ctx_t *)ctx);
+}
+
+#ifdef HAVE_64BIT
+UINT64 safecrypto_prng_64(safecrypto_prng_t *ctx)
+{
+    return prng_64((prng_ctx_t *)ctx);
+}
+#endif
+
+UINT32 safecrypto_prng_32(safecrypto_prng_t *ctx)
+{
+    return prng_32((prng_ctx_t *)ctx);
+}
+
+UINT16 safecrypto_prng_16(safecrypto_prng_t *ctx)
+{
+    return prng_16((prng_ctx_t *)ctx);
+}
+
+UINT8 safecrypto_prng_8(safecrypto_prng_t *ctx)
+{
+    return prng_8((prng_ctx_t *)ctx);
+}
+
+SINT32 safecrypto_prng_bit(safecrypto_prng_t *ctx)
+{
+    return prng_bit((prng_ctx_t *)ctx);
+}
+
+FLOAT safecrypto_prng_float(safecrypto_prng_t *ctx)
+{
+    return prng_float((prng_ctx_t *)ctx);
+}
+
+DOUBLE safecrypto_prng_double(safecrypto_prng_t *ctx)
+{
+    return prng_double((prng_ctx_t *)ctx);
+}
+
+UINT32 safecrypto_prng_var(safecrypto_prng_t *ctx, size_t n)
+{
+    return prng_var((prng_ctx_t *)ctx, n);
+}
+
+SINT32 safecrypto_prng_mem(safecrypto_prng_t *ctx, UINT8 *mem, SINT32 length)
+{
+    return prng_mem((prng_ctx_t *)ctx, mem, length);
+}
+

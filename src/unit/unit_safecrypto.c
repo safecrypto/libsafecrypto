@@ -247,6 +247,103 @@ START_TEST(test_safecrypto_get_xof_schemes)
 }
 END_TEST
 
+START_TEST(test_safecrypto_get_prng_schemes)
+{
+    const sc_prng_t* schemes = safecrypto_get_prng_schemes();
+    while (NULL != schemes) {
+        int valid = 0;
+#if defined(SC_PRNG_SYSTEM)
+        valid |= SC_PRNG_SYSTEM == schemes->scheme;
+#endif
+#if defined(SC_PRNG_AES_CTR_DRBG)
+        valid |= SC_PRNG_AES_CTR_DRBG == schemes->scheme;
+#endif
+#if defined(SC_PRNG_AES_CTR)
+        valid |= SC_PRNG_AES_CTR == schemes->scheme;
+#endif
+#if defined(SC_PRNG_CHACHA)
+        valid |= SC_PRNG_CHACHA == schemes->scheme;
+#endif
+#if defined(SC_PRNG_SALSA)
+        valid |= SC_PRNG_SALSA == schemes->scheme;
+#endif
+#if defined(SC_PRNG_ISAAC)
+        valid |= SC_PRNG_ISAAC == schemes->scheme;
+#endif
+#if defined(SC_PRNG_KISS)
+        valid |= SC_PRNG_KISS == schemes->scheme;
+#endif
+#if defined(SC_PRNG_HASH_DRBG_SHA2_256)
+        valid |= SC_PRNG_HASH_DRBG_SHA2_256 == schemes->scheme;
+#endif
+#if defined(SC_PRNG_HASH_DRBG_SHA2_512)
+        valid |= SC_PRNG_HASH_DRBG_SHA2_512 == schemes->scheme;
+#endif
+#if defined(SC_PRNG_HASH_DRBG_SHA3_256)
+        valid |= SC_PRNG_HASH_DRBG_SHA3_256 == schemes->scheme;
+#endif
+#if defined(SC_PRNG_HASH_DRBG_SHA3_512)
+        valid |= SC_PRNG_HASH_DRBG_SHA3_512 == schemes->scheme;
+#endif
+#if defined(SC_PRNG_HASH_DRBG_BLAKE2_256)
+        valid |= SC_PRNG_HASH_DRBG_BLAKE2_256 == schemes->scheme;
+#endif
+#if defined(SC_PRNG_HASH_DRBG_BLAKE2_512)
+        valid |= SC_PRNG_HASH_DRBG_BLAKE2_512 == schemes->scheme;
+#endif
+#if defined(SC_PRNG_HASH_DRBG_WHIRLPOOL_512)
+        valid |= SC_PRNG_HASH_DRBG_WHIRLPOOL_512 == schemes->scheme;
+#endif
+#if defined(SC_PRNG_FILE)
+        valid |= SC_PRNG_FILE == schemes->scheme;
+#endif
+#if defined(SC_PRNG_HIGH_ENTROPY)
+        valid |= SC_PRNG_HIGH_ENTROPY == schemes->scheme;
+#endif
+        ck_assert_int_ne(valid, 0);
+
+        schemes = schemes->next;
+    }
+}
+END_TEST
+
+static void prng_cb_fn(size_t len, UINT8 *data)
+{
+    size_t i;
+    for (i=len; i--;) {
+        data[i] = i;
+    }
+}
+
+START_TEST(test_safecrypto_prng_create)
+{
+    safecrypto_prng_t *ctx;
+    ctx = safecrypto_prng_create(SC_PRNG_MAX, 0, prng_cb_fn);
+    ck_assert_ptr_eq(ctx, NULL);
+    ctx = safecrypto_prng_create(SC_PRNG_AES_CTR_DRBG, 0, prng_cb_fn);
+    ck_assert_ptr_eq(ctx, NULL);
+    ctx = safecrypto_prng_create(SC_PRNG_AES_CTR_DRBG, 0x10000000, prng_cb_fn);
+    ck_assert_ptr_ne(ctx, NULL);
+    safecrypto_prng_destroy(ctx);
+}
+END_TEST
+
+START_TEST(test_safecrypto_prng_32)
+{
+    UINT32 data[4] = {};
+    safecrypto_prng_t *ctx;
+    ctx = safecrypto_prng_create(SC_PRNG_AES_CTR_DRBG, 0x10000000, prng_cb_fn);
+    ck_assert_ptr_ne(ctx, NULL);
+    data[0] = safecrypto_prng_32(ctx);
+    data[1] = safecrypto_prng_32(ctx);
+    data[2] = safecrypto_prng_32(ctx);
+    data[3] = safecrypto_prng_32(ctx);
+    ck_assert_int_ne(data[0], 0);
+    ck_assert_int_ne(data[0] ^ data[1] ^ data[2] ^ data[3], 0);
+    safecrypto_prng_destroy(ctx);
+}
+END_TEST
+
 START_TEST(test_safecrypto_initial_api_multiple)
 {
     int32_t retcode;
@@ -445,6 +542,8 @@ Suite *safecrypto_suite(void)
     tcase_add_test(tc_basic, test_safecrypto_get_ibe_schemes);
     tcase_add_test(tc_basic, test_safecrypto_get_hash_schemes);
     tcase_add_test(tc_basic, test_safecrypto_get_xof_schemes);
+    tcase_add_test(tc_basic, test_safecrypto_get_prng_schemes);
+    tcase_add_test(tc_basic, test_safecrypto_prng_create);
     suite_add_tcase(s, tc_basic);
 
     tc_limits = tcase_create("LIMITS");

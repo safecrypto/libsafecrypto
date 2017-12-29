@@ -636,6 +636,10 @@ prng_ctx_t * prng_create(safecrypto_entropy_e entropy,
         return NULL;
     }
 
+    if (0 == seed_period) {
+        return NULL;
+    }
+
     prng_ctx_t *ctx = SC_MALLOC(sizeof(prng_ctx_t));
     if (NULL == ctx) {
         return NULL;
