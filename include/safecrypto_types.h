@@ -265,6 +265,19 @@ extern const char *safecrypto_prng_names [16];
 typedef void (*safecrypto_prng_entropy_callback)(size_t, UINT8 *);
 
 
+/// A list of the available AES mechanisms
+#define AES_LIST(m) \
+   m(SC_AES_ENCRYPT_128) \
+   m(SC_AES_ENCRYPT_192) \
+   m(SC_AES_ENCRYPT_256) \
+   m(SC_AES_DECRYPT_128) \
+   m(SC_AES_DECRYPT_192) \
+   m(SC_AES_DECRYPT_256)
+
+/// An enumerated type for the choice of XOF algorithm
+GENERATE_ENUM(safecrypto_aes_type_e, AES_LIST, SC_AES_MAX);
+
+
 /// A list of the available AKE types
 #define AKE_LIST(m) \
     m(SC_AKE_FORWARD_SECURE)

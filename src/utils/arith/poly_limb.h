@@ -33,6 +33,9 @@ SINT32 poly_limb_swap(sc_ulimb_t *SC_RESTRICT a, size_t *len_a,
 /// Return the degree of the given polynomial if its maximum length is n
 SINT32 poly_limb_degree(const sc_ulimb_t *h, size_t n);
 
+/// Return 0 if the polynomial is zero, otherwise non-zero
+SINT32 poly_limb_is_zero(const sc_ulimb_t *h, size_t n);
+
 /// Reset the contents of the polynomial of length n
 void poly_limb_reset(sc_ulimb_t *inout, size_t n);
 

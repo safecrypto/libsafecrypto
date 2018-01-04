@@ -139,6 +139,9 @@ typedef struct _utils_crypto_xof safecrypto_xof_t;
 /// Forward declaration of the PRNG struct (user does not require a definition)
 typedef struct prng_ctx_t safecrypto_prng_t;
 
+/// Forward declaration of the PRNG struct (user does not require a definition)
+typedef struct aes_encrypt_ctx safecrypto_aes_t;
+
 /// A struct used to parse a linked list of supported public key signature schemes
 struct sc_pkc_scheme {
     sc_scheme_e           scheme;
@@ -531,6 +534,28 @@ extern SINT32 safecrypto_verify_with_recovery(safecrypto_t *sc, UINT8 **m, size_
     const UINT8 *sigbuf, size_t siglen);
 /**@}*/
 
+/** @brief Diffie-Hellman public key generation.
+ *
+ *  @param sc Object containing key pair and parameters
+ *  @param tlen The size of the DH public key array in bytes
+ *  @param to The output DH public key
+ *  @return Returns 0 on success
+ */
+extern SINT32 safecrypto_diffie_hellman_init(safecrypto_t *sc, size_t *tlen, UINT8 **to);
+
+/** @brief Diffie-Hellman shared secret generation.
+ *
+ *  @param sc Object containing key pair and lattice parameters
+ *  @param flen The size of the from array in bytes
+ *  @param from The input DH public key
+ *  @param tlen The size of the shared secret array in bytes
+ *  @param to The output shared secret
+ *  @return Returns 1 on successful validation
+ */
+extern SINT32 safecrypto_diffie_hellman_final(safecrypto_t *sc, size_t flen, const UINT8 *from,
+    size_t *tlen, UINT8 **to);
+/**@}*/
+
 
 /** @name Statistics
  *  Functions used to obtain statistical information about cryptographic processing.
@@ -825,3 +850,15 @@ extern SINT32 safecrypto_prng_mem(safecrypto_prng_t *ctx, UINT8 *mem, SINT32 len
 
 /**@}*/
 
+
+/** @name AES
+ *  Functions used to provide AES functionality.
+ */
+/**@{*/
+
+extern safecrypto_aes_t * safecrypto_aes_create(safecrypto_aes_type_e type, const UINT8 *key);
+extern SINT32 safecrypto_aes_destroy(safecrypto_aes_t *ctx);
+extern SINT32 safecrypto_aes_encrypt(safecrypto_aes_t *ctx, const UINT8 *in, UINT8 *out);
+extern SINT32 safecrypto_aes_decrypt(safecrypto_aes_t *ctx, const UINT8 *in, UINT8 *out);
+
+/**@}*/

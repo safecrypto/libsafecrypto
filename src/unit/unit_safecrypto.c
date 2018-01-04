@@ -344,6 +344,25 @@ START_TEST(test_safecrypto_prng_32)
 }
 END_TEST
 
+START_TEST(test_safecrypto_aes_create)
+{
+    SINT32 retval;
+    UINT8 key[16];
+    safecrypto_aes_t *ctx;
+    ctx = safecrypto_aes_create(SC_AES_MAX, NULL);
+    ck_assert_ptr_eq(ctx, NULL);
+    ctx = safecrypto_aes_create(SC_AES_ENCRYPT_128, NULL);
+    ck_assert_ptr_eq(ctx, NULL);
+    retval = safecrypto_aes_destroy(NULL);
+    ck_assert_int_eq(retval, SC_FUNC_FAILURE);
+
+    ctx = safecrypto_aes_create(SC_AES_ENCRYPT_128, key);
+    ck_assert_ptr_ne(ctx, NULL);
+    retval = safecrypto_aes_destroy(ctx);
+    ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
+}
+END_TEST
+
 START_TEST(test_safecrypto_initial_api_multiple)
 {
     int32_t retcode;
@@ -544,6 +563,8 @@ Suite *safecrypto_suite(void)
     tcase_add_test(tc_basic, test_safecrypto_get_xof_schemes);
     tcase_add_test(tc_basic, test_safecrypto_get_prng_schemes);
     tcase_add_test(tc_basic, test_safecrypto_prng_create);
+    tcase_add_test(tc_basic, test_safecrypto_prng_32);
+    tcase_add_test(tc_basic, test_safecrypto_aes_create);
     suite_add_tcase(s, tc_basic);
 
     tc_limits = tcase_create("LIMITS");

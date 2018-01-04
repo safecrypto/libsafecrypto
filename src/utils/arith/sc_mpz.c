@@ -31,6 +31,11 @@ void sc_mpz_init(sc_mpz_t *inout)
     mpz_init(inout);
 }
 
+void sc_mpz_init2(sc_mpz_t *inout, size_t bits)
+{
+    mpz_init2(inout, bits);
+}
+
 void sc_mpz_clear(sc_mpz_t *inout)
 {
     mpz_clear(inout);
@@ -257,6 +262,11 @@ void sc_mpz_set_si(sc_mpz_t *inout, sc_slimb_t value)
 void sc_mpz_set_d(sc_mpz_t *inout, DOUBLE value)
 {
     mpz_set_d(inout, value);
+}
+
+SINT32 sc_mpz_set_str(sc_mpz_t *out, SINT32 base, const char *str)
+{
+    return mpz_set_str(out, str, base);
 }
 
 void sc_mpz_mul(sc_mpz_t *out, const sc_mpz_t *in1, const sc_mpz_t *in2)

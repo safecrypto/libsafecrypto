@@ -26,6 +26,9 @@
 /// Initialise an MP integer
 void sc_mpz_init(sc_mpz_t *inout);
 
+/// Initialise an MP integer with storage for "bits" sized numbers and initialised to zero
+void sc_mpz_init2(sc_mpz_t *inout, size_t bits);
+
 /// Free memory resources associated with an MP integer
 void sc_mpz_clear(sc_mpz_t *inout);
 
@@ -50,6 +53,7 @@ void sc_mpz_set_ui(sc_mpz_t *inout, sc_ulimb_t value);
 void sc_mpz_set_si(sc_mpz_t *inout, sc_slimb_t value);
 void sc_mpz_set_d(sc_mpz_t *inout, DOUBLE value);
 void sc_mpz_set_size(sc_mpz_t *inout, SINT32 size);
+SINT32 sc_mpz_set_str(sc_mpz_t *out, SINT32 base, const char *str);
 /// @}
 
 /// Comparison functions
@@ -81,7 +85,7 @@ SINT32 sc_mpz_sizeinbase(const sc_mpz_t *in, SINT32 base);
 /// Compute the bitwise complement of a specified array of limbs
 void sc_mpz_com_to_poly_limb(sc_ulimb_t *out, const sc_ulimb_t *in, size_t size);
 
-/// Return the modular multiplicative inverse iusing modulus m
+/// Return the modular multiplicative inverse using modulus m
 SINT32 sc_mpz_invmod(sc_mpz_t *out, const sc_mpz_t *in, const sc_mpz_t *m);
 
 /// Additive and multiplicative functions
