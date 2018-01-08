@@ -123,7 +123,7 @@ static SINT32 compare_ge_prec(volatile const sc_ulimb_t *x, volatile const sc_ul
         sc_ulimb_t b      = y[i];
         sc_ulimb_t equal  = !(a ^ b);
         sc_ulimb_t x_lt_y = sc_const_time_lessthan(a, b);
-        retval = !x_lt_y || (equal && retval);
+        retval = !x_lt_y | (equal & retval);
     }
     return retval;
 }
@@ -133,13 +133,13 @@ static SINT32 binary_search_128(u128_t x, const u128_t *l, SINT32 n)
     // Given the table l of length n, return the address in the table
     // that satisfies the condition x >= l[b]
 
-    SINT32 a;
-    SINT32 st = n >> 1;
+    UINT32 a;
+    UINT32 st = n >> 1;
 
     a = 0;
     while (st > 0) {
-        SINT32 b = a + st;
-        if (b < n && compare_ge_prec(x.w, (sc_ulimb_t *)l[b].w, 128)) {
+        UINT32 b = a + st;
+        if (sc_const_time_lessthan(b, n) & compare_ge_prec(x.w, (sc_ulimb_t *)l[b].w, 128)) {
             a = b;
         }
         st >>= 1;
@@ -152,13 +152,13 @@ static SINT32 binary_search_192(u192_t x, const u192_t *l, SINT32 n)
     // Given the table l of length n, return the address in the table
     // that satisfies the condition x >= l[b]
 
-    SINT32 a;
-    SINT32 st = n >> 1;
+    UINT32 a;
+    UINT32 st = n >> 1;
 
     a = 0;
     while (st > 0) {
-        SINT32 b = a + st;
-        if (b < n && compare_ge_prec(x.w, (sc_ulimb_t *)l[b].w, 192)) {
+        UINT32 b = a + st;
+        if (sc_const_time_lessthan(b, n) & compare_ge_prec(x.w, (sc_ulimb_t *)l[b].w, 192)) {
             a = b;
         }
         st >>= 1;
@@ -171,13 +171,13 @@ static SINT32 binary_search_256(u256_t x, const u256_t *l, SINT32 n)
     // Given the table l of length n, return the address in the table
     // that satisfies the condition x >= l[b]
 
-    SINT32 a;
-    SINT32 st = n >> 1;
+    UINT32 a;
+    UINT32 st = n >> 1;
 
     a = 0;
     while (st > 0) {
-        SINT32 b = a + st;
-        if (b < n && compare_ge_prec(x.w, (sc_ulimb_t *)l[b].w, 256)) {
+        UINT32 b = a + st;
+        if (sc_const_time_lessthan(b, n) & compare_ge_prec(x.w, (sc_ulimb_t *)l[b].w, 256)) {
             a = b;
         }
         st >>= 1;
@@ -531,14 +531,15 @@ static SINT32 binary_search_64(UINT64 x, const UINT64 *l, SINT32 n)
     // Given the table l of length n, return the address in the table
     // that satisfies the condition x >= l[b]
 
-    SINT32 a;
-    SINT32 st = n >> 1;
+    UINT32 a;
+    UINT32 st = n >> 1;
 
     a = 0;
     while (st > 0) {
-        SINT32 b = a + st;
-        if (b < n && x >= l[b])
+        UINT32 b = a + st;
+        if (sc_const_time_lessthan(b, n) & sc_const_time_lessthan(l[b], x)) {
             a = b;
+        }
         st >>= 1;
     }
     return a;
@@ -655,14 +656,15 @@ static SINT32 binary_search_32(UINT32 x, const UINT32 *l, SINT32 n)
     // Given the table l of length n, return the address in the table
     // that satisfies the condition x >= l[b]
 
-    SINT32 a;
-    SINT32 st = n >> 1;
+    UINT32 a;
+    UINT32 st = n >> 1;
 
     a = 0;
     while (st > 0) {
-        SINT32 b = a + st;
-        if (b < n && x >= l[b])
+        UINT32 b = a + st;
+        if (sc_const_time_lessthan(b, n) & sc_const_time_lessthan(l[b], x)) {
             a = b;
+        }
         st >>= 1;
     }
     return a;
