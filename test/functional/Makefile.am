@@ -20,23 +20,23 @@ TESTS                    = func_safecrypto \
                            func_sc_math \
                            func_ntt \
                            func_alg_2way_ake \
-                           func_alg_2way_ake_huffman
-
-#                           func_signatures_schemes
+                           func_alg_2way_ake_huffman \
+                           func_signatures_schemes
 
 if WITH_MULTITHREADING
 TESTS                   += func_threading
 endif WITH_MULTITHREADING
 
-if WITH_ARITH_MP
+if WITH_ARITH_INTEGER_MP
 TESTS                   += func_poly_limb_mul \
                            func_poly_limb_divrem_mod \
                            func_poly_mpi_mul
-endif WITH_ARITH_MP
+endif WITH_ARITH_INTEGER_MP
 
 if WITH_BLISS_B_SIG
 TESTS                   += func_alg_bliss_b \
-                           func_alg_bliss_b_huffman
+                           func_alg_bliss_b_huffman \
+                           func_alg_bliss_b_bac
 endif WITH_BLISS_B_SIG
 
 if WITH_RING_TESLA_SIG
@@ -224,7 +224,7 @@ func_alg_kyber_enc_huffman_CFLAGS    = -DUSE_HUFFMAN_STATIC_ENTROPY
 func_alg_kyber_enc_huffman_LDFLAGS   = -static
 endif
 
-if WITH_ARITH_MP
+if WITH_ARITH_INTEGER_MP
 func_poly_limb_mul_SOURCES           = func_poly_limb_mul.c \
                                        $(top_srcdir)/include/safecrypto.h
 func_poly_limb_mul_LDADD             = $(top_builddir)/libs/libsafecrypto.la -lm
@@ -257,6 +257,12 @@ func_alg_bliss_b_huffman_SOURCES     = func_alg_bliss_b.c \
 func_alg_bliss_b_huffman_LDADD       = $(top_builddir)/libs/libsafecrypto.la -lm
 func_alg_bliss_b_huffman_CFLAGS      = -DUSE_HUFFMAN_STATIC_ENTROPY
 func_alg_bliss_b_huffman_LDFLAGS     = -static
+
+func_alg_bliss_b_bac_SOURCES         = func_alg_bliss_b.c \
+                                       $(top_srcdir)/include/safecrypto.h
+func_alg_bliss_b_bac_LDADD           = $(top_builddir)/libs/libsafecrypto.la -lm
+func_alg_bliss_b_bac_CFLAGS          = -DUSE_BAC_ENTROPY
+func_alg_bliss_b_bac_LDFLAGS         = -static
 endif WITH_BLISS_B_SIG
 
 if WITH_RING_TESLA_SIG
@@ -333,9 +339,9 @@ func_alg_ens_enc_huffman_CFLAGS      = -DUSE_HUFFMAN_STATIC_ENTROPY
 func_alg_ens_kem_huffman_LDFLAGS     = -static
 endif WITH_ENS_KEM
 
-#func_signatures_schemes_SOURCES      = func_signatures_schemes.c \
-#                                       $(top_srcdir)/include/safecrypto.h
-#func_signatures_schemes_LDADD        =  $(top_builddir)/libs/libsafecrypto.la -lm
-#func_signatures_schemes_LDFLAGS      = -static
+func_signatures_schemes_SOURCES      = func_signatures_schemes.c \
+                                       $(top_srcdir)/include/safecrypto.h
+func_signatures_schemes_LDADD        =  $(top_builddir)/libs/libsafecrypto.la -lm
+func_signatures_schemes_LDFLAGS      = -static
 
 endif

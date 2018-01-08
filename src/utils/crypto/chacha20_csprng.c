@@ -16,7 +16,7 @@
  */
 
 #include "chacha20_csprng.h"
-
+#include "safecrypto_private.h"
 
 static void reseed_chacha20(chacha20_state_t *state)
 {
@@ -25,13 +25,13 @@ static void reseed_chacha20(chacha20_state_t *state)
     state->get_random(40, seed, state->entropy_arg); // i.e. 256-bit key and 64-bit IV
     chacha_keysetup(&state->ctx, seed, 256);
     chacha_ivsetup(&state->ctx, seed+32, (const UINT8*)&state->ctr);
-    PRNG_MEMZERO(state->data, 16 * sizeof(UINT8));
+    SC_MEMZERO(state->data, 16 * sizeof(UINT8));
 }
 
 chacha20_state_t * create_chacha20(func_get_random func,
     user_entropy_t *user_entropy, size_t seed_period)
 {
-    chacha20_state_t *state = PRNG_MALLOC(sizeof(chacha20_state_t));
+    chacha20_state_t *state = SC_MALLOC(sizeof(chacha20_state_t));
     if (NULL == state) {
         return NULL;
     }
@@ -49,24 +49,24 @@ chacha20_state_t * create_chacha20(func_get_random func,
 SINT32 destroy_chacha20(chacha20_state_t *state)
 {
     if (NULL == state) {
-        return PRNG_FUNC_FAILURE;
+        return SC_FUNC_FAILURE;
     }
 
     state->data_count = 0;
     reseed_chacha20(state);
 
-    return PRNG_FUNC_SUCCESS;
+    return SC_FUNC_SUCCESS;
 }
 
 SINT32 reset_chacha20(chacha20_state_t *state)
 {
     if (NULL == state) {
-        return PRNG_FUNC_FAILURE;
+        return SC_FUNC_FAILURE;
     }
 
-    PRNG_FREE(state, sizeof(chacha20_state_t));
+    SC_FREE(state, sizeof(chacha20_state_t));
 
-    return PRNG_FUNC_SUCCESS;
+    return SC_FUNC_SUCCESS;
 }
 
 static inline void update_seed(chacha20_state_t *state)

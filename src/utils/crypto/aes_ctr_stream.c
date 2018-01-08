@@ -52,34 +52,34 @@ ctx_aes_ctr_t* aes_ctr_create(func_get_random func,
 SINT32 aes_ctr_destroy(ctx_aes_ctr_t *ctx)
 {
     if (NULL == ctx) {
-        return PRNG_FUNC_FAILURE;
+        return SC_FUNC_FAILURE;
     }
 
     PRNG_FREE(ctx, sizeof(ctx_aes_ctr_t));
 
-    return PRNG_FUNC_SUCCESS;
+    return SC_FUNC_SUCCESS;
 }
 
 SINT32 aes_ctr_reset(ctx_aes_ctr_t *ctx)
 {
     if (NULL == ctx) {
-        return PRNG_FUNC_FAILURE;
+        return SC_FUNC_FAILURE;
     }
 
     ctx->counter = 0;
     PRNG_MEMZERO(ctx->key, 32);
 
-    return PRNG_FUNC_SUCCESS;
+    return SC_FUNC_SUCCESS;
 }
 
 SINT32 aes_ctr_update(ctx_aes_ctr_t *ctx, UINT8 *bytes, size_t n)
 {
     if (NULL == ctx) {
-        return PRNG_FUNC_FAILURE;
+        return SC_FUNC_FAILURE;
     }
 
     if (NULL == bytes) {
-        return PRNG_FUNC_FAILURE;
+        return SC_FUNC_FAILURE;
     }
 
     // Encrypt the counter using the specified key
@@ -106,7 +106,7 @@ SINT32 aes_ctr_update(ctx_aes_ctr_t *ctx, UINT8 *bytes, size_t n)
     // Increment the counter
     ctx->counter++;
 
-    return PRNG_FUNC_SUCCESS;
+    return SC_FUNC_SUCCESS;
 }
 
 #endif

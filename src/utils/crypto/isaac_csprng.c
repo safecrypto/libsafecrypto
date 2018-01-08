@@ -15,6 +15,7 @@
  *   Id:     $SC_IDENT$
  */
 
+#include "safecrypto_private.h"
 #include "isaac_csprng.h"
 
 
@@ -95,7 +96,7 @@ static void reseed_isaac(isaac_state_t *state)
 isaac_state_t * create_isaac(func_get_random func,
     user_entropy_t *user_entropy, size_t seed_period)
 {
-    isaac_state_t *state = PRNG_MALLOC(sizeof(isaac_state_t));
+    isaac_state_t *state = SC_MALLOC(sizeof(isaac_state_t));
     if (NULL == state) {
         return NULL;
     }
@@ -112,23 +113,23 @@ isaac_state_t * create_isaac(func_get_random func,
 SINT32 destroy_isaac(isaac_state_t *state)
 {
     if (NULL == state) {
-        return PRNG_FUNC_FAILURE;
+        return SC_FUNC_FAILURE;
     }
 
-    PRNG_FREE(state, sizeof(isaac_state_t));
+    SC_FREE(state, sizeof(isaac_state_t));
 
-    return PRNG_FUNC_SUCCESS;
+    return SC_FUNC_SUCCESS;
 }
 
 SINT32 reset_isaac(isaac_state_t *state)
 {
     if (NULL == state) {
-        return PRNG_FUNC_FAILURE;
+        return SC_FUNC_FAILURE;
     }
 
     reseed_isaac(state);
 
-    return PRNG_FUNC_SUCCESS;
+    return SC_FUNC_SUCCESS;
 }
 
 static void update_seed(isaac_state_t *state)

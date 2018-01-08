@@ -53,7 +53,7 @@ typedef struct ens_dlp_sig_cfg_t {
     safecrypto_ntt_e      ntt_optimisation;
     ntt_params_t          ntt;
     sc_entropy_type_e     entropy;
-    crypto_hash_e         oracle_hash;
+    sc_hash_e             oracle_hash;
     SINT32                keep_matrices;
     SINT32               *b;
 #ifdef ENS_DLP_SIG_USE_LONGDOUBLE_PREC_FLOATS
@@ -94,16 +94,12 @@ SINT32 ens_dlp_sig_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
     }
 
     sc->coding_pub_key.type             = SC_ENTROPY_NONE;
-    sc->coding_pub_key.entropy_coder    = NULL;
     sc->coding_priv_key.type            =
-        (flags[0] & SC_FLAG_0_ENTROPY_HUFFMAN_STATIC)? SC_ENTROPY_HUFFMAN_STATIC :
-                                                       SC_ENTROPY_NONE;
-    sc->coding_priv_key.entropy_coder   = NULL;
+        (flags[0] & SC_FLAG_0_ENTROPY_HUFFMAN)? SC_ENTROPY_HUFFMAN_STATIC :
+                                                SC_ENTROPY_NONE;
     sc->coding_signature.type           =
-        (flags[0] & SC_FLAG_0_ENTROPY_HUFFMAN_STATIC)? SC_ENTROPY_HUFFMAN_STATIC :
-                                                       SC_ENTROPY_NONE;
-    sc->coding_signature.entropy_coder  = NULL;
-    sc->blinding = (flags[0] & SC_FLAG_0_SAMPLE_BLINDING)?  BLINDING_SAMPLES : NORMAL_SAMPLES;
+        (flags[0] & SC_FLAG_0_ENTROPY_HUFFMAN)? SC_ENTROPY_HUFFMAN_STATIC :
+                                                SC_ENTROPY_NONE;
     sc->sampling_precision =
         ((flags[0] & SC_FLAG_0_SAMPLE_PREC_MASK) == SC_FLAG_0_SAMPLE_32BIT)?  SAMPLING_32BIT :
         ((flags[0] & SC_FLAG_0_SAMPLE_PREC_MASK) == SC_FLAG_0_SAMPLE_64BIT)?  SAMPLING_64BIT :
@@ -223,7 +219,7 @@ SINT32 ens_dlp_sig_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
         default:;
     }
 
-    crypto_hash_e hash_func;
+    sc_hash_e hash_func;
     switch (flags[0] & SC_FLAG_0_HASH_FUNCTION_MASK)
     {
         case SC_FLAG_0_HASH_BLAKE2:
@@ -267,7 +263,7 @@ SINT32 ens_dlp_sig_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
     }
 
     // Create the XOF to be used by the random oracle
-    sc->xof = utils_crypto_xof_create(CRYPTO_XOF_SHAKE128);
+    sc->xof = utils_crypto_xof_create(SC_XOF_SHAKE128);
     if (NULL == sc->xof) {
         return SC_FUNC_FAILURE;
     }
@@ -486,7 +482,7 @@ SINT32 ens_dlp_sig_pubkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_le
         return SC_FUNC_FAILURE;
     }
     entropy_poly_decode_16(packer, n, pubkey, q_bits,
-        UNSIGNED_COEFF, sc->coding_pub_key.type);
+        UNSIGNED_COEFF, sc->coding_pub_key.type, 0);
     utils_entropy.pack_destroy(&packer);
     sc->pubkey->len = n;
 
@@ -546,13 +542,13 @@ SINT32 ens_dlp_sig_privkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_l
         return SC_FUNC_FAILURE;
     }
     entropy_poly_decode_32(packer, n, privkey, fg_bits,
-        SIGNED_COEFF, sc->coding_priv_key.type);
+        SIGNED_COEFF, sc->coding_priv_key.type, 1);
     entropy_poly_decode_32(packer, n, privkey+n, fg_bits,
-        SIGNED_COEFF, sc->coding_priv_key.type);
+        SIGNED_COEFF, sc->coding_priv_key.type, 1);
     entropy_poly_decode_32(packer, n, privkey+2*n, FG_bits,
-        SIGNED_COEFF, SC_ENTROPY_NONE);
+        SIGNED_COEFF, SC_ENTROPY_NONE, 2);
     entropy_poly_decode_32(packer, n, privkey+3*n, FG_bits,
-        SIGNED_COEFF, SC_ENTROPY_NONE);
+        SIGNED_COEFF, SC_ENTROPY_NONE, 2);
     utils_entropy.pack_destroy(&packer);
 
     sc->privkey->len = 4 * n;
@@ -619,8 +615,8 @@ SINT32 ens_dlp_sig_pubkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
         SC_LOG_ERROR(sc, SC_NULL_POINTER);
         return SC_FUNC_FAILURE;
     }
-    entropy_poly_encode_16(packer, n, pubkey, q_bits,
-        UNSIGNED_COEFF, SC_ENTROPY_NONE, &sc->stats.components[SC_STAT_PUB_KEY][0].bits_coded);
+    entropy_poly_encode_16(packer, n, pubkey, q_bits, UNSIGNED_COEFF,
+        SC_ENTROPY_NONE, 0, &sc->stats.components[SC_STAT_PUB_KEY][0].bits_coded);
 
     // Extract the buffer with the public key and release the packer resources
     utils_entropy.pack_get_buffer(packer, key, key_len);
@@ -659,14 +655,14 @@ SINT32 ens_dlp_sig_privkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len
     }
 
     // Encode the four polynomials f, g, F, G
-    entropy_poly_encode_32(packer, n, privkey, fg_bits,
-        SIGNED_COEFF, sc->coding_priv_key.type, &sc->stats.components[SC_STAT_PRIV_KEY][0].bits_coded);
-    entropy_poly_encode_32(packer, n, privkey+n, fg_bits,
-        SIGNED_COEFF, sc->coding_priv_key.type, &sc->stats.components[SC_STAT_PRIV_KEY][1].bits_coded);
-    entropy_poly_encode_32(packer, n, privkey+2*n, FG_bits,
-        SIGNED_COEFF, SC_ENTROPY_NONE, &sc->stats.components[SC_STAT_PRIV_KEY][2].bits_coded);
-    entropy_poly_encode_32(packer, n, privkey+3*n, FG_bits,
-        SIGNED_COEFF, SC_ENTROPY_NONE, &sc->stats.components[SC_STAT_PRIV_KEY][3].bits_coded);
+    entropy_poly_encode_32(packer, n, privkey, fg_bits, SIGNED_COEFF,
+        sc->coding_priv_key.type, 1, &sc->stats.components[SC_STAT_PRIV_KEY][0].bits_coded);
+    entropy_poly_encode_32(packer, n, privkey+n, fg_bits, SIGNED_COEFF,
+        sc->coding_priv_key.type, 1, &sc->stats.components[SC_STAT_PRIV_KEY][1].bits_coded);
+    entropy_poly_encode_32(packer, n, privkey+2*n, FG_bits, SIGNED_COEFF,
+        SC_ENTROPY_NONE, 2, &sc->stats.components[SC_STAT_PRIV_KEY][2].bits_coded);
+    entropy_poly_encode_32(packer, n, privkey+3*n, FG_bits, SIGNED_COEFF,
+        SC_ENTROPY_NONE, 2, &sc->stats.components[SC_STAT_PRIV_KEY][3].bits_coded);
 
     // Extract the buffer with the polynomial g and release the packer resources
     utils_entropy.pack_get_buffer(packer, key, key_len);
@@ -842,7 +838,6 @@ static void add_recovery_msg(safecrypto_t *sc, UINT8 *m, size_t m_len, SINT32 *c
     // Use a packer to obtain (n-k)*q_bits from the input byte array
     sc_entropy_t coding_raw = {
         .type = SC_ENTROPY_NONE,
-        .entropy_coder = NULL
     };
     sc_packer_t *packer;
     packer = utils_entropy.pack_create(sc, &coding_raw, 0, m, m1_bytes, NULL, 0);
@@ -881,7 +876,6 @@ static SINT32 recover_msg(safecrypto_t *sc, UINT8 **m, size_t *m_len, SINT32 *c,
     // Use packers to obtain a byte array from the first (n-k) input ring coefficients
     sc_entropy_t coding_raw = {
         .type = SC_ENTROPY_NONE,
-        .entropy_coder = NULL
     };
     sc_packer_t *packer;
     packer = utils_entropy.pack_create(sc, &coding_raw, (n-k)*(M1_BITS(q_bits)), NULL, 0, &buffer, &buffer_len);
@@ -945,6 +939,18 @@ static void small_mul_mod_ring(SINT32 *r, const SINT32 *a, const SINT16 *b_spars
     for (j=n; j--;) {
         r[j] = sparse[j] - sparse[j + n];
     }
+}
+
+SINT32 ens_dlp_set_key_coding(safecrypto_t *sc, sc_entropy_type_e pub,
+    sc_entropy_type_e priv)
+{
+    return SC_FUNC_FAILURE;
+}
+
+SINT32 ens_dlp_get_key_coding(safecrypto_t *sc, sc_entropy_type_e *pub,
+    sc_entropy_type_e *priv)
+{
+    return SC_FUNC_FAILURE;
 }
 
 #ifdef DISABLE_SIGNATURES_SERVER
@@ -1289,7 +1295,6 @@ SINT32 ens_dlp_sig_sign(safecrypto_t *sc, const UINT8 *m, size_t m_len, UINT8 **
     // Output an encoded byte stream representing the secret key SK
     sc_entropy_t coding_raw = {
         .type = SC_ENTROPY_NONE,
-        .entropy_coder = NULL
     };
     sc_packer_t *packer;
     packer = utils_entropy.pack_create(sc, &coding_raw,
@@ -1301,7 +1306,7 @@ SINT32 ens_dlp_sig_sign(safecrypto_t *sc, const UINT8 *m, size_t m_len, UINT8 **
 
     // Send s1
     entropy_poly_encode_32(packer, n, s1, q_bits,
-        SIGNED_COEFF, sc->coding_signature.type, &sc->stats.components[SC_STAT_SIGNATURE][0].bits_coded);
+        SIGNED_COEFF, sc->coding_signature.type, 3, &sc->stats.components[SC_STAT_SIGNATURE][0].bits_coded);
 
     sc->stats.components[SC_STAT_SIGNATURE][0].bits += q_bits*n;
     utils_entropy.pack_get_buffer(packer, sigret, siglen);
@@ -1444,7 +1449,6 @@ SINT32 ens_dlp_sig_sign_recovery(safecrypto_t *sc, UINT8 **m, size_t *m_len, UIN
     // Output an encoded byte stream representing the secret key SK
     sc_entropy_t coding_raw = {
         .type = SC_ENTROPY_NONE,
-        .entropy_coder = NULL
     };
     sc_packer_t *packer;
     size_t m1_bits  = (n - k) * (M1_BITS(q_bits));
@@ -1461,13 +1465,13 @@ SINT32 ens_dlp_sig_sign_recovery(safecrypto_t *sc, UINT8 **m, size_t *m_len, UIN
 
     // Send s1
     entropy_poly_encode_32(packer, n, s1, q_bits,
-        SIGNED_COEFF, sc->coding_signature.type,
+        SIGNED_COEFF, sc->coding_signature.type, 3,
         &sc->stats.components[SC_STAT_SIGNATURE][0].bits_coded);
 
     // Send s2
     sc->sc_ntt->center_32(s2, n, &sc->ens_dlp_sig->ntt);
     entropy_poly_encode_32(packer, n, s2, q_bits,
-        SIGNED_COEFF, sc->coding_signature.type,
+        SIGNED_COEFF, sc->coding_signature.type, 4,
         &sc->stats.components[SC_STAT_SIGNATURE][1].bits_coded);
 
     // Destroy the packer
@@ -1637,7 +1641,7 @@ SINT32 ens_dlp_sig_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
 
     // Decode s1
     entropy_poly_decode_32(ipacker, n, s1, q_bits,
-        SIGNED_COEFF, sc->coding_signature.type);
+        SIGNED_COEFF, sc->coding_signature.type, 3);
 
     SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Received s1", s1, n);
 
@@ -1698,7 +1702,7 @@ SINT32 ens_dlp_sig_verify_recovery(safecrypto_t *sc, UINT8 **m, size_t *m_len,
     SINT16 *h_ntt;
 #endif
     SINT16 *h;
-    SINT32 *c, *s1, *s2, *s1_ntt;
+    SINT32 *c, *s1, *s2, *s1_ntt, not_equal;
     UINT8 md[64];
 
     // Obtain all the constants and variables
@@ -1738,13 +1742,13 @@ SINT32 ens_dlp_sig_verify_recovery(safecrypto_t *sc, UINT8 **m, size_t *m_len,
 
     // Decode s1
     entropy_poly_decode_32(ipacker, n, s1, q_bits,
-        SIGNED_COEFF, sc->coding_signature.type);
+        SIGNED_COEFF, sc->coding_signature.type, 3);
 
     SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Received s1", s1, n);
 
     // Decode s2
     entropy_poly_decode_32(ipacker, n, s2, q_bits,
-        SIGNED_COEFF, sc->coding_signature.type);
+        SIGNED_COEFF, sc->coding_signature.type, 4);
     SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Received s2", s2, n);
 
     // Destroy the input packer
@@ -1829,11 +1833,11 @@ SINT32 ens_dlp_sig_verify_recovery(safecrypto_t *sc, UINT8 **m, size_t *m_len,
     SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Verify t", s1 + n - k, k);
 
     // Verify that H'(m1||m2) = t2
-    for (i=k; i--;) {
-        if (s1[i] != s1[n-k+i]) {
-            sc->stats.sig_num_unverified++;
-            goto error_return;
-        }
+    // Done in constant time to counteract leaks
+    not_equal = sc_poly->cmp_not_equal_32(s1, s1 + n - k, k);
+    if (not_equal) {
+        sc->stats.sig_num_unverified++;
+        goto error_return;
     }
 
     // Reset the temporary memory
@@ -1889,7 +1893,7 @@ Signature compression:   %s\n\
         sc->stats.sig_num_unverified,
         sc_sampler_names[sc->sampling],
         safecrypto_prng_names[(int)prng_get_type(sc->prng_ctx[0])],
-        crypto_hash_names[sc->ens_dlp_sig->oracle_hash],
+        sc_hash_names[sc->ens_dlp_sig->oracle_hash],
         sc_entropy_names[(int)sc->coding_pub_key.type],
         sc->stats.pub_keys_encoded? (DOUBLE)sc->stats.components[SC_STAT_PUB_KEY][0].bits/(DOUBLE)sc->stats.pub_keys_encoded : 0,
         sc->stats.pub_keys_encoded? (DOUBLE)sc->stats.components[SC_STAT_PUB_KEY][0].bits_coded/(DOUBLE)sc->stats.pub_keys_encoded : 0,
@@ -1951,7 +1955,7 @@ Signature compression:   %s\n\
         sc->stats.sig_num_unverified,
         sc_sampler_names[sc->sampling],
         safecrypto_prng_names[(int)prng_get_type(sc->prng_ctx[0])],
-        crypto_hash_names[sc->ens_dlp_sig->oracle_hash],
+        sc_hash_names[sc->ens_dlp_sig->oracle_hash],
         sc_entropy_names[(int)sc->coding_pub_key.type],
         sc->stats.pub_keys_encoded? (DOUBLE)sc->stats.components[SC_STAT_PUB_KEY][0].bits/(DOUBLE)sc->stats.pub_keys_encoded : 0,
         sc->stats.pub_keys_encoded? (DOUBLE)sc->stats.components[SC_STAT_PUB_KEY][0].bits_coded/(DOUBLE)sc->stats.pub_keys_encoded : 0,

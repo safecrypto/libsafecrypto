@@ -69,7 +69,7 @@
 SC_STRUCT_PACK_START
 typedef struct kyber_set_t {
     const UINT32      set;
-    crypto_hash_e     oracle_hash;
+    sc_hash_e         oracle_hash;
     const UINT32      q;
     const UINT32      q_bits;
     const UINT32      q_inv;
@@ -99,7 +99,7 @@ typedef struct kyber_cfg_t {
     safecrypto_ntt_e   ntt_optimisation;
     ntt_params_t       ntt;
     sc_entropy_type_e  entropy;
-    crypto_hash_e      oracle_hash;
+    sc_hash_e          oracle_hash;
 } SC_STRUCT_PACKED kyber_cfg_t;
 SC_STRUCT_PACK_END
 

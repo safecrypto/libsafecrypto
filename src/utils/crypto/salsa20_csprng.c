@@ -16,6 +16,7 @@
  */
 
 #include "salsa20_csprng.h"
+#include "safecrypto_private.h"
 
 
 static void reseed_salsa20(salsa20_state_t *state)
@@ -25,13 +26,13 @@ static void reseed_salsa20(salsa20_state_t *state)
     state->get_random(40, seed, state->entropy_arg); // i.e. 256-bit key and 64-bit IV
     salsa_keysetup(&state->ctx, seed, 256);
     salsa_ivsetup(&state->ctx, seed+32, (const UINT8*)&state->ctr);
-    PRNG_MEMZERO(state->data, 16 * sizeof(UINT8));
+    SC_MEMZERO(state->data, 16 * sizeof(UINT8));
 }
 
 salsa20_state_t * create_salsa20(func_get_random func,
     user_entropy_t *user_entropy, size_t seed_period)
 {
-    salsa20_state_t *state = PRNG_MALLOC(sizeof(salsa20_state_t));
+    salsa20_state_t *state = SC_MALLOC(sizeof(salsa20_state_t));
     if (NULL == state) {
         return NULL;
     }
@@ -49,24 +50,24 @@ salsa20_state_t * create_salsa20(func_get_random func,
 SINT32 destroy_salsa20(salsa20_state_t *state)
 {
     if (NULL == state) {
-        return PRNG_FUNC_FAILURE;
+        return SC_FUNC_FAILURE;
     }
 
-    PRNG_FREE(state, sizeof(salsa20_state_t));
+    SC_FREE(state, sizeof(salsa20_state_t));
 
-    return PRNG_FUNC_SUCCESS;
+    return SC_FUNC_SUCCESS;
 }
 
 SINT32 reset_salsa20(salsa20_state_t *state)
 {
     if (NULL == state) {
-        return PRNG_FUNC_FAILURE;
+        return SC_FUNC_FAILURE;
     }
 
     state->data_count = 0;
     reseed_salsa20(state);
 
-    return PRNG_FUNC_SUCCESS;
+    return SC_FUNC_SUCCESS;
 }
 
 static inline void update_seed(salsa20_state_t *state)

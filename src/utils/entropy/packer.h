@@ -19,8 +19,9 @@
 
 #include "safecrypto_private.h"
 #include <string.h>
+#include <limits.h>
 
-#ifdef HAVE_64BIT
+#if __WORDSIZE == 64
 #define USE_64BIT_PACKER    1
 #define SCRATCH_TYPE        UINT64
 #else

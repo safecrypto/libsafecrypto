@@ -144,6 +144,24 @@ void poly_16_uniform_rand(prng_ctx_t *ctx, SINT16 *v, size_t n, const UINT16 *c,
     }
 }
 
+void poly_16_mod_negate(SINT16 *out, size_t n, SINT16 q, const SINT16 *in)
+{
+    size_t i;
+    for (i=n; i--;) {
+        out[i] = q - in[i];
+    }
+}
+
+SINT32 poly_16_cmp_not_equal(volatile const SINT16 *in1, volatile const SINT16 *in2, size_t n)
+{
+    size_t i;
+    volatile SINT32 not_equal = 0;
+    for (i=n; i--;) {
+        not_equal |= in1[i] ^ in2[i];
+    }
+    return not_equal;
+}
+
 SINT32 poly_16_degree(const SINT16 *h, size_t n)
 {
     SINT32 deg = -1;

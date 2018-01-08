@@ -23,13 +23,12 @@ START_TEST(test_entropy_small_raw)
     sc_entropy_t entropy;
     sc_packer_t *packer;
     entropy.type = SC_ENTROPY_NONE;
-    entropy.entropy_coder = NULL;
     static const SINT32  p[4] = {-2, -1, 0, 1};
     SINT32 pt[4];
 
     packer = create(NULL, &entropy, 128, NULL, 0, NULL, 0);
     ck_assert_ptr_ne(packer, NULL);
-    retcode = entropy_poly_encode_32(packer, 4, p, 3, SIGNED_COEFF, SC_ENTROPY_NONE, NULL);
+    retcode = entropy_poly_encode_32(packer, 4, p, 3, SIGNED_COEFF, SC_ENTROPY_NONE, 0, NULL);
     ck_assert_int_eq(retcode, SC_OK);
     retcode = get_buffer(packer, &buffer, &len);
     ck_assert_int_eq(retcode, SC_FUNC_SUCCESS);
@@ -39,7 +38,7 @@ START_TEST(test_entropy_small_raw)
 
     packer = create(NULL, &entropy, 128, buffer, len, NULL, 0);
     ck_assert_ptr_ne(packer, NULL);
-    retcode = entropy_poly_decode_32(packer, 4, pt, 3, SIGNED_COEFF, SC_ENTROPY_NONE);
+    retcode = entropy_poly_decode_32(packer, 4, pt, 3, SIGNED_COEFF, SC_ENTROPY_NONE, 0);
     ck_assert_int_eq(retcode, SC_OK);
     destroy(&packer);
 
@@ -57,12 +56,11 @@ START_TEST(test_entropy_small_huffman)
     sc_entropy_t entropy;
     sc_packer_t *packer;
     entropy.type = SC_ENTROPY_NONE;
-    entropy.entropy_coder = NULL;
     static const SINT32  p[4] = {-2, -1, 0, 1};
     SINT32 pt[4];
 
     packer = create(NULL, &entropy, 128, NULL, 0, NULL, 0);
-    retcode = entropy_poly_encode_32(packer, 4, p, 3, SIGNED_COEFF, SC_ENTROPY_HUFFMAN_STATIC, NULL);
+    retcode = entropy_poly_encode_32(packer, 4, p, 3, SIGNED_COEFF, SC_ENTROPY_HUFFMAN_STATIC, 0, NULL);
     ck_assert_int_eq(retcode, SC_OK);
     retcode = get_buffer(packer, &buffer, &len);
     destroy(&packer);
@@ -70,7 +68,7 @@ START_TEST(test_entropy_small_huffman)
     ck_assert_int_gt(len, 0);
 
     packer = create(NULL, &entropy, 128, buffer, len, NULL, 0);
-    retcode = entropy_poly_decode_32(packer, 4, pt, 3, SIGNED_COEFF, SC_ENTROPY_HUFFMAN_STATIC);
+    retcode = entropy_poly_decode_32(packer, 4, pt, 3, SIGNED_COEFF, SC_ENTROPY_HUFFMAN_STATIC, 0);
     ck_assert_int_eq(retcode, SC_OK);
     destroy(&packer);
 
@@ -88,13 +86,12 @@ START_TEST(test_entropy_large_huffman)
     sc_entropy_t entropy;
     sc_packer_t *packer;
     entropy.type = SC_ENTROPY_NONE;
-    entropy.entropy_coder = NULL;
     static const SINT32 p[32] = {102, -41, -239, 176, 146, 107, 55, 164, 61, 248, 249, 81, 79, 177, 43, 29,
         140, 134, 98, 169, -189, 10, 30, 189, -234, 0, -64, 138, -163, 202, 191, 118};
     SINT32 pt[32];
 
     packer = create(NULL, &entropy, 1024, NULL, 0, NULL, 0);
-    retcode = entropy_poly_encode_32(packer, 32, p, 9, SIGNED_COEFF, SC_ENTROPY_HUFFMAN_STATIC, NULL);
+    retcode = entropy_poly_encode_32(packer, 32, p, 9, SIGNED_COEFF, SC_ENTROPY_HUFFMAN_STATIC, 0, NULL);
     ck_assert_int_eq(retcode, SC_OK);
     retcode = get_buffer(packer, &buffer, &len);
     destroy(&packer);
@@ -102,7 +99,7 @@ START_TEST(test_entropy_large_huffman)
     ck_assert_int_gt(len, 0);
 
     packer = create(NULL, &entropy, 1024, buffer, len, NULL, 0);
-    retcode = entropy_poly_decode_32(packer, 32, pt, 9, SIGNED_COEFF, SC_ENTROPY_HUFFMAN_STATIC);
+    retcode = entropy_poly_decode_32(packer, 32, pt, 9, SIGNED_COEFF, SC_ENTROPY_HUFFMAN_STATIC, 0);
     ck_assert_int_eq(retcode, SC_OK);
     destroy(&packer);
 

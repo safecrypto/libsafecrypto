@@ -36,6 +36,14 @@ SINT32 dilithium_destroy(safecrypto_t *sc);
 /// Key pair generation function
 SINT32 dilithium_keygen(safecrypto_t *sc);
 
+/// Set key-pair lossless compression coding
+SINT32 dilithium_set_key_coding(safecrypto_t *sc, sc_entropy_type_e pub,
+    sc_entropy_type_e priv);
+
+/// Get key-pair lossless compression coding
+SINT32 dilithium_get_key_coding(safecrypto_t *sc, sc_entropy_type_e *pub,
+    sc_entropy_type_e *priv);
+
 /// Public key load function
 SINT32 dilithium_pubkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len);
 

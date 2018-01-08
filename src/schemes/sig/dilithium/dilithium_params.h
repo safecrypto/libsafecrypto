@@ -56,7 +56,7 @@
 SC_STRUCT_PACK_START
 typedef struct dilithium_set_t {
     UINT32        set;
-    crypto_hash_e oracle_hash;
+    sc_hash_e     oracle_hash;
     UINT32        n;
     UINT32        n_bits;
     UINT32        q;
@@ -92,13 +92,13 @@ SC_STRUCT_PACK_END
 
 SC_STRUCT_PACK_START
 typedef struct dilithium_cfg_t {
-    dilithium_set_t          *params;
-    safecrypto_ntt_e          ntt_optimisation;
-    ntt_params_t              ntt;
-    ntt_params_t              ntt_alpha;
-    sc_entropy_type_e         entropy;
-    crypto_hash_e             oracle_hash;
-    prng_ctx_t               *csprng[2];
+    dilithium_set_t   *params;
+    safecrypto_ntt_e   ntt_optimisation;
+    ntt_params_t       ntt;
+    ntt_params_t       ntt_alpha;
+    sc_entropy_type_e  entropy;
+    sc_hash_e          oracle_hash;
+    prng_ctx_t        *csprng[2];
 } SC_STRUCT_PACKED dilithium_cfg_t;
 SC_STRUCT_PACK_END
 

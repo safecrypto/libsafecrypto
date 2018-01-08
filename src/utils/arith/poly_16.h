@@ -31,4 +31,6 @@ void poly_16_add_single(SINT16 *out, size_t n, const SINT16 *in);
 void poly_16_sub_single(SINT16 *out, size_t n, const SINT16 *in);
 void poly_16_mul(SINT16 *out, size_t n, const SINT16 *in1, const SINT16 *in2);
 void poly_16_uniform_rand(prng_ctx_t *ctx, SINT16 *v, size_t n, const UINT16 *c, size_t c_len);
+void poly_16_mod_negate(SINT16 *out, size_t n, SINT16 q, const SINT16 *in);
+SINT32 poly_16_cmp_not_equal(volatile const SINT16 *in1, volatile const SINT16 *in2, size_t n);
 SINT32 poly_16_degree(const SINT16 *h, size_t n);

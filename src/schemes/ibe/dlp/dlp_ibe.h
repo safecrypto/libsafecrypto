@@ -70,6 +70,9 @@
 #endif
 #endif
 
+/// Assume that the H(id) function returns a poly ring in the NTT domain
+#define H_NTT_OPTIMISATION
+
 
 /// A struct use to store DLP IBE scheme variables
 SC_STRUCT_PACK_START
@@ -94,6 +97,14 @@ SINT32 dlp_ibe_destroy(safecrypto_t *sc);
 
 /// Generate a key pair for DLP IBE
 SINT32 dlp_ibe_keygen(safecrypto_t *sc);
+
+/// Set key-pair lossless compression coding
+SINT32 dlp_ibe_set_key_coding(safecrypto_t *sc, sc_entropy_type_e pub,
+    sc_entropy_type_e priv);
+
+/// Get key-pair lossless compression coding
+SINT32 dlp_ibe_get_key_coding(safecrypto_t *sc, sc_entropy_type_e *pub,
+    sc_entropy_type_e *priv);
 
 /// Key load and encode functions for storage and transmission
 /// @{

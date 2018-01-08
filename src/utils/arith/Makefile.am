@@ -65,24 +65,30 @@ libarith_la_SOURCES      += module_lwe.c \
                             module_lwe.h
 endif WITH_ARITH_MLWE
 
-if WITH_ARITH_MP
+if WITH_ARITH_INTEGER_MP
 libarith_la_SOURCES      += next_prime.c \
                             next_prime.h \
                             poly_fft.c \
                             poly_fft.h \
                             poly_limb.c \
                             poly_limb.h \
-                            sc_mpn.c \
-                            sc_mpn.h \
                             sc_mpz.c \
                             sc_mpz.h \
                             sc_poly_mpz.c \
-                            sc_poly_mpz.h \
-                            sc_mpf.c \
+                            sc_poly_mpz.h
+endif WITH_ARITH_INTEGER_MP
+
+if WITH_ARITH_FLOAT_MP
+libarith_la_SOURCES      += sc_mpf.c \
                             sc_mpf.h \
                             sc_mpf128.c \
                             sc_mpf128.h
-endif WITH_ARITH_MP
+endif WITH_ARITH_FLOAT_MP
+
+if WITH_ARITH_NATURAL_MP
+libarith_la_SOURCES      += sc_mpn.c \
+                            sc_mpn.h
+endif WITH_ARITH_NATURAL_MP
 
 if WITH_ARITH_GPV
 libarith_la_SOURCES      += gpv.c \
@@ -94,8 +100,12 @@ libarith_la_SOURCES      += ntt_tables.c \
                             ntt_tables.h
 endif
 
-if WITH_GMP
 # Add any link library dependencies
-libarith_la_LIBADD        = -lgmp -lmpfr
+libarith_la_LIBADD        =
+if WITH_MPFR
+libarith_la_LIBADD       += -lmpfr
+endif WITH_MPFR
+if WITH_GMP
+libarith_la_LIBADD       += -lgmp
 endif WITH_GMP
 

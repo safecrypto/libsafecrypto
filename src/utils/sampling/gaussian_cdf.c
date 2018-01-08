@@ -28,19 +28,49 @@
 #include "utils/arith/sc_mpf.h"
 #endif
 
-#ifdef HAVE_128BIT
+
+/// A union used to store up to 256-bit values
+typedef struct _u256 {
+#if 32 == SC_LIMB_BITS
+    sc_ulimb_t w[8];
+#else
+    sc_ulimb_t w[4];
+#endif
+} u256_t;
+
+/// A union used to store up to 256-bit values
+typedef struct _u192 {
+#if 32 == SC_LIMB_BITS
+    sc_ulimb_t w[6];
+#else
+    sc_ulimb_t w[3];
+#endif
+} u192_t;
+
+/// A union used to store up to 256-bit values
+typedef struct _u128 {
+#if 32 == SC_LIMB_BITS
+    sc_ulimb_t w[4];
+#else
+    sc_ulimb_t w[2];
+#endif
+} u128_t;
+
+
+#if !defined(DISABLE_HIGH_PREC_GAUSSIAN)
 SC_STRUCT_PACK_START
-typedef struct _gauss_cdf_128 {
-    UINT128 *cdf;
+typedef struct _gauss_cdf_high {
+    u256_t *cdf_256;
+    u192_t *cdf_192;
+    u128_t *cdf_128;
     SINT32 cdf_size;
     SINT32 k;
     SINT32 use_kl_divergence;
     prng_ctx_t *prng_ctx;
-} SC_STRUCT_PACKED gauss_cdf_128_t;
+} SC_STRUCT_PACKED gauss_cdf_high_t;
 SC_STRUCT_PACK_END
 #endif
 
-#ifdef HAVE_64BIT
 SC_STRUCT_PACK_START
 typedef struct _gauss_cdf_64 {
     UINT64 *cdf;
@@ -50,7 +80,6 @@ typedef struct _gauss_cdf_64 {
     prng_ctx_t *prng_ctx;
 } SC_STRUCT_PACKED gauss_cdf_64_t;
 SC_STRUCT_PACK_END
-#endif
 
 SC_STRUCT_PACK_START
 typedef struct _gauss_cdf_32 {
@@ -79,99 +108,91 @@ static size_t find_kldiv_k(size_t max_lut_bytes, FLOAT tail, FLOAT *sigma)
     return k;
 }
 
-#ifdef HAVE_128BIT
-static SINT32 binary_search_128(UINT128 x, const UINT128 *l, SINT32 n)
+#if !defined(DISABLE_HIGH_PREC_GAUSSIAN)
+static SINT32 compare_ge_prec(volatile const sc_ulimb_t *x, volatile const sc_ulimb_t *y, size_t prec)
+{
+#if 32 == SC_LIMB_BITS
+    const size_t num_words = prec >> 5;
+#else
+    const size_t num_words = prec >> 6;
+#endif
+    size_t i;
+    volatile sc_ulimb_t retval = 1;
+    for (i=0; i<num_words; i++) {
+        sc_ulimb_t a      = x[i];
+        sc_ulimb_t b      = y[i];
+        sc_ulimb_t equal  = !(a ^ b);
+        sc_ulimb_t x_lt_y = sc_const_time_lessthan(a, b);
+        retval = !x_lt_y | (equal & retval);
+    }
+    return retval;
+}
+
+static SINT32 binary_search_128(u128_t x, const u128_t *l, SINT32 n)
 {
     // Given the table l of length n, return the address in the table
     // that satisfies the condition x >= l[b]
 
-    SINT32 a;
-    SINT32 st = n >> 1;
+    UINT32 a;
+    UINT32 st = n >> 1;
 
     a = 0;
     while (st > 0) {
-        SINT32 b = a + st;
-        if (b < n && x >= l[b])
+        UINT32 b = a + st;
+        if (sc_const_time_lessthan(b, n) & compare_ge_prec(x.w, (sc_ulimb_t *)l[b].w, 128)) {
             a = b;
+        }
         st >>= 1;
     }
     return a;
 }
 
-void * gaussian_cdf_create_128(prng_ctx_t *prng_ctx, FLOAT tail, FLOAT sigma, size_t max_lut_bytes, sample_blinding_e blinding)
+static SINT32 binary_search_192(u192_t x, const u192_t *l, SINT32 n)
 {
-    (void) max_lut_bytes;
+    // Given the table l of length n, return the address in the table
+    // that satisfies the condition x >= l[b]
 
-#if 0
-    SINT32 i, bits;
-    FLOAT128 s, d, e, sigma128, half128, two64;
-    size_t k = 0;//find_kldiv_k(max_lut_bytes, tail, &sigma);
-    
-    bits     = sc_ceil_log2(tail * sigma);
-    sigma128 = sc_mpf128_convert_f32_to_f128(sigma);
-    half128  = sc_mpf128_convert_f32_to_f128(0.5);
-    two64    = sc_mpf128_convert_f32_to_f128(18446744073709551616.0L);
+    UINT32 a;
+    UINT32 st = n >> 1;
 
-    // Allocate memory for the structure to be passed as a void *
-    gauss_cdf_128_t *gauss = SC_MALLOC(sizeof(gauss_cdf_128_t));
-    if (NULL == gauss) {
-        return NULL;
-    }
-
-    // Store the Kullback-Leibler divergence constant
-    gauss->k = k;
-
-    // Allocate memory for the pre-computed Gaussian distribution
-    gauss->cdf = SC_MALLOC((1 << bits) * sizeof(UINT128));
-    if (NULL == gauss->cdf) {
-        SC_FREE(gauss, sizeof(gauss_cdf_128_t));
-        return NULL;
-    }
-
-    // Store the size of the distribution
-    gauss->cdf_size = (1 << bits);
-
-    // Store a pointer to the PRNG context
-    gauss->prng_ctx = prng_ctx;
-
-    // If blinding is enabled the sigma variable must be scaled
-    if (BLINDING_SAMPLES == blinding) {
-        sigma128 = sc_mpf128_mul(sigma128, SC_SQRT1_2_QUAD);
-    }
-
-    // 2/sqrt(2*Pi) * (1 << 128) / sigma
-    d  = sc_mpf128_mul(SC_2_SQRTPI_QUAD, SC_SQRT1_2_QUAD);
-    d  = sc_mpf128_mul(d, two64);
-    d  = sc_mpf128_mul(d, two64);
-    d  = sc_mpf128_div(d, sigma128);
-
-    // Fill the distribution from 0 to maximum, ensuring that overflow
-    // is dealt with
-    e = sc_mpf128_neg(sc_mpf128_div(half128, sc_mpf128_mul(sigma128, sigma128)));
-    s = sc_mpf128_mul(half128, d);
-    gauss->cdf[0] = 0;
-    for (i=1; i<gauss->cdf_size-1; i++) {
-        gauss->cdf[i] = sc_mpf128_convert_f128_to_ui128(s);
-        if (gauss->cdf[i] == 0)        // overflow
-            break;
-        s = sc_mpf128_add(s, sc_mpf128_mul(d, sc_mpf128_exp(sc_mpf128_mul(e, sc_mpf128_convert_ui32_to_f128(i*i)))));
-    }
-    {
-        UINT128 all_ones;
-        all_ones   = 0xFFFFFFFFFFFFFFFF;
-        all_ones <<= 64;
-        all_ones  |= 0xFFFFFFFFFFFFFFFF;
-        for (; i<gauss->cdf_size; i++) {
-            gauss->cdf[i]   = all_ones;
+    a = 0;
+    while (st > 0) {
+        UINT32 b = a + st;
+        if (sc_const_time_lessthan(b, n) & compare_ge_prec(x.w, (sc_ulimb_t *)l[b].w, 192)) {
+            a = b;
         }
+        st >>= 1;
     }
-#else
-    size_t i;
-    SINT32 bits;
-    sc_mpf_t s, d, e, t0, t1, sigma128, half128, two_sqrt_2pi, sqrt_1_2;
-    size_t k = 0;//find_kldiv_k(max_lut_bytes, tail, &sigma);
+    return a;
+}
 
-    sc_mpf_set_precision(128);  // Additional guard bits in the precision improve the rounding to zero at higher addresses
+static SINT32 binary_search_256(u256_t x, const u256_t *l, SINT32 n)
+{
+    // Given the table l of length n, return the address in the table
+    // that satisfies the condition x >= l[b]
+
+    UINT32 a;
+    UINT32 st = n >> 1;
+
+    a = 0;
+    while (st > 0) {
+        UINT32 b = a + st;
+        if (sc_const_time_lessthan(b, n) & compare_ge_prec(x.w, (sc_ulimb_t *)l[b].w, 256)) {
+            a = b;
+        }
+        st >>= 1;
+    }
+    return a;
+}
+
+void gauss_cdf_create_high_precision(prng_ctx_t *prng_ctx, gauss_cdf_high_t *gauss, size_t num_words,
+    size_t precision, FLOAT sigma, sample_blinding_e blinding)
+{
+    size_t i, j;
+    sc_mpf_t s, d, e, t0, t1, sigma128, half128, two_sqrt_2pi, sqrt_1_2;
+
+    // Note: Additional guard bits in the precision improve the rounding to zero at higher addresses
+    sc_mpf_set_precision(precision);
 
     sc_mpf_init(&s);
     sc_mpf_init(&d);
@@ -190,40 +211,17 @@ void * gaussian_cdf_create_128(prng_ctx_t *prng_ctx, FLOAT tail, FLOAT sigma, si
     sc_mpf_set_d(&t1, 0.5);
     sc_mpf_sqrt(&sqrt_1_2, &t1);
     
-    bits = sc_ceil_log2(tail * sigma);
     sc_mpf_set_d(&sigma128, sigma);
     sc_mpf_set_d(&half128, 0.5);
-
-    // Allocate memory for the structure to be passed as a void *
-    gauss_cdf_128_t *gauss = SC_MALLOC(sizeof(gauss_cdf_128_t));
-    if (NULL == gauss) {
-        return NULL;
-    }
-
-    // Store the Kullback-Leibler divergence constant
-    gauss->k = k;
-
-    // Allocate memory for the pre-computed Gaussian distribution
-    gauss->cdf = SC_MALLOC((1 << bits) * sizeof(UINT128));
-    if (NULL == gauss->cdf) {
-        SC_FREE(gauss, sizeof(gauss_cdf_128_t));
-        return NULL;
-    }
-
-    // Store the size of the distribution
-    gauss->cdf_size = (1 << bits);
-
-    // Store a pointer to the PRNG context
-    gauss->prng_ctx = prng_ctx;
 
     // If blinding is enabled the sigma variable must be scaled
     if (BLINDING_SAMPLES == blinding) {
         sc_mpf_mul(&sigma128, &sigma128, &sqrt_1_2);
     }
 
-    // 2/sqrt(2*Pi) * (1 << 128) / sigma
+    // 2/sqrt(2*Pi) * (1 << precision) / sigma
     sc_mpf_set_ui(&d, 2);
-    sc_mpf_pow_ui(&t0, &d, 128);
+    sc_mpf_pow_ui(&t0, &d, precision);
     sc_mpf_div(&t1, &t0, &sigma128);
     sc_mpf_mul(&d, &t1, &two_sqrt_2pi);
 
@@ -234,43 +232,47 @@ void * gaussian_cdf_create_128(prng_ctx_t *prng_ctx, FLOAT tail, FLOAT sigma, si
     sc_mpf_negate(&e, &e);
     sc_mpf_mul(&s, &d, &half128);
 
-    gauss->cdf[0] = 0;
+    for (i=0; i<num_words; i++) {
+        if (128 == precision) {
+            gauss->cdf_128[0].w[i] = 0;
+        }
+        else if (192 == precision) {
+            gauss->cdf_192[0].w[i] = 0;
+        }
+        else if (256 == precision) {
+            gauss->cdf_256[0].w[i] = 0;
+        }
+    }
+
     for (i=1; i<gauss->cdf_size-1; i++) {
-        UINT128 temp;
-#if 32 == SC_LIMB_BITS
+        sc_ulimb_t temp[num_words], same;
+        sc_mpf_t *a, *b, *c;
         sc_mpf_set(&t0, &s);
-        sc_mpf_div_2exp(&t1, &t0, 96);
-        temp   = (UINT128)sc_mpf_get_ui(&t1);
+        sc_mpf_div_2exp(&t1, &t0, ((num_words-1) * SC_LIMB_BITS));
+        a = &t1;
+        b = &t0;
+        for (j=num_words-1; j!=0; j--) {
+            temp[j] = sc_mpf_get_ui(a);
+            sc_mpf_set_ui(b, temp[j]);
+            sc_mpf_sub(a, a, b);
+            sc_mpf_mul_2exp(b, a, SC_LIMB_BITS);
+            c = a;
+            a = b;
+            b = c;
+        }
+        temp[0] = sc_mpf_get_ui(a);
 
-        sc_mpf_set_ui(&t0, temp);
-        temp <<= 32;
-        sc_mpf_sub(&t1, &t1, &t0);
-        sc_mpf_mul_2exp(&t0, &t1, 32);
-        temp  |= (UINT128)sc_mpf_get_ui(&t0);
-
-        sc_mpf_set_ui(&t0, temp);
-        temp <<= 32;
-        sc_mpf_sub(&t1, &t1, &t0);
-        sc_mpf_mul_2exp(&t0, &t1, 32);
-        temp  |= (UINT128)sc_mpf_get_ui(&t0);
-
-        sc_mpf_set_ui(&t0, temp);
-        temp <<= 32;
-        sc_mpf_sub(&t1, &t1, &t0);
-        sc_mpf_mul_2exp(&t0, &t1, 32);
-        temp  |= (UINT128)sc_mpf_get_ui(&t0);
-#else
-        sc_mpf_set(&t0, &s);
-        sc_mpf_div_2exp(&t1, &t0, 64);
-        temp   = (UINT128)sc_mpf_get_ui(&t1);
-
-        sc_mpf_set_ui(&t0, temp);
-        temp <<= 64;
-        sc_mpf_sub(&t1, &t1, &t0);
-        sc_mpf_mul_2exp(&t0, &t1, 64);
-        temp  |= (UINT128)sc_mpf_get_ui(&t0);
-#endif
-        gauss->cdf[i] = temp;
+        for (j=0; j<num_words; j++) {
+            if (128 == precision) {
+                gauss->cdf_128[i].w[j] = temp[j];
+            }
+            else if (192 == precision) {
+                gauss->cdf_192[i].w[j] = temp[j];
+            }
+            else if (256 == precision) {
+                gauss->cdf_256[i].w[j] = temp[j];
+            }
+        }
         if (sc_mpf_is_zero(&s))        // overflow, sc_mpf_get_si() == 0 may be better than the singular
             break;
         // s += d.exp(e.i.i)
@@ -280,15 +282,32 @@ void * gaussian_cdf_create_128(prng_ctx_t *prng_ctx, FLOAT tail, FLOAT sigma, si
         sc_mpf_add(&s, &s, &t0);
     }
     {
-        UINT128 all_ones;
-        all_ones   = 0xFFFFFFFFFFFFFFFF;
-        all_ones <<= 64;
-        all_ones  |= 0xFFFFFFFFFFFFFFFF;
+        sc_ulimb_t all_ones[num_words];
+        for (j=0; j<num_words; j++) {
+            all_ones[j] = SC_LIMB_WORD(-1);
+        }
+
         for (; i<gauss->cdf_size; i++) {
-            gauss->cdf[i] = all_ones;
+            for (j=0; j<num_words; j++) {
+                if (128 == precision) {
+                    gauss->cdf_128[i].w[j] = all_ones[j];
+                }
+                else if (192 == precision) {
+                    gauss->cdf_192[i].w[j] = all_ones[j];
+                }
+                else if (256 == precision) {
+                    gauss->cdf_256[i].w[j] = all_ones[j];
+                }
+            }
         }
     }
 
+    /*for (i=0; i<gauss->cdf_size; i++) {
+        for (j=0; j<num_words; j++) {
+            fprintf(stderr, "%016lX", gauss->cdf_128[i].w[num_words-1-j]);
+        }
+        fprintf(stderr, "\n");
+    }*/
 finish:
     sc_mpf_clear(&s);
     sc_mpf_clear(&d);
@@ -300,10 +319,83 @@ finish:
     sc_mpf_clear(&two_sqrt_2pi);
     sc_mpf_clear(&sqrt_1_2);
     sc_mpf_clear_constants();
+}
 
+static void * gaussian_cdf_create_high(prng_ctx_t *prng_ctx, FLOAT tail, FLOAT sigma,
+    sample_blinding_e blinding, size_t precision)
+{
+    SINT32 bits;
+    size_t k = 0;//find_kldiv_k(max_lut_bytes, tail, &sigma);
+#if 32 == SC_LIMB_BITS
+    size_t num_words = precision >> 5;
+#else
+    size_t num_words = precision >> 6;
 #endif
 
+    bits = sc_ceil_log2(tail * sigma);
+
+    // Allocate memory for the structure to be passed as a void *
+    gauss_cdf_high_t *gauss = SC_MALLOC(sizeof(gauss_cdf_high_t));
+    if (NULL == gauss) {
+        return NULL;
+    }
+
+    // Allocate memory for the pre-computed Gaussian distribution
+    if (128 == precision) {
+        gauss->cdf_128 = SC_MALLOC((1 << bits) * sizeof(u128_t));
+        if (NULL == gauss->cdf_128) {
+            SC_FREE(gauss, sizeof(gauss_cdf_high_t));
+            return NULL;
+        }
+    }
+    else if (192 == precision) {
+        gauss->cdf_192 = SC_MALLOC((1 << bits) * sizeof(u192_t));
+        if (NULL == gauss->cdf_192) {
+            SC_FREE(gauss, sizeof(gauss_cdf_high_t));
+            return NULL;
+        }
+    }
+    else {
+        gauss->cdf_256 = SC_MALLOC((1 << bits) * sizeof(u256_t));
+        if (NULL == gauss->cdf_256) {
+            SC_FREE(gauss, sizeof(gauss_cdf_high_t));
+            return NULL;
+        }
+    }
+
+    // Store the Kullback-Leibler divergence constant
+    gauss->k = k;
+
+    // Store the size of the distribution
+    gauss->cdf_size = (1 << bits);
+
+    // Store a pointer to the PRNG context
+    gauss->prng_ctx = prng_ctx;
+
+    gauss_cdf_create_high_precision(prng_ctx, gauss, num_words, precision, sigma, blinding);
+
     return (void *) gauss;
+}
+
+void * gaussian_cdf_create_128(prng_ctx_t *prng_ctx, FLOAT tail, FLOAT sigma, size_t max_lut_bytes, sample_blinding_e blinding)
+{
+    (void) max_lut_bytes;
+
+    return gaussian_cdf_create_high(prng_ctx, tail, sigma, blinding, 128);
+}
+
+void * gaussian_cdf_create_192(prng_ctx_t *prng_ctx, FLOAT tail, FLOAT sigma, size_t max_lut_bytes, sample_blinding_e blinding)
+{
+    (void) max_lut_bytes;
+
+    return gaussian_cdf_create_high(prng_ctx, tail, sigma, blinding, 192);
+}
+
+void * gaussian_cdf_create_256(prng_ctx_t *prng_ctx, FLOAT tail, FLOAT sigma, size_t max_lut_bytes, sample_blinding_e blinding)
+{
+    (void) max_lut_bytes;
+
+    return gaussian_cdf_create_high(prng_ctx, tail, sigma, blinding, 256);
 }
 
 SINT32 gaussian_cdf_destroy_128(void **sampler)
@@ -313,20 +405,56 @@ SINT32 gaussian_cdf_destroy_128(void **sampler)
 
     // Obtain a pointer to the CDF Gaussian Sampler, return failure if
     // the pointer is NULL
-    gauss_cdf_128_t *gauss = (gauss_cdf_128_t *) *sampler;
+    gauss_cdf_high_t *gauss = (gauss_cdf_high_t *) *sampler;
     if (NULL == gauss)
         return SC_FUNC_FAILURE;
 
     // Free the memory resources
-    SC_FREE(gauss->cdf, gauss->cdf_size * sizeof(UINT128));
-    SC_FREE(*sampler, sizeof(gauss_cdf_64_t));
+    SC_FREE(gauss->cdf_128, gauss->cdf_size * sizeof(u128_t));
+    SC_FREE(*sampler, sizeof(gauss_cdf_high_t));
+
+    return SC_FUNC_SUCCESS;
+}
+
+SINT32 gaussian_cdf_destroy_192(void **sampler)
+{
+    if (NULL == sampler)
+        return SC_FUNC_FAILURE;
+
+    // Obtain a pointer to the CDF Gaussian Sampler, return failure if
+    // the pointer is NULL
+    gauss_cdf_high_t *gauss = (gauss_cdf_high_t *) *sampler;
+    if (NULL == gauss)
+        return SC_FUNC_FAILURE;
+
+    // Free the memory resources
+    SC_FREE(gauss->cdf_192, gauss->cdf_size * sizeof(u192_t));
+    SC_FREE(*sampler, sizeof(gauss_cdf_high_t));
+
+    return SC_FUNC_SUCCESS;
+}
+
+SINT32 gaussian_cdf_destroy_256(void **sampler)
+{
+    if (NULL == sampler)
+        return SC_FUNC_FAILURE;
+
+    // Obtain a pointer to the CDF Gaussian Sampler, return failure if
+    // the pointer is NULL
+    gauss_cdf_high_t *gauss = (gauss_cdf_high_t *) *sampler;
+    if (NULL == gauss)
+        return SC_FUNC_FAILURE;
+
+    // Free the memory resources
+    SC_FREE(gauss->cdf_256, gauss->cdf_size * sizeof(u256_t));
+    SC_FREE(*sampler, sizeof(gauss_cdf_high_t));
 
     return SC_FUNC_SUCCESS;
 }
 
 prng_ctx_t * gaussian_cdf_get_prng_128(void *sampler)
 {
-    gauss_cdf_128_t *gauss = (gauss_cdf_128_t *) sampler;
+    gauss_cdf_high_t *gauss = (gauss_cdf_high_t *) sampler;
     if (NULL == gauss) {
         return NULL;
     }
@@ -338,30 +466,80 @@ SINT32 gaussian_cdf_sample_128(void *sampler)
     // Return a random gaussian sample from a pre-computed distribution
 
     SINT32 a;
-    UINT128 x;
-    gauss_cdf_128_t *gauss = (gauss_cdf_128_t *) sampler;
+    u128_t x;
+    gauss_cdf_high_t *gauss = (gauss_cdf_high_t *) sampler;
 
-    x = prng_128(gauss->prng_ctx);
-    a = binary_search_128(x, gauss->cdf, gauss->cdf_size);
+    x.w[0] = prng_64(gauss->prng_ctx);
+    x.w[1] = prng_64(gauss->prng_ctx);
+#if 32 == SC_LIMB_BITS
+    x.w[2] = prng_32(gauss->prng_ctx);
+    x.w[3] = prng_32(gauss->prng_ctx);
+#endif
+    a = binary_search_128(x, gauss->cdf_128, gauss->cdf_size);
 
-    return (x & 1)? a : -a;
+    return (x.w[0] & 1)? a : -a;
+}
+
+SINT32 gaussian_cdf_sample_192(void *sampler)
+{
+    // Return a random gaussian sample from a pre-computed distribution
+
+    SINT32 a;
+    u192_t x;
+    gauss_cdf_high_t *gauss = (gauss_cdf_high_t *) sampler;
+
+    x.w[0] = prng_64(gauss->prng_ctx);
+    x.w[1] = prng_64(gauss->prng_ctx);
+    x.w[2] = prng_64(gauss->prng_ctx);
+#if 32 == SC_LIMB_BITS
+    x.w[3] = prng_32(gauss->prng_ctx);
+    x.w[4] = prng_32(gauss->prng_ctx);
+    x.w[5] = prng_32(gauss->prng_ctx);
+#endif
+    a = binary_search_192(x, gauss->cdf_192, gauss->cdf_size);
+
+    return (x.w[0] & 1)? a : -a;
+}
+
+SINT32 gaussian_cdf_sample_256(void *sampler)
+{
+    // Return a random gaussian sample from a pre-computed distribution
+
+    SINT32 a;
+    u256_t x;
+    gauss_cdf_high_t *gauss = (gauss_cdf_high_t *) sampler;
+
+    x.w[0] = prng_64(gauss->prng_ctx);
+    x.w[1] = prng_64(gauss->prng_ctx);
+    x.w[2] = prng_64(gauss->prng_ctx);
+    x.w[4] = prng_64(gauss->prng_ctx);
+#if 32 == SC_LIMB_BITS
+    x.w[4] = prng_32(gauss->prng_ctx);
+    x.w[5] = prng_32(gauss->prng_ctx);
+    x.w[6] = prng_32(gauss->prng_ctx);
+    x.w[7] = prng_32(gauss->prng_ctx);
+#endif
+    a = binary_search_256(x, gauss->cdf_256, gauss->cdf_size);
+
+    return (x.w[0] & 1)? a : -a;
 }
 #endif
 
-#ifdef HAVE_64BIT
+
 static SINT32 binary_search_64(UINT64 x, const UINT64 *l, SINT32 n)
 {
     // Given the table l of length n, return the address in the table
     // that satisfies the condition x >= l[b]
 
-    SINT32 a;
-    SINT32 st = n >> 1;
+    UINT32 a;
+    UINT32 st = n >> 1;
 
     a = 0;
     while (st > 0) {
-        SINT32 b = a + st;
-        if (b < n && x >= l[b])
+        UINT32 b = a + st;
+        if (sc_const_time_lessthan(b, n) & sc_const_time_lessthan(l[b], x)) {
             a = b;
+        }
         st >>= 1;
     }
     return a;
@@ -472,21 +650,21 @@ SINT32 gaussian_cdf_sample_64(void *sampler)
 
     return (x & 1)? a : -a;
 }
-#endif
 
 static SINT32 binary_search_32(UINT32 x, const UINT32 *l, SINT32 n)
 {
     // Given the table l of length n, return the address in the table
     // that satisfies the condition x >= l[b]
 
-    SINT32 a;
-    SINT32 st = n >> 1;
+    UINT32 a;
+    UINT32 st = n >> 1;
 
     a = 0;
     while (st > 0) {
-        SINT32 b = a + st;
-        if (b < n && x >= l[b])
+        UINT32 b = a + st;
+        if (sc_const_time_lessthan(b, n) & sc_const_time_lessthan(l[b], x)) {
             a = b;
+        }
         st >>= 1;
     }
     return a;

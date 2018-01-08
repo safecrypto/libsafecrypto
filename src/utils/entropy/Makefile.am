@@ -16,6 +16,10 @@ libentropy_la_SOURCES     = packer.h \
                             exp_golomb.c \
                             huffman.h \
                             huffman.c \
+                            entropy_huffman.h \
+                            entropy_huffman.c \
+                            entropy_raw.h \
+                            entropy_raw.c \
                             entropy.h \
                             entropy.c
 

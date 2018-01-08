@@ -13,9 +13,14 @@ SUBDIRS                  = schemes utils . unit
 # API header files for installation (installed in /usr/local/include/safecrypto)
 pkginclude_HEADERS = ../include/safecrypto.h ../include/safecrypto_types.h
 
+# Obtain the configure invocation command
+CMD  := $(shell $(top_srcdir)/config.status --config)
+CMD2 := $(subst $\',,$(CMD))
+
 # C preprocessor flags
 AM_CPPFLAGS             += -I$(top_srcdir)/include \
-                           -I$(top_srcdir)/src/utils/crypto
+                           -I$(top_srcdir)/src/utils/crypto \
+                           -DCONFIGURE_INVOCATION='"$(CMD2)"'
 
 # The SAFEcrypto library target
 lib_LTLIBRARIES          = $(top_builddir)/libs/libsafecrypto.la
@@ -26,7 +31,6 @@ __top_builddir__libs_libsafecrypto_la_SOURCES = \
                            ../include/safecrypto_types.h \
                            safecrypto.c \
                            safecrypto_version.h \
-                           safecrypto_ake.h \
                            safecrypto_ake.c \
                            safecrypto_check.h \
                            safecrypto_check.c \

@@ -38,6 +38,7 @@
 #include "utils/sampling/gaussian_ziggurat.h"
 #endif
 #include "utils/sampling/mw_bootstrap.h"
+#include "utils/arith/sc_math.h"
 #include "utils/crypto/prng.h"
 #include "safecrypto_private.h"
 
@@ -49,21 +50,12 @@
 #endif
 
 
-static SINT32 sample_vector_16(prng_ctx_t *ctx,
-    const utils_sampling_t *sampling, void *gauss, SINT16 *v, size_t n);
-static SINT32 sample_vector_32(prng_ctx_t *ctx,
-    const utils_sampling_t *sampling, void *gauss, SINT32 *v, size_t n);
-static SINT32 sample_vector_flt(prng_ctx_t *ctx,
-    const utils_sampling_t *sampling, void *gauss, FLOAT *v, size_t n);
-static SINT32 sample_vector_dbl(prng_ctx_t *ctx,
-    const utils_sampling_t *sampling, void *gauss, DOUBLE *v, size_t n);
-static SINT32 sample_vector_long_dbl(prng_ctx_t *ctx,
-    const utils_sampling_t *sampling, void *gauss, LONGDOUBLE *v, size_t n);
+static SINT32 sample_vector_16(const utils_sampling_t *sampling, SINT16 *v, size_t n, SINT32 centre);
+static SINT32 sample_vector_32(const utils_sampling_t *sampling, SINT32 *v, size_t n, SINT32 centre);
 
 static utils_sampling_t utils_sampling_table = {
     gaussian_cdf_create_32, gaussian_cdf_destroy_32, gaussian_cdf_get_prng_32,
     gaussian_cdf_sample_32, sample_vector_16, sample_vector_32,
-    sample_vector_flt, sample_vector_dbl, sample_vector_long_dbl,
 #ifdef HAVE_64BIT
     SAMPLING_64BIT,
 #else
@@ -72,147 +64,164 @@ static utils_sampling_t utils_sampling_table = {
     256, SAMPLING_DISABLE_BOOTSTRAP, 0.0f, NULL, NULL
 };
 
-static void permute_16(prng_ctx_t *ctx, SINT16 *v, size_t n)
+/// Return a random unbiased integer in the range 0 to x inclusive
+static size_t rand_range(prng_ctx_t *ctx, size_t x)
 {
-    SINT16 t;
-    size_t i;
-    UINT16 r, mask = n - 1;
+    size_t y, rem;
+    rem  = 0xFFFFFFFF % x;
+restart:
+    // Obtain a random integer in the range 0 to (2^16-1) inclusive
+    y = prng_32(ctx);
 
-    for (i=0; i<n; i++) {
-#if 1
-        do {
-            r = prng_16(ctx) & mask;
-        } while (r < i);
-        size_t j = r;
-#else
-        r = prng_16(ctx);   // random position
-        size_t j = r & mask;
-#endif
+    // Discard y if it is greater than or equal to the largest multiple of x
+    if (y >= (0xFFFFFFFF - rem)) {
+        goto restart;
+    }
 
-        t = v[i];                 // swap entries
-        v[i] = v[j];
-        v[j] = t;
+    // Discard y if its largest multiple is less than or equal to x
+    return y % x;
+}
+
+static UINT32 set_threshold(UINT32 discard)
+{
+    UINT32 thresh = (SCA_PATTERN_SAMPLE_DISCARD_LO == discard)? 1 << (32 - 4) :
+                    (SCA_PATTERN_SAMPLE_DISCARD_MD == discard)? 1 << (32 - 2) :
+                    (SCA_PATTERN_SAMPLE_DISCARD_HI == discard)? 1 << (32 - 1) :
+                                                                0;
+    return thresh;
+}
+
+/// A function used to provide a flag indicating if a sample should be discarded or not
+static SINT32 discard_sample(prng_ctx_t *csprng, UINT32 thresh)
+{
+    if (0 == thresh) {
+        return 0;
+    }
+    else {
+        UINT32 rnd = prng_32(csprng);
+        return sc_const_time_lessthan(rnd, thresh);
     }
 }
 
-static void permute_32(prng_ctx_t *ctx, SINT32 *v, size_t n)
+static SINT32 shuffle_sample_vector_16(const utils_sampling_t *sampling, SINT16 *v, size_t n, SINT32 centre)
 {
-    SINT32 t;
-    size_t i;
-    UINT16 r, mask = n - 1;
+   size_t i, j;
+   void *gauss     = sampling->gauss;
+   prng_ctx_t *ctx = sampling->prng_ctx;
+   UINT32 thresh   = set_threshold(sampling->discard);
 
-    for (i=0; i<n; i++) {
-#if 1
-        do {
-            r = prng_16(ctx) & mask;
-        } while (r < i);
-        size_t j = r;
-#else
-        r = prng_16(ctx);   // random position
-        size_t j = r & mask;
-#endif
-
-        t = v[i];                 // swap entries
-        v[i] = v[j];
-        v[j] = t;
+    v[0] = sampling->sample(gauss);
+    for (i=1; i<n; i++) {
+        j = rand_range(ctx, i);
+        if (j != i) {
+            v[i] = v[j];
+        }
+        v[j] = sampling->sample(gauss) + centre;
+        i   -= discard_sample(ctx, thresh);
     }
+
+    return SC_FUNC_SUCCESS;
 }
 
-static SINT32 blinding_sample_vector_16(prng_ctx_t *ctx,
-    const utils_sampling_t *sampling, void *gauss, SINT16 *v, size_t n)
+static SINT32 shuffle_sample_vector_32(const utils_sampling_t *sampling, SINT32 *v, size_t n, SINT32 centre)
 {
-    size_t i;
+    size_t i, j;
+    void *gauss     = sampling->gauss;
+    prng_ctx_t *ctx = sampling->prng_ctx;
+    UINT32 thresh   = set_threshold(sampling->discard);
 
-    for (i=0; i<n; i++) {
-        v[i] = sampling->sample(gauss);
+    v[0] = sampling->sample(gauss);
+    for (i=1; i<n; i++) {
+        j = rand_range(ctx, i);
+        if (j != i) {
+            v[i] = v[j];
+        }
+        v[j] = sampling->sample(gauss) + centre;
+        i   -= discard_sample(ctx, thresh);
     }
-    permute_16(ctx, v, n);
+
+    return SC_FUNC_SUCCESS;
+}
+
+static SINT32 blinding_sample_vector_16(const utils_sampling_t *sampling, SINT16 *v, size_t n, SINT32 centre)
+{
+    size_t i, j;
+    void *gauss     = sampling->gauss;
+    prng_ctx_t *ctx = sampling->prng_ctx;
+    UINT32 thresh   = set_threshold(sampling->discard);
+    UINT32 mask     = n - 1;
+
+    shuffle_sample_vector_16(sampling, v, n, centre);
     for (i=0; i<n; i++) {
         v[i] -= sampling->sample(gauss);
     }
-    permute_16(ctx, v, n);
+    for (i=0; i<n; i++) {
+        SINT16 temp;
+        j = i & mask;
+        temp = v[i];
+        v[i] = v[j];
+        v[j] = temp;
+    }
 
     return SC_FUNC_SUCCESS;
 }
 
-static SINT32 blinding_sample_vector_32(prng_ctx_t *ctx,
-    const utils_sampling_t *sampling, void *gauss, SINT32 *v, size_t n)
+static SINT32 blinding_sample_vector_32(const utils_sampling_t *sampling, SINT32 *v, size_t n, SINT32 centre)
 {
-    size_t i;
+    size_t i, j;
+    void *gauss     = sampling->gauss;
+    prng_ctx_t *ctx = sampling->prng_ctx;
+    UINT32 thresh   = set_threshold(sampling->discard);
+    UINT32 mask     = n - 1;
 
-    for (i=0; i<n; i++) {
-        v[i] = sampling->sample(gauss);
-    }
-    permute_32(ctx, v, n);
+    shuffle_sample_vector_32(sampling, v, n, centre);
     for (i=0; i<n; i++) {
         v[i] -= sampling->sample(gauss);
     }
-    permute_32(ctx, v, n);
-
-    return SC_FUNC_SUCCESS;
-}
-
-static SINT32 sample_vector_16(prng_ctx_t *ctx,
-    const utils_sampling_t *sampling, void *gauss, SINT16 *v, size_t n)
-{
-    (void) ctx;
-    size_t i;
-
     for (i=0; i<n; i++) {
-        v[i] = sampling->sample(gauss);
+        SINT32 temp;
+        j = i & mask;
+        temp = v[i];
+        v[i] = v[j];
+        v[j] = temp;
     }
 
     return SC_FUNC_SUCCESS;
 }
 
-static SINT32 sample_vector_32(prng_ctx_t *ctx,
-    const utils_sampling_t *sampling, void *gauss, SINT32 *v, size_t n)
+static SINT32 sample_vector_16(const utils_sampling_t *sampling, SINT16 *v, size_t n, SINT32 centre)
 {
-    (void) ctx;
     size_t i;
+    void *gauss     = sampling->gauss;
+    prng_ctx_t *ctx = sampling->prng_ctx;
+    UINT32 thresh   = set_threshold(sampling->discard);
 
     for (i=0; i<n; i++) {
-        v[i] = sampling->sample(gauss);
+        v[i] = sampling->sample(gauss) + centre;
+        i   -= discard_sample(ctx, thresh);
     }
 
     return SC_FUNC_SUCCESS;
 }
 
-static SINT32 sample_vector_flt(prng_ctx_t *ctx,
-    const utils_sampling_t *sampling, void *gauss, FLOAT *v, size_t n)
+static UINT32 skip = 0;
+static UINT32 no_skip = 0;
+
+static SINT32 sample_vector_32(const utils_sampling_t *sampling, SINT32 *v, size_t n, SINT32 centre)
 {
-    (void) ctx;
     size_t i;
+    void *gauss     = sampling->gauss;
+    prng_ctx_t *ctx = sampling->prng_ctx;
+    UINT32 thresh   = set_threshold(sampling->discard);
 
     for (i=0; i<n; i++) {
-        v[i] = (FLOAT) sampling->sample(gauss);
+        UINT32 discard;
+        v[i] = sampling->sample(gauss) + centre;
+        discard = discard_sample(ctx, thresh);
+        skip += discard;
+        i   -= discard;
     }
-
-    return SC_FUNC_SUCCESS;
-}
-
-static SINT32 sample_vector_dbl(prng_ctx_t *ctx,
-    const utils_sampling_t *sampling, void *gauss, DOUBLE *v, size_t n)
-{
-    (void) ctx;
-    size_t i;
-
-    for (i=0; i<n; i++) {
-        v[i] = (DOUBLE) sampling->sample(gauss);
-    }
-
-    return SC_FUNC_SUCCESS;
-}
-
-static SINT32 sample_vector_long_dbl(prng_ctx_t *ctx,
-    const utils_sampling_t *sampling, void *gauss, LONGDOUBLE *v, size_t n)
-{
-    (void) ctx;
-    size_t i;
-
-    for (i=0; i<n; i++) {
-        v[i] = (LONGDOUBLE) sampling->sample(gauss);
-    }
+    no_skip += n;
 
     return SC_FUNC_SUCCESS;
 }
@@ -276,12 +285,26 @@ SINT32 configure_sampler(utils_sampling_t *sampling_table, random_sampling_e typ
             success = SC_FUNC_SUCCESS;
         }
 #endif
-#ifdef HAVE_128BIT
+#if !defined(DISABLE_HIGH_PREC_GAUSSIAN)
         else if (SAMPLING_128BIT == precision) {
             sampling_table->create   = gaussian_cdf_create_128;
             sampling_table->destroy  = gaussian_cdf_destroy_128;
             sampling_table->get_prng = gaussian_cdf_get_prng_128;
             sampling_table->sample   = gaussian_cdf_sample_128;
+            success = SC_FUNC_SUCCESS;
+        }
+        else if (SAMPLING_192BIT == precision) {
+            sampling_table->create   = gaussian_cdf_create_192;
+            sampling_table->destroy  = gaussian_cdf_destroy_192;
+            sampling_table->get_prng = gaussian_cdf_get_prng_128;
+            sampling_table->sample   = gaussian_cdf_sample_192;
+            success = SC_FUNC_SUCCESS;
+        }
+        else if (SAMPLING_256BIT == precision) {
+            sampling_table->create   = gaussian_cdf_create_256;
+            sampling_table->destroy  = gaussian_cdf_destroy_256;
+            sampling_table->get_prng = gaussian_cdf_get_prng_128;
+            sampling_table->sample   = gaussian_cdf_sample_256;
             success = SC_FUNC_SUCCESS;
         }
 #endif
@@ -373,13 +396,23 @@ SINT32 configure_sampler(utils_sampling_t *sampling_table, random_sampling_e typ
     default:;
     }
 
-    if (BLINDING_SAMPLES == blinding) {
-        sampling_table->vector_32 = blinding_sample_vector_32;
-        sampling_table->vector_16 = blinding_sample_vector_16;
-    }
-    else {
-        sampling_table->vector_32 = sample_vector_32;
-        sampling_table->vector_16 = sample_vector_16;
+    switch (blinding)
+    {
+        case SHUFFLE_SAMPLES:
+        {
+            sampling_table->vector_32 = shuffle_sample_vector_32;
+            sampling_table->vector_16 = shuffle_sample_vector_16;
+        } break;
+        case BLINDING_SAMPLES:
+        {
+            sampling_table->vector_32 = blinding_sample_vector_32;
+            sampling_table->vector_16 = blinding_sample_vector_16;
+        } break;
+        case NORMAL_SAMPLES:
+        {
+            sampling_table->vector_32 = sample_vector_32;
+            sampling_table->vector_16 = sample_vector_16;
+        } break;
     }
 
     sampling_table->precision = precision;
@@ -402,6 +435,12 @@ utils_sampling_t * create_sampler(random_sampling_e type,
     if (SC_FUNC_FAILURE == retval) {
         return NULL;
     }
+
+    // Set a pointer to the CSPRNG
+    sampler->prng_ctx = prng_ctx;
+
+    // Default sample discarding to NONE
+    sampler->discard = 0;
 
     if (SAMPLING_MW_BOOTSTRAP == bootstrapped) {
         sampler->sigma2 = sigma * sigma;
@@ -452,6 +491,12 @@ SINT32 destroy_sampler(utils_sampling_t **sampler)
     return SC_FUNC_SUCCESS;
 }
 
+SINT32 set_discard(utils_sampling_t *sampler, UINT32 discard)
+{
+    sampler->discard = discard;
+    return SC_FUNC_SUCCESS;
+}
+
 SINT32 get_sample(utils_sampling_t *sampler)
 {
     return sampler->sample(sampler->gauss);
@@ -481,9 +526,7 @@ SINT32 get_vector_16(utils_sampling_t *sampler, SINT16 *v, size_t n, FLOAT centr
         }
     }
     else {
-        for (i=0; i<n; i++) {
-            v[i] = sampler->sample(sampler->gauss) + (SINT32) centre;
-        }
+        sampler->vector_16(sampler, v, n, (SINT32) centre);
     }
 
     return SC_FUNC_SUCCESS;
@@ -499,9 +542,7 @@ SINT32 get_vector_32(utils_sampling_t *sampler, SINT32 *v, size_t n, FLOAT centr
         }
     }
     else {
-        for (i=0; i<n; i++) {
-            v[i] = sampler->sample(sampler->gauss) + (SINT32) centre;
-        }
+        sampler->vector_32(sampler, v, n, (SINT32) centre);
     }
 
     return SC_FUNC_SUCCESS;

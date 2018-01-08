@@ -20,6 +20,10 @@
 #include "safecrypto_types.h"
 #include <stdio.h>
 
+#include <limits.h>
+#ifndef NATIVE_WORD_SIZE
+#define NATIVE_WORD_SIZE   __WORDSIZE
+#endif
 
 /// Macro definitions for mathematical constants that are not defined by C99
 /// @{
@@ -28,18 +32,29 @@
 /// @}
 
 
+/// Arithmetic comparison functions (constant-time)
+/// @{
+/// Return 1 if less than, 0 otherwise
+#if NATIVE_WORD_SIZE == 64
+volatile SINT32 sc_const_time_lessthan(volatile UINT64 a, volatile UINT64 b);
+#else
+volatile SINT32 sc_const_time_lessthan(volatile UINT32 a, volatile UINT32 b);
+#endif
+/// @}
 
-/// Range limiting functions - the return value is -q <= x <= q
+
+
+/// Modulo range limiting functions - the return value is -q <= x <= q, |x| must be < 2*x
 /// @{
 #if defined(HAVE_128BIT) && defined(__x86_64__)
-SINT128 sc_range_limit_s128(SINT128 x, SINT128 q);
+SINT128 sc_mod_limit_s128(SINT128 x, SINT128 q);
 #endif
 #ifdef HAVE_64BIT
-SINT64 sc_range_limit_s64(SINT64 x, SINT64 q);
+SINT64 sc_mod_limit_s64(SINT64 x, SINT64 q);
 #endif
-SINT32 sc_range_limit_s32(SINT32 x, SINT32 q);
-SINT16 sc_range_limit_s16(SINT16 x, SINT16 q);
-SINT8 sc_range_limit_s8(SINT8 x, SINT8 q);
+SINT32 sc_mod_limit_s32(SINT32 x, SINT32 q);
+SINT16 sc_mod_limit_s16(SINT16 x, SINT16 q);
+SINT8 sc_mod_limit_s8(SINT8 x, SINT8 q);
 /// @}
 
 /// Fast math estimation routines
@@ -194,51 +209,3 @@ UINT32 get_binary_expansion_fraction_32(DOUBLE x);
 #define SC_ABS(x)     (((x) < 0)? -(x) : (x))
 /// @}
 
-/// Endianness conversion
-/// @{
-#ifdef HAVE_64BIT
-UINT64 sc_bswap_64(UINT64 x);
-void sc_swap_copy_64(void* to, SINT32 index, const void* from, size_t length);
-#endif
-void sc_swap_copy_32(void* to, SINT32 index, const void* from, size_t length);
-
-#if __BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__
-// We are big-endian
-#define SC_LITTLE_ENDIAN_32(x)  ((((x) & 0xFF000000) >> 24) | \
-                                 (((x) & 0x00FF0000) >>  8) | \
-                                 (((x) & 0x0000FF00) <<  8) | \
-                                 (((x) & 0x000000FF) << 24))
-#define SC_BIG_ENDIAN_32(x)     (x)
-#define SC_LITTLE_ENDIAN_32_COPY(to, index, from, length) \
-	                            sc_swap_copy_32((to), (index), (from), (length))
-#define SC_BIG_ENDIAN_32_COPY(to, index, from, length) \
-	                            SC_MEMCOPY((to) + (index), (from), (length))
-#ifdef HAVE_64BIT
-#define SC_LITTLE_ENDIAN_64(x)  sc_bswap_64(x)
-#define SC_BIG_ENDIAN_64(x)     (x)
-#define SC_LITTLE_ENDIAN_64_COPY(to, index, from, length) \
-	                            sc_swap_copy_64((to), (index), (from), (length))
-#define SC_BIG_ENDIAN_64_COPY(to, index, from, length) \
-	                            SC_MEMCOPY((to) + (index), (from), (length))
-#endif
-#else
-// We are little-endian
-#define SC_LITTLE_ENDIAN_32(x)  (x)
-#define SC_BIG_ENDIAN_32(x)     ((((x) & 0xFF000000) >> 24) | \
-                                 (((x) & 0x00FF0000) >>  8) | \
-                                 (((x) & 0x0000FF00) <<  8) | \
-                                 (((x) & 0x000000FF) << 24))
-#define SC_LITTLE_ENDIAN_32_COPY(to, index, from, length) \
-	                            SC_MEMCOPY((to) + (index), (from), (length))
-#define SC_BIG_ENDIAN_32_COPY(to, index, from, length) \
-	                            sc_swap_copy_32((to), (index), (from), (length))
-#ifdef HAVE_64BIT
-#define SC_LITTLE_ENDIAN_64(x)  (x)
-#define SC_BIG_ENDIAN_64(x)     sc_bswap_64(x)
-#define SC_LITTLE_ENDIAN_64_COPY(to, index, from, length) \
-	                            SC_MEMCOPY((to) + (index), (from), (length))
-#define SC_BIG_ENDIAN_64_COPY(to, index, from, length) \
-	                            sc_swap_copy_64((to), (index), (from), (length))
-#endif
-#endif
-/// @}

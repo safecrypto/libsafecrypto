@@ -293,7 +293,7 @@ int tinysha3_init(void *c, int mdlen)
     ctx->rsiz = 200 - 2 * mdlen;
     ctx->pt = 0;
 
-    return 1;
+    return SC_FUNC_SUCCESS;
 }
 
 // update state with more data
@@ -315,7 +315,7 @@ int tinysha3_update(void *c, const void *data, size_t len)
     }
     ctx->pt = j;
 
-    return 1;
+    return SC_FUNC_SUCCESS;
 }
 
 // finalize and output a hash
@@ -333,7 +333,7 @@ int tinysha3_final(void *c, void *md)
         ((uint8_t *) md)[i] = ctx->st.b[i];
     }
 
-    return 1;
+    return SC_FUNC_SUCCESS;
 }
 
 int tinysha3_xof_final(void *c)
@@ -342,7 +342,7 @@ int tinysha3_xof_final(void *c)
 
     shake_xof(ctx);
 
-    return 1;
+    return SC_FUNC_SUCCESS;
 }
 
 int tinysha3_xof(void *c, void *out, size_t len)
@@ -351,7 +351,7 @@ int tinysha3_xof(void *c, void *out, size_t len)
 
     shake_out(ctx, out, len);
 
-    return 1;
+    return 0;
 }
 
 // compute a SHA-3 hash (md) of given byte length from "in"
@@ -403,7 +403,7 @@ static void sha3_keccakf_4x(__m256i *st256, int rounds)
     // variables
     int i, j, r;
     __m256i t256, bc256[5];
-    uint64_t *t, *bc, *st PRNG_DEFAULT_ALIGNED;
+    uint64_t *t, *bc, *st SC_DEFAULT_ALIGNED;
     t  = (uint64_t*)&t256;
     bc = (uint64_t*)bc256;
     st = (uint64_t*)st256;
@@ -607,7 +607,7 @@ int tinysha3_init_4x(void *c, int mdlen)
     ctx->rsiz = 800 - 2 * mdlen;
     ctx->pt = 0;
 
-    return 1;
+    return SC_FUNC_SUCCESS;
 }
 
 int tinysha3_update_4x(void *c, const void *data, size_t len)
@@ -633,7 +633,7 @@ int tinysha3_update_4x(void *c, const void *data, size_t len)
     }
     ctx->pt = k;
 
-    return 1;
+    return SC_FUNC_SUCCESS;
 }
 
 int tinysha3_final_4x(void *c, void *md)
@@ -662,7 +662,7 @@ int tinysha3_final_4x(void *c, void *md)
         ((uint8_t *) md)[i] = ctx->st.b[i];
     }
 
-    return 1;
+    return SC_FUNC_SUCCESS;
 }
 
 int tinysha3_xof_final_4x(void *c)
@@ -671,7 +671,7 @@ int tinysha3_xof_final_4x(void *c)
 
     shake_xof_4x(ctx);
 
-    return 1;
+    return SC_FUNC_SUCCESS;
 }
 
 int tinysha3_xof_4x(void *c, void *out, size_t len)
@@ -680,7 +680,7 @@ int tinysha3_xof_4x(void *c, void *out, size_t len)
 
     shake_out_4x(ctx, out, len);
 
-    return 1;
+    return SC_FUNC_SUCCESS;
 }
 
 

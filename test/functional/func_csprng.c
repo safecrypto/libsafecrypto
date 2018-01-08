@@ -83,7 +83,7 @@ int main(void)
     SC_TIMER_CREATE(rnd_timer);
 
     UINT64 i, j, k;
-    UINT8 *data = PRNG_MALLOC(NUM_SAMPLES);
+    UINT8 *data = malloc(NUM_SAMPLES);
 
     UINT64 E[NUM_BINS];
     for (i=0; i<NUM_BINS; i++) {
@@ -247,7 +247,7 @@ int main(void)
     }
 
     SC_TIMER_DESTROY(rnd_timer);
-    PRNG_FREE(data, NUM_SAMPLES);
+    free(data);
 
     return EXIT_SUCCESS;
 }

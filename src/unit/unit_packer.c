@@ -21,7 +21,6 @@ START_TEST(test_packer_create)
     SINT32 retcode;
     sc_entropy_t entropy;
     entropy.type = SC_ENTROPY_NONE;
-    entropy.entropy_coder = NULL;
     sc_packer_t *packer = create(NULL, &entropy, 128, NULL, 0, NULL, 0);
     ck_assert_ptr_ne(packer, NULL);
 
@@ -36,7 +35,6 @@ START_TEST(test_packer_bits)
     SINT32 retcode;
     sc_entropy_t entropy;
     entropy.type = SC_ENTROPY_NONE;
-    entropy.entropy_coder = NULL;
     sc_packer_t *packer = create(NULL, &entropy, 4096, NULL, 0, NULL, 0);
     ck_assert_ptr_ne(packer, NULL);
 
@@ -53,7 +51,6 @@ START_TEST(test_packer_bits_2)
     SINT32 retcode;
     sc_entropy_t entropy;
     entropy.type = SC_ENTROPY_NONE;
-    entropy.entropy_coder = NULL;
     sc_packer_t *packer = create(NULL, &entropy, 31, NULL, 0, NULL, 0);
     ck_assert_ptr_ne(packer, NULL);
 
@@ -72,7 +69,6 @@ START_TEST(test_packer_write_1)
     SINT32 retcode;
     sc_entropy_t entropy;
     entropy.type = SC_ENTROPY_NONE;
-    entropy.entropy_coder = NULL;
     sc_packer_t *packer = create(NULL, &entropy, 1024, NULL, 0, NULL, 0);
     ck_assert_ptr_ne(packer, NULL);
 
@@ -103,7 +99,6 @@ START_TEST(test_packer_write_2)
     SINT32 retcode;
     sc_entropy_t entropy;
     entropy.type = SC_ENTROPY_NONE;
-    entropy.entropy_coder = NULL;
     sc_packer_t *packer = create(NULL, &entropy, 1024, NULL, 0, NULL, 0);
     ck_assert_ptr_ne(packer, NULL);
 
@@ -156,7 +151,6 @@ START_TEST(test_packer_read_1)
     // Create a packer initialised with the buffer contents
     sc_entropy_t entropy;
     entropy.type = SC_ENTROPY_NONE;
-    entropy.entropy_coder = NULL;
     sc_packer_t *packer = create(NULL, &entropy, 128*8, buffer, 128, NULL, 0);
     ck_assert_ptr_ne(packer, NULL);
 
@@ -185,7 +179,6 @@ START_TEST(test_packer_read_2)
     // Write the data into the buffer as 5-bit codes
     sc_entropy_t entropy;
     entropy.type = SC_ENTROPY_NONE;
-    entropy.entropy_coder = NULL;
     sc_packer_t *packer = create(NULL, &entropy, 128*5, NULL, 0, NULL, 0);
     ck_assert_ptr_ne(packer, NULL);
     for (i=0; i<128; i++) {
@@ -224,7 +217,6 @@ START_TEST(test_ss_huff_range_1)
 
     sc_entropy_t entropy;
     entropy.type = SC_ENTROPY_STRONGSWAN_BLISS_B_I;
-    entropy.entropy_coder = (void *) &bliss_huffman_code_1;
 
     sc_packer_t *packer = create(NULL, &entropy, 4 * n_z1 * n_z2 * 8 + 256, NULL, 0);
     ck_assert_ptr_ne(packer, NULL);
@@ -263,7 +255,6 @@ START_TEST(test_ss_huff_range_3)
 
     sc_entropy_t entropy;
     entropy.type = SC_ENTROPY_STRONGSWAN_BLISS_B_III;
-    entropy.entropy_coder = (void *) &bliss_huffman_code_3;
 
     sc_packer_t *packer = create(NULL, &entropy, 4 * n_z1 * n_z2 * 8 + 1024, NULL, 0);
     ck_assert_ptr_ne(packer, NULL);
@@ -302,7 +293,6 @@ START_TEST(test_ss_huff_range_4)
 
     sc_entropy_t entropy;
     entropy.type = SC_ENTROPY_STRONGSWAN_BLISS_B_IV;
-    entropy.entropy_coder = (void *) &bliss_huffman_code_4;
 
     sc_packer_t *packer = create(NULL, &entropy, 4 * n_z1 * n_z2 * 8 + 1024, NULL, 0);
     ck_assert_ptr_ne(packer, NULL);

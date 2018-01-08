@@ -102,33 +102,24 @@ int main(void)
     hash = utils_crypto_hash_create(SC_HASH_SHA2_512);
 
 #ifdef USE_HUFFMAN_STATIC_ENTROPY
-    UINT32 flags[2] = {SC_FLAG_0_ENTROPY_HUFFMAN_STATIC};
+    UINT32 flags[3] = {SC_FLAG_0_ENTROPY_HUFFMAN, SC_FLAG_NONE, SC_FLAG_NONE};
     sc_entropy_type_e coding = SC_ENTROPY_HUFFMAN_STATIC;
 #else
-#ifdef USE_STRONGSWAN_HUFFMAN_ENTROPY
-    UINT32 flags[2] = {SC_FLAG_0_ENTROPY_STRONGSWAN};
-    sc_entropy_type_e coding = SC_ENTROPY_STRONGSWAN;
-#else
-#ifdef USE_BAC_RLE_ENTROPY
-    UINT32 flags[2] = {SC_FLAG_0_ENTROPY_BAC_RLE};
-    sc_entropy_type_e coding = SC_ENTROPY_BAC_RLE;
-#else
 #ifdef USE_BAC_ENTROPY
-    UINT32 flags[2] = {SC_FLAG_0_ENTROPY_BAC};
+    UINT32 flags[3] = {SC_FLAG_0_ENTROPY_BAC, SC_FLAG_NONE, SC_FLAG_NONE};
     sc_entropy_type_e coding = SC_ENTROPY_BAC;
 #else
-    UINT32 flags[2] = {SC_FLAG_NONE};
+    UINT32 flags[3] = {SC_FLAG_NONE, SC_FLAG_NONE, SC_FLAG_NONE};
     sc_entropy_type_e coding = SC_ENTROPY_NONE;
 #endif
 #endif
-#endif
-#endif
 
-    flags[0] |= SC_FLAG_MORE;
-    flags[0] |= SC_FLAG_0_SAMPLE_64BIT | SC_FLAG_0_SAMPLE_CDF;
-    flags[1] |= SC_FLAG_1_CSPRNG_AES_CTR_DRBG;
+    flags[0]  = SC_FLAG_MORE;
+    flags[0] |= SC_FLAG_0_SAMPLE_CDF | SC_FLAG_0_SAMPLE_128BIT;
+    flags[1]  = SC_FLAG_1_CSPRNG_AES_CTR_DRBG;
     flags[1] |= SC_FLAG_1_CSPRNG_USE_CALLBACK_RANDOM;
-    //flags[0] |= SC_FLAG_0_SAMPLE_CDF;
+    flags[1] |= SC_FLAG_MORE;
+    flags[2]  = SC_FLAG_NONE;
 
     SC_TIMER_INSTANCE(keygen_timer);
     SC_TIMER_INSTANCE(sign_timer);
@@ -141,11 +132,6 @@ int main(void)
     snprintf(disp_msg, 128, "%-20s", "Series Test");
 
     for (i=MIN_PARAM_SET; i<=MAX_PARAM_SET; i++) {
-
-#ifdef USE_STRONGSWAN_HUFFMAN_ENTROPY
-        if (2 == i) continue;
-        if (0 == i) continue;
-#endif
 
         SC_TIMER_RESET(keygen_timer);
         SC_TIMER_RESET(sign_timer);
@@ -167,7 +153,10 @@ int main(void)
             }
             SC_TIMER_STOP(keygen_timer);
 
-            safecrypto_set_key_coding(sc, coding, coding);
+            if (SC_FUNC_SUCCESS != safecrypto_set_key_coding(sc, SC_ENTROPY_NONE, coding)) {
+                fprintf(stderr, "ERROR! safecrypto_set_key_coding() failed\n");
+                goto error_return;
+            }
             pubkeylen = FIXED_BUFFER_SIZE;
             if (SC_FUNC_SUCCESS != safecrypto_public_key_encode(sc, &pubkey, &pubkeylen)) {
                 fprintf(stderr, "ERROR! safecrypto_public_key_encode() failed\n");

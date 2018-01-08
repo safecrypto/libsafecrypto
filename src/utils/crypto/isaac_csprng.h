@@ -30,7 +30,7 @@ typedef struct user_entropy user_entropy_t;
 typedef void (*func_get_random)(size_t, UINT8 *, user_entropy_t *);
 
 /// A struct used to store the current state of a ISAAC-CSPRNG
-PRNG_STRUCT_PACK_START
+SC_STRUCT_PACK_START
 typedef struct isaac_state_t
 {
     randctx rand_ctx; // Context of ISAAC
@@ -39,8 +39,8 @@ typedef struct isaac_state_t
     user_entropy_t *entropy_arg;
     UINT32          reseed_ctr;
     UINT32          seed_period;
-} PRNG_STRUCT_PACKED isaac_state_t;
-PRNG_STRUCT_PACK_END
+} SC_STRUCT_PACKED isaac_state_t;
+SC_STRUCT_PACK_END
 
 
 /// Create an instance of a ISAAC-CSPRNG

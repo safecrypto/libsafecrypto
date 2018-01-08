@@ -85,24 +85,15 @@ SINT32 dlp_ibe_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
 
     // Precomputation for entropy coding
     sc->coding_pub_key.type             = SC_ENTROPY_NONE;
-    sc->coding_pub_key.entropy_coder    = NULL;
     sc->coding_priv_key.type            =
-        (flags[0] & SC_FLAG_0_ENTROPY_BAC)?            SC_ENTROPY_BAC :
-        (flags[0] & SC_FLAG_0_ENTROPY_BAC_RLE)?        SC_ENTROPY_BAC_RLE :
-        (flags[0] & SC_FLAG_0_ENTROPY_STRONGSWAN)?     SC_ENTROPY_STRONGSWAN :
-        (flags[0] & SC_FLAG_0_ENTROPY_HUFFMAN_STATIC)? SC_ENTROPY_HUFFMAN_STATIC :
-                                                       SC_ENTROPY_NONE;
-    sc->coding_priv_key.entropy_coder   = NULL;
+        (flags[0] & SC_FLAG_0_ENTROPY_BAC)?     SC_ENTROPY_BAC :
+        (flags[0] & SC_FLAG_0_ENTROPY_HUFFMAN)? SC_ENTROPY_HUFFMAN_STATIC :
+                                                SC_ENTROPY_NONE;
     sc->coding_user_key.type            =
-        (flags[0] & SC_FLAG_0_ENTROPY_BAC)?            SC_ENTROPY_BAC :
-        (flags[0] & SC_FLAG_0_ENTROPY_BAC_RLE)?        SC_ENTROPY_BAC_RLE :
-        (flags[0] & SC_FLAG_0_ENTROPY_STRONGSWAN)?     SC_ENTROPY_STRONGSWAN :
-        (flags[0] & SC_FLAG_0_ENTROPY_HUFFMAN_STATIC)? SC_ENTROPY_HUFFMAN_STATIC :
-                                                       SC_ENTROPY_NONE;
-    sc->coding_user_key.entropy_coder   = NULL;
+        (flags[0] & SC_FLAG_0_ENTROPY_BAC)?     SC_ENTROPY_BAC :
+        (flags[0] & SC_FLAG_0_ENTROPY_HUFFMAN)? SC_ENTROPY_HUFFMAN_STATIC :
+                                                SC_ENTROPY_NONE;
     sc->coding_encryption.type          = SC_ENTROPY_NONE;
-    sc->coding_encryption.entropy_coder = NULL;
-    sc->blinding = (flags[0] & SC_FLAG_0_SAMPLE_BLINDING)?  BLINDING_SAMPLES : NORMAL_SAMPLES;
     sc->sampling_precision =
         ((flags[0] & SC_FLAG_0_SAMPLE_PREC_MASK) == SC_FLAG_0_SAMPLE_32BIT)?  SAMPLING_32BIT :
         ((flags[0] & SC_FLAG_0_SAMPLE_PREC_MASK) == SC_FLAG_0_SAMPLE_64BIT)?  SAMPLING_64BIT :
@@ -222,7 +213,7 @@ SINT32 dlp_ibe_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
         default:;
     }
 
-    crypto_hash_e hash_func;
+    sc_hash_e hash_func;
     switch (flags[0] & SC_FLAG_0_HASH_FUNCTION_MASK)
     {
         case SC_FLAG_0_HASH_BLAKE2:
@@ -264,7 +255,7 @@ SINT32 dlp_ibe_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
     }
 
     // Create the XOF to be used by the random oracle
-    sc->xof = utils_crypto_xof_create(CRYPTO_XOF_SHAKE128);
+    sc->xof = utils_crypto_xof_create(SC_XOF_SHAKE128);
     if (NULL == sc->xof) {
         return SC_FUNC_FAILURE;
     }
@@ -366,6 +357,19 @@ SINT32 dlp_ibe_destroy(safecrypto_t *sc)
     SC_PRINT_DEBUG(sc, "SAFEcrypto IBE algorithm destroyed");
 
     return SC_FUNC_SUCCESS;
+}
+
+SINT32 dlp_ibe_set_key_coding(safecrypto_t *sc, sc_entropy_type_e pub,
+    sc_entropy_type_e priv)
+{
+    return SC_FUNC_FAILURE;
+}
+
+
+SINT32 dlp_ibe_get_key_coding(safecrypto_t *sc, sc_entropy_type_e *pub,
+    sc_entropy_type_e *priv)
+{
+    return SC_FUNC_FAILURE;
 }
 
 #ifdef DISABLE_IBE_SERVER
@@ -533,7 +537,7 @@ SINT32 dlp_ibe_pubkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len)
     sc_packer_t *packer = utils_entropy.pack_create(sc, &sc->coding_pub_key,
         n * q_bits, key, key_len, NULL, 0);
     entropy_poly_decode_32(packer, n, pubkey, q_bits,
-        UNSIGNED_COEFF, SC_ENTROPY_NONE);
+        UNSIGNED_COEFF, SC_ENTROPY_NONE, 0);
     utils_entropy.pack_destroy(&packer);
     sc->pubkey->len = n;
 
@@ -595,13 +599,13 @@ static SINT32 extract_signed_key(safecrypto_t *sc, SINT32 *sc_key,
     }
 
     entropy_poly_decode_32(packer, n, sc_key, q_bits_1,
-        SIGNED_COEFF, sc->coding_priv_key.type);
+        SIGNED_COEFF, sc->coding_priv_key.type, 0);
     entropy_poly_decode_32(packer, n, sc_key + n, q_bits_1,
-        SIGNED_COEFF, sc->coding_priv_key.type);
+        SIGNED_COEFF, sc->coding_priv_key.type, 0);
     entropy_poly_decode_32(packer, n, sc_key + 2*n, q_bits_2,
-        SIGNED_COEFF, sc->coding_priv_key.type);
+        SIGNED_COEFF, sc->coding_priv_key.type, 1);
     entropy_poly_decode_32(packer, n, sc_key + 3*n, q_bits_2,
-        SIGNED_COEFF, sc->coding_priv_key.type);
+        SIGNED_COEFF, sc->coding_priv_key.type, 1);
 
     utils_entropy.pack_destroy(&packer);
 
@@ -655,8 +659,8 @@ SINT32 dlp_ibe_pubkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
     SINT32 *pubkey = (SINT32 *) sc->pubkey->key;
     sc_packer_t *packer = utils_entropy.pack_create(sc, &sc->coding_pub_key,
         n * q_bits, NULL, 0, key, key_len);
-    entropy_poly_encode_32(packer, n, pubkey, q_bits,
-        UNSIGNED_COEFF, SC_ENTROPY_NONE, &packer->sc->stats.components[SC_STAT_PUB_KEY][0].bits_coded);
+    entropy_poly_encode_32(packer, n, pubkey, q_bits, UNSIGNED_COEFF,
+        SC_ENTROPY_NONE, 0, &packer->sc->stats.components[SC_STAT_PUB_KEY][0].bits_coded);
 
     // Extract the buffer with the public key and release the packer resources
     utils_entropy.pack_get_buffer(packer, key, key_len);
@@ -691,13 +695,13 @@ SINT32 dlp_ibe_privkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
     sc_packer_t *packer = utils_entropy.pack_create(sc, &sc->coding_priv_key,
         2 * n * (q_bits_1 + q_bits_2), NULL, 0, key, key_len);
     entropy_poly_encode_32(packer, n, privkey, q_bits_1,
-        SIGNED_COEFF, sc->coding_priv_key.type, &packer->sc->stats.components[SC_STAT_PRIV_KEY][0].bits_coded);
+        SIGNED_COEFF, sc->coding_priv_key.type, 0, &packer->sc->stats.components[SC_STAT_PRIV_KEY][0].bits_coded);
     entropy_poly_encode_32(packer, n, privkey + n, q_bits_1,
-        SIGNED_COEFF, sc->coding_priv_key.type, &packer->sc->stats.components[SC_STAT_PRIV_KEY][1].bits_coded);
+        SIGNED_COEFF, sc->coding_priv_key.type, 0, &packer->sc->stats.components[SC_STAT_PRIV_KEY][1].bits_coded);
     entropy_poly_encode_32(packer, n, privkey + 2*n, q_bits_2,
-        SIGNED_COEFF, sc->coding_priv_key.type, &packer->sc->stats.components[SC_STAT_PRIV_KEY][2].bits_coded);
+        SIGNED_COEFF, sc->coding_priv_key.type, 1, &packer->sc->stats.components[SC_STAT_PRIV_KEY][2].bits_coded);
     entropy_poly_encode_32(packer, n, privkey + 3*n, q_bits_2,
-        SIGNED_COEFF, sc->coding_priv_key.type, &packer->sc->stats.components[SC_STAT_PRIV_KEY][3].bits_coded);
+        SIGNED_COEFF, sc->coding_priv_key.type, 1, &packer->sc->stats.components[SC_STAT_PRIV_KEY][3].bits_coded);
 
     // Extract the buffer with the polynomial f and release the packer resources
     utils_entropy.pack_get_buffer(packer, key, key_len);
@@ -829,6 +833,10 @@ SINT32 dlp_ibe_extract(safecrypto_t *sc, size_t idlen, const UINT8 *id,
     LONGDOUBLE sig;
     gpv_t gpv;
     UINT32 gaussian_flags = 0;
+#ifdef H_NTT_OPTIMISATION
+    const SINT32 *w, *r;
+    ntt_params_t *ntt;
+#endif
 #if defined(DLP_IBE_EFFICIENT_GAUSSIAN_SAMPLING)
     gaussian_flags = GPV_GAUSSIAN_SAMPLE_EFFICIENT;
 #elif defined(DLP_IBE_GAUSSIAN_SAMPLE_MW_BOOTSTRAP)
@@ -874,6 +882,12 @@ SINT32 dlp_ibe_extract(safecrypto_t *sc, size_t idlen, const UINT8 *id,
 
     // Translate the ID into a polynomial using a random oracle
     id_function(sc, id, idlen, c);
+#ifdef H_NTT_OPTIMISATION
+    w        = sc->dlp_ibe->params->w;
+    r        = sc->dlp_ibe->params->r;
+    ntt      = &sc->dlp_ibe->ntt;
+    sc->sc_ntt->inv_ntt_32_32_large(c, ntt, c, w, r);
+#endif
 
     // Obtain the Gram Scmidt orthogonalisation of the polynomial basis
     GSO_TYPE *b_gs SC_DEFAULT_ALIGNED = NULL;
@@ -925,7 +939,6 @@ SINT32 dlp_ibe_extract(safecrypto_t *sc, size_t idlen, const UINT8 *id,
     // Output an encoded byte stream representing the secret key SK
     sc_entropy_t coding_raw = {
         .type = SC_ENTROPY_NONE,
-        .entropy_coder = NULL
     };
     sc_packer_t *packer;
     packer = utils_entropy.pack_create(sc, &coding_raw,
@@ -933,8 +946,8 @@ SINT32 dlp_ibe_extract(safecrypto_t *sc, size_t idlen, const UINT8 *id,
     if (NULL == packer) {
         goto finish;
     }
-    entropy_poly_encode_32(packer, n, v, q_bits,
-        SIGNED_COEFF, sc->coding_user_key.type, &sc->stats.components[SC_STAT_EXTRACT][0].bits_coded);
+    entropy_poly_encode_32(packer, n, v, q_bits, SIGNED_COEFF,
+        sc->coding_user_key.type, 2, &sc->stats.components[SC_STAT_EXTRACT][0].bits_coded);
     sc->stats.components[SC_STAT_EXTRACT][0].bits += q_bits * n;
     utils_entropy.pack_get_buffer(packer, sk, sklen);
     utils_entropy.pack_destroy(&packer);
@@ -1012,11 +1025,10 @@ SINT32 dlp_ibe_secret_key(safecrypto_t *sc, size_t sklen, const UINT8 *sk)
     // Store the assigned secret key
     sc_entropy_t sk_coding;
     sk_coding.type          = SC_ENTROPY_NONE;
-    sk_coding.entropy_coder = NULL;
     sc_packer_t *packer = utils_entropy.pack_create(sc, &sk_coding,
         n * q_bits, sk, sklen, NULL, 0);
     entropy_poly_decode_32(packer, n, sc->dlp_ibe->user_key, q_bits,
-        SIGNED_COEFF, sc->coding_user_key.type);
+        SIGNED_COEFF, sc->coding_user_key.type, 3);
 
     /*for (i=0; i<n; i++) {
         UINT32 value;
@@ -1192,7 +1204,9 @@ SINT32 dlp_ibe_encrypt(safecrypto_t *sc,
         sc->sc_ntt->mul_32_pointwise(u, ntt, e3, h_ntt);
         sc_ntt->inv_ntt_32_32_large(u, ntt, u, w, r);
     }
+#ifndef H_NTT_OPTIMISATION
     sc_ntt->fwd_ntt_32_32_large(c, ntt, c, w);
+#endif
     sc->sc_ntt->mul_32_pointwise(v, ntt, e3, c);
     sc_ntt->inv_ntt_32_32_large(v, ntt, v, w, r);
 #else
@@ -1211,7 +1225,9 @@ SINT32 dlp_ibe_encrypt(safecrypto_t *sc,
 #endif
 #else
     sc_ntt->fwd_ntt_32_32_large(e3, ntt, e3, w);
+#ifndef H_NTT_OPTIMISATION
     sc_ntt->fwd_ntt_32_32_large(c, ntt, c, w);
+#endif
     sc->sc_ntt->mul_32_pointwise(u, ntt, e3, h_ntt);
     sc->sc_ntt->mul_32_pointwise(v, ntt, e3, c);
     sc_ntt->inv_ntt_32_32_large(u, ntt, u, w, r);
@@ -1256,16 +1272,16 @@ SINT32 dlp_ibe_encrypt(safecrypto_t *sc,
         v[i] >>= l;
     }
     entropy_poly_encode_32(packer, n, u, q_bits, SIGNED_COEFF,
-        sc->coding_encryption.type, &packer->sc->stats.components[SC_STAT_ENCRYPT][0].bits_coded);
+        sc->coding_encryption.type, 4, &packer->sc->stats.components[SC_STAT_ENCRYPT][0].bits_coded);
     entropy_poly_encode_32(packer, n, v, q_bits - l, SIGNED_COEFF,
-        sc->coding_encryption.type, &packer->sc->stats.components[SC_STAT_ENCRYPT][1].bits_coded);
+        sc->coding_encryption.type, 5, &packer->sc->stats.components[SC_STAT_ENCRYPT][1].bits_coded);
 
     // Decrypt the message in blocks of n/8 bytes
 #ifdef SC_IBE_MESSAGE_LENGTH_N
     for (i=0; i<n>>3; i++) {
         k[i] ^= from[i];
     }
-    entropy_poly_encode_8(packer, n>>3, k, 8, UNSIGNED_COEFF, SC_ENTROPY_NONE, NULL);
+    entropy_poly_encode_8(packer, n>>3, k, 8, UNSIGNED_COEFF, SC_ENTROPY_NONE, 0, NULL);
 #else
     for (i=0, j=0; i<flen; i++) {
         k[j] ^= from[i];
@@ -1362,9 +1378,9 @@ SINT32 dlp_ibe_decrypt(safecrypto_t *sc, size_t flen, const UINT8 *from,
         return SC_FUNC_FAILURE;
     }
     entropy_poly_decode_32(ipacker, n, u, q_bits,
-        SIGNED_COEFF, sc->coding_encryption.type);
+        SIGNED_COEFF, sc->coding_encryption.type, 4);
     entropy_poly_decode_32(ipacker, n, v, q_bits - l,
-        SIGNED_COEFF, sc->coding_encryption.type);
+        SIGNED_COEFF, sc->coding_encryption.type, 5);
     for (i=0; i<n; i++) {
         v[i] <<= l;
     }
@@ -1404,7 +1420,6 @@ SINT32 dlp_ibe_decrypt(safecrypto_t *sc, size_t flen, const UINT8 *from,
     // Create the output byte stream
     sc_entropy_t coding_raw = {
         .type = SC_ENTROPY_NONE,
-        .entropy_coder = NULL
     };
     sc_packer_t *opacker;
     opacker = utils_entropy.pack_create(sc, &coding_raw,
@@ -1506,7 +1521,7 @@ char * dlp_ibe_stats(safecrypto_t *sc)
         sc->stats.decrypt_num,
         sc_sampler_names[sc->sampling],
         safecrypto_prng_names[(int)prng_get_type(sc->prng_ctx[0])],
-        crypto_hash_names[sc->dlp_ibe->params->hash_type],
+        sc_hash_names[sc->dlp_ibe->params->hash_type],
         sc_entropy_names[(int)sc->coding_pub_key.type],
         sc->stats.pub_keys_encoded? (DOUBLE)sc->stats.components[SC_STAT_PUB_KEY][0].bits/(DOUBLE)sc->stats.pub_keys_encoded : 0,
         sc->stats.pub_keys_encoded? (DOUBLE)sc->stats.components[SC_STAT_PUB_KEY][0].bits_coded/(DOUBLE)sc->stats.pub_keys_encoded : 0,
