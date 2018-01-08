@@ -125,7 +125,7 @@ int main(void)
 #endif
 #endif
         flags[0] |= SC_FLAG_MORE;
-        flags[1] |= SC_FLAG_1_CSPRNG_AES_CTR_DRBG;//SC_FLAG_1_CSPRNG_ISAAC;//SC_FLAG_1_CSPRNG_AES_CTR_DRBG;
+        flags[1] |= SC_FLAG_1_CSPRNG_AES_CTR_DRBG;
 
         // Create a SAFEcrypto object
         sc = safecrypto_create(SC_SCHEME_SIG_ENS_WITH_RECOVERY, i, flags);

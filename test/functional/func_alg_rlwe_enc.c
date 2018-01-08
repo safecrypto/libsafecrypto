@@ -104,7 +104,7 @@ int main(void)
     UINT32 flags[2] = {SC_FLAG_0_ENTROPY_HUFFMAN, SC_FLAG_NONE};
     sc_entropy_type_e coding = SC_ENTROPY_HUFFMAN_STATIC;
 #else
-    UINT32 flags[2] = {SC_FLAG_NONE};
+    UINT32 flags[2] = {SC_FLAG_NONE, SC_FLAG_NONE};
     sc_entropy_type_e coding = SC_ENTROPY_NONE;
 #endif
 
