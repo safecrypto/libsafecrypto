@@ -350,13 +350,8 @@ static void poly_limb_mul_mod_gradeschool(sc_ulimb_t *out, const sc_ulimb_t *a, 
     const SINT32     log_len = SC_LIMB_BITS - limb_clz(len_b);
     const sc_ulimb_t bits    = mod->b_norm;
 
-    if ((2*bits + log_len) <= SC_LIMB_BITS) {
-        poly_limb_mul_mod_simple(out, a, len_a, b, len_b, mod);
-        return;
-    }
-
 #if 1
-    if (len_a == 0 || len_b == 0) {
+    if (0 == len_a || 0 == len_b) {
         for (i=len_a+len_b-1; i--;) {
             out[i] = 0;
         }
