@@ -56,11 +56,8 @@ SINT32 rlwe_enc_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
 
     // Precomputation for entropy coding
     sc->coding_pub_key.type             = SC_ENTROPY_NONE;
-    sc->coding_pub_key.entropy_coder    = NULL;
     sc->coding_priv_key.type            = SC_ENTROPY_NONE;
-    sc->coding_priv_key.entropy_coder   = NULL;
     sc->coding_encryption.type          = SC_ENTROPY_NONE;
-    sc->coding_encryption.entropy_coder = NULL;
 
     // Allocate memory for Ring-LWE Encryption configuration
     sc->rlwe_enc = SC_MALLOC(sizeof(rlwe_enc_cfg_t));
@@ -306,9 +303,9 @@ SINT32 rlwe_enc_pubkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len)
     sc_packer_t *packer = utils_entropy.pack_create(sc, &sc->coding_pub_key,
         2 * n * q_bits, key, key_len, NULL, 0);
     entropy_poly_decode_16(packer, n, pubkey, q_bits,
-        UNSIGNED_COEFF, SC_ENTROPY_NONE);
+        UNSIGNED_COEFF, sc->coding_pub_key.type, 0);
     entropy_poly_decode_16(packer, n, pubkey + n, q_bits,
-        UNSIGNED_COEFF, SC_ENTROPY_NONE);
+        UNSIGNED_COEFF, sc->coding_pub_key.type, 0);
     utils_entropy.pack_destroy(&packer);
 
     sc->pubkey->len = 2 * n;
@@ -336,7 +333,7 @@ SINT32 rlwe_enc_privkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len)
     sc_packer_t *packer = utils_entropy.pack_create(sc, &sc->coding_priv_key,
         n * q_bits, key, key_len, NULL, 0);
     entropy_poly_decode_16(packer, n, privkey, q_bits,
-        UNSIGNED_COEFF, SC_ENTROPY_NONE);
+        UNSIGNED_COEFF, sc->coding_priv_key.type, 0);
     utils_entropy.pack_destroy(&packer);
 
     sc->privkey->len = n;
@@ -365,9 +362,9 @@ SINT32 rlwe_enc_pubkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
     sc_packer_t *packer = utils_entropy.pack_create(sc, &sc->coding_pub_key,
         2 * n * q_bits, NULL, 0, key, key_len);
     entropy_poly_encode_16(packer, n, pubkey, q_bits,
-        UNSIGNED_COEFF, SC_ENTROPY_NONE, &sc->stats.components[SC_STAT_PUB_KEY][0].bits_coded);
+        UNSIGNED_COEFF, sc->coding_pub_key.type, 0, &sc->stats.components[SC_STAT_PUB_KEY][0].bits_coded);
     entropy_poly_encode_16(packer, n, pubkey + n, q_bits,
-        UNSIGNED_COEFF, SC_ENTROPY_NONE, &sc->stats.components[SC_STAT_PUB_KEY][1].bits_coded);
+        UNSIGNED_COEFF, sc->coding_pub_key.type, 0, &sc->stats.components[SC_STAT_PUB_KEY][1].bits_coded);
 
     // Extract the buffer with the public key and release the packer resources
     utils_entropy.pack_get_buffer(packer, key, key_len);
@@ -397,11 +394,37 @@ SINT32 rlwe_enc_privkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
     sc_packer_t *packer = utils_entropy.pack_create(sc, &sc->coding_priv_key,
         n * q_bits, NULL, 0, key, key_len);
     entropy_poly_encode_16(packer, n, privkey, q_bits,
-        UNSIGNED_COEFF, SC_ENTROPY_NONE, &sc->stats.components[SC_STAT_PRIV_KEY][0].bits_coded);
+        UNSIGNED_COEFF, sc->coding_priv_key.type, 0, &sc->stats.components[SC_STAT_PRIV_KEY][0].bits_coded);
 
     // Extract the buffer with the polynomial f and release the packer resources
     utils_entropy.pack_get_buffer(packer, key, key_len);
     utils_entropy.pack_destroy(&packer);
+
+    return SC_FUNC_SUCCESS;
+}
+
+SINT32 rlwe_enc_set_key_coding(safecrypto_t *sc, sc_entropy_type_e pub,
+    sc_entropy_type_e priv)
+{
+    if (SC_ENTROPY_NONE != pub) {
+        pub = SC_ENTROPY_NONE;
+    }
+    if (SC_ENTROPY_NONE != priv) {
+        priv = SC_ENTROPY_NONE;
+    }
+
+    sc->coding_pub_key.type  = pub;
+    sc->coding_priv_key.type = priv;
+
+    return SC_FUNC_SUCCESS;
+}
+
+
+SINT32 rlwe_enc_get_key_coding(safecrypto_t *sc, sc_entropy_type_e *pub,
+    sc_entropy_type_e *priv)
+{
+    *pub  = sc->coding_pub_key.type;
+    *priv = sc->coding_priv_key.type;
 
     return SC_FUNC_SUCCESS;
 }
@@ -590,10 +613,10 @@ SINT32 rlwe_enc_encrypt(safecrypto_t *sc, size_t flen, const UINT8 *from,
 
     // Bit packing
     entropy_poly_encode_32(packer, n, c1, q_bits,
-        UNSIGNED_COEFF, SC_ENTROPY_NONE, &sc->stats.components[SC_STAT_ENCRYPT][0].bits_coded);
+        UNSIGNED_COEFF, SC_ENTROPY_NONE, 0, &sc->stats.components[SC_STAT_ENCRYPT][0].bits_coded);
     sc->stats.components[SC_STAT_ENCRYPT][0].bits += q_bits*n;
     entropy_poly_encode_32(packer, n, c2, q_bits,
-        UNSIGNED_COEFF, SC_ENTROPY_NONE, &sc->stats.components[SC_STAT_ENCRYPT][1].bits_coded);
+        UNSIGNED_COEFF, SC_ENTROPY_NONE, 0, &sc->stats.components[SC_STAT_ENCRYPT][1].bits_coded);
     sc->stats.components[SC_STAT_ENCRYPT][1].bits += q_bits*n;
 
     // Extracting buffer
@@ -648,7 +671,6 @@ SINT32 rlwe_enc_decrypt(safecrypto_t *sc, size_t flen, const UINT8 *from, size_t
     size_t message_length = (8 * flen) / (2 * q_bits);
     sc_entropy_t coding_raw = {
         .type = SC_ENTROPY_NONE,
-        .entropy_coder = NULL
     };
     sc_packer_t *ipacker, *opacker;
     ipacker  = utils_entropy.pack_create(sc, &sc->coding_encryption,
@@ -659,9 +681,9 @@ SINT32 rlwe_enc_decrypt(safecrypto_t *sc, size_t flen, const UINT8 *from, size_t
     // Decode the data and decrypt it
     if (utils_entropy.pack_is_data_avail(ipacker)) {
         entropy_poly_decode_32(ipacker, n, c1, q_bits,
-            UNSIGNED_COEFF, SC_ENTROPY_NONE);
+            UNSIGNED_COEFF, SC_ENTROPY_NONE, 0);
         entropy_poly_decode_32(ipacker, n, c2, q_bits,
-            UNSIGNED_COEFF, SC_ENTROPY_NONE);
+            UNSIGNED_COEFF, SC_ENTROPY_NONE, 0);
 
         SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Decrypt c1", c1, n);
         SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Decrypt c2", c2, n);
@@ -684,7 +706,7 @@ SINT32 rlwe_enc_decrypt(safecrypto_t *sc, size_t flen, const UINT8 *from, size_t
             c2[i] = (c2[i] > o_scale_0 && c2[i] < o_scale_1)? 1 : 0;
         }
         entropy_poly_encode_32(opacker, n, c2, 1,
-            UNSIGNED_COEFF, SC_ENTROPY_NONE, NULL);
+            UNSIGNED_COEFF, SC_ENTROPY_NONE, 0, NULL);
         SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Deciphered message", c2, n);
     }
 

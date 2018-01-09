@@ -85,7 +85,7 @@ int main(void)
     hash = utils_crypto_hash_create(SC_HASH_SHA2_512);
 
 #ifdef USE_HUFFMAN_STATIC_ENTROPY
-    flags[0] |= SC_FLAG_0_ENTROPY_HUFFMAN_STATIC;
+    flags[0] |= SC_FLAG_0_ENTROPY_HUFFMAN;
 #endif
     printf("2-Round Forward-Secure AKE\n");
 

@@ -75,7 +75,7 @@ int main(int argc, char *argv[])
 	pubkey_len = 0;
 	privkey_len = 0;
 
-	Flags[0] = SC_FLAG_0_ENTROPY_HUFFMAN_STATIC;
+	Flags[0] = SC_FLAG_0_ENTROPY_HUFFMAN;
 	SAFEcrypto *SC2 = new SAFEcrypto(SC_SCHEME_SIG_BLISS, 4, Flags);
 	SC2->KeyGen();
 	if (SC_FUNC_SUCCESS != SC2->GetPublicKey(&pubkey, &pubkey_len)) {

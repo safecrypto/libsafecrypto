@@ -52,11 +52,13 @@ typedef struct bliss_set_t {
     const UINT16      b_inf;
     const UINT32      b_l2;
     const UINT16      nz[2];
+    const UINT16      s_bits;
     const UINT16      z1_bits;
     const UINT16      z2_bits;
     const FLOAT       sig;
+    const FLOAT       z2_sig;
     const FLOAT       m;
-    crypto_hash_e     oracle_hash;
+    sc_hash_e         oracle_hash;
 #ifdef USE_RUNTIME_NTT_TABLES
     SINT16           *w;
     SINT16           *r;

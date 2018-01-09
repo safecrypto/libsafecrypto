@@ -161,6 +161,12 @@ int main(void)
             // Generate a random message
             prng_mem(prng_ctx, message, length);
 
+            // Generate a signature for that message
+            siglen = FIXED_BUFFER_SIZE;
+            if (SC_FUNC_SUCCESS != safecrypto_sign(sc, message, length, &sig, &siglen)) {
+                goto error_return;
+            }
+
             // Free all resources for the given SAFEcrypto object
             if (SC_FUNC_SUCCESS != safecrypto_destroy(sc)) {
                 return EXIT_FAILURE;
@@ -169,14 +175,10 @@ int main(void)
             // Create a SAFEcrypto object
             sc = safecrypto_create(scheme, i, flags);
 
-            // Load the key pair
+            // Load the public key
             safecrypto_set_key_coding(sc, coding, coding);
             if (SC_FUNC_SUCCESS != safecrypto_public_key_load(sc, pubkey, pubkeylen)) {
                 fprintf(stderr, "ERROR! safecrypto_public_key_load() failed\n");
-                goto error_return;
-            }
-            if (SC_FUNC_SUCCESS != safecrypto_private_key_load(sc, privkey, privkeylen)) {
-                fprintf(stderr, "ERROR! safecrypto_private_key_load() failed\n");
                 goto error_return;
             }
 #if USE_FIXED_BUFFERS
@@ -184,12 +186,6 @@ int main(void)
             free(privkey);
             free(pubkey);
 #endif
-
-            // Generate a signature for that message
-            siglen = FIXED_BUFFER_SIZE;
-            if (SC_FUNC_SUCCESS != safecrypto_sign(sc, message, length, &sig, &siglen)) {
-                goto error_return;
-            }
 
             // Verify the signature using the public key
             if (SC_FUNC_SUCCESS != safecrypto_verify(sc, message, length, sig, siglen)) {

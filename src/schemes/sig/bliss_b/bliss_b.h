@@ -65,7 +65,7 @@ typedef struct bliss_cfg_t {
 #endif
 
     sc_entropy_type_e         entropy;
-    crypto_hash_e             oracle_hash;
+    sc_hash_e                 oracle_hash;
 
 } SC_STRUCT_PACKED bliss_cfg_t;
 SC_STRUCT_PACK_END
@@ -78,6 +78,14 @@ SINT32 bliss_b_destroy(safecrypto_t *sc);
 
 /// Key pair generation function
 SINT32 bliss_b_keygen(safecrypto_t *sc);
+
+/// Set key-pair lossless compression coding
+SINT32 bliss_b_set_key_coding(safecrypto_t *sc, sc_entropy_type_e pub,
+    sc_entropy_type_e priv);
+
+/// Get key-pair lossless compression coding
+SINT32 bliss_b_get_key_coding(safecrypto_t *sc, sc_entropy_type_e *pub,
+    sc_entropy_type_e *priv);
 
 /// Public key load function
 SINT32 bliss_b_pubkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len);

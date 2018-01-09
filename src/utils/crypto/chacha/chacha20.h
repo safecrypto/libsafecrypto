@@ -9,11 +9,11 @@ Public domain.
 #include "prng_types.h"
 #include <string.h>
 
-PRNG_STRUCT_PACK_START
+SC_STRUCT_PACK_START
 typedef struct chacha_ctx_t {
     uint32_t input[16];
-} PRNG_STRUCT_PACKED chacha_ctx_t;
-PRNG_STRUCT_PACK_END
+} SC_STRUCT_PACKED chacha_ctx_t;
+SC_STRUCT_PACK_END
 
 void chacha_keysetup(chacha_ctx_t *ctx, const UINT8 *k, UINT32 kbits);
 void chacha_ivsetup(chacha_ctx_t *ctx, const UINT8 *iv, const UINT8* counter);

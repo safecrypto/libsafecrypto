@@ -32,5 +32,6 @@ void poly_32_sub_single(SINT32 *out, size_t n, const SINT32 *in);
 void poly_32_mul(SINT32 *out, size_t n, const SINT32 *in1, const SINT32 *in2);
 void poly_32_uniform_rand(prng_ctx_t *ctx, SINT32 *v, size_t n, const UINT16 *c, size_t c_len);
 void poly_32_mod_negate(SINT32 *out, size_t n, SINT32 q, const SINT32 *in);
+SINT32 poly_32_cmp_not_equal(volatile const SINT32 *in1, volatile const SINT32 *in2, size_t n);
 SINT32 poly_32_degree(const SINT32 *h, size_t n);
 

@@ -15,7 +15,6 @@
  *   Id:     $SC_IDENT$
  */
 
-#include "safecrypto_ake.h"
 #include "safecrypto.h"
 #include "safecrypto_debug.h"
 #include "safecrypto_error.h"

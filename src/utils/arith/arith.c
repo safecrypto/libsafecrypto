@@ -20,11 +20,14 @@
 
 
 static const utils_arith_poly_t utils_arith_poly_table = {
+    poly_8_cmp_not_equal,
     poly_16_copy, poly_16_reset,
     poly_16_add_scalar, poly_16_sub_scalar, poly_16_mul_scalar,
     poly_16_add, poly_16_sub,
     poly_16_add_single, poly_16_sub_single, 
     poly_16_mul,
+    poly_16_mod_negate,
+    poly_16_cmp_not_equal,
     poly_16_uniform_rand,
     poly_16_degree,
     poly_32_copy, poly_32_reset,
@@ -33,6 +36,7 @@ static const utils_arith_poly_t utils_arith_poly_table = {
     poly_32_add_single, poly_32_sub_single, 
     poly_32_mul,
     poly_32_mod_negate,
+    poly_32_cmp_not_equal,
     poly_32_uniform_rand,
     poly_32_degree,
     z2_inv,
@@ -347,4 +351,14 @@ const utils_arith_ntt_t *utils_arith_ntt(safecrypto_ntt_e type)
     }
 
     return ntt_table;
+}
+
+SINT32 poly_8_cmp_not_equal(volatile const SINT8 *in1, volatile const SINT8 *in2, size_t n)
+{
+    size_t i;
+    volatile SINT32 not_equal = 0;
+    for (i=n; i--;) {
+        not_equal |= in1[i] ^ in2[i];
+    }
+    return not_equal;
 }

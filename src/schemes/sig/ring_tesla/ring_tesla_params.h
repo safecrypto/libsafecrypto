@@ -41,25 +41,25 @@
 
 SC_STRUCT_PACK_START
 typedef struct ring_tesla_set_t {
-    UINT16  set;
-    crypto_hash_e oracle_hash;
-    UINT32  n;
-    UINT16  n_bits;
-    FLOAT   sig;
-    UINT32  q;
-    UINT16  q_bits;
-    DOUBLE  q_inv;
-    UINT32  b;
-    UINT16  b_bits;
-    UINT16  e_bits;
-    UINT16  omega;
-    UINT16  d;
-    UINT16  bound;
-    UINT16  u;
+    UINT16    set;
+    sc_hash_e oracle_hash;
+    UINT32    n;
+    UINT16    n_bits;
+    FLOAT     sig;
+    UINT32    q;
+    UINT16    q_bits;
+    DOUBLE    q_inv;
+    UINT32    b;
+    UINT16    b_bits;
+    UINT16    e_bits;
+    UINT16    omega;
+    UINT16    d;
+    UINT16    bound;
+    UINT16    u;
 #ifdef USE_RUNTIME_NTT_TABLES
-    SINT32 *w;
-    SINT32 *r;
-    SINT32  prim_root;
+    SINT32   *w;
+    SINT32   *r;
+    SINT32    prim_root;
 #else
     const SINT32 *w;
     const SINT32 *r;
@@ -73,7 +73,7 @@ typedef struct ring_tesla_cfg_t {
     safecrypto_ntt_e          ntt_optimisation;
     ntt_params_t              ntt;
     sc_entropy_type_e         entropy;
-    crypto_hash_e             oracle_hash;
+    sc_hash_e                 oracle_hash;
 } SC_STRUCT_PACKED ring_tesla_cfg_t;
 SC_STRUCT_PACK_END
 

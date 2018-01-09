@@ -191,7 +191,7 @@ void umul64(UINT64 *hi, UINT64 *lo, UINT64 u, UINT64 v)
     umul32(&t2_hi, &t2_lo, ulo, vhi);
     umul32(&hi_hi, &hi_lo, uhi, vhi);
     UINT64 t1 = ((UINT64)t1_hi << 32) + t1_lo + t0_hi;
-    UINT64 t2 = ((UINT64)t2_hi << 32) + t2_lo + t1_lo;
+    UINT64 t2 = ((UINT64)t2_hi << 32) + t2_lo + (t1 & 0xFFFFFFFF);
     *lo  = ((t2 & 0xFFFFFFFF) << 32) + t0_lo;
     *hi  = ((UINT64)hi_hi << 32) + hi_lo + (t2 >> 32) + (t1 >> 32);
 }

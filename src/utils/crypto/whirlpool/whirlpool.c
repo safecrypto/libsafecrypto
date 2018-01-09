@@ -23,7 +23,7 @@
  */
 
 #include "whirlpool.h"
-//#include "utils/arith/sc_math.h"
+#include "safecrypto_private.h"
 
 UINT64 rhash_whirlpool_sbox[8][256] = {
 	{
@@ -570,8 +570,8 @@ SINT32 whirlpool_init(void *c, SINT32 mdlen)
 	
 	whirlpool_ctx *ctx = (whirlpool_ctx *) c;
 	ctx->length = 0;
-	PRNG_MEMZERO(ctx->hash, sizeof(ctx->hash));
-	return PRNG_FUNC_SUCCESS;
+	SC_MEMZERO(ctx->hash, sizeof(ctx->hash));
+	return SC_FUNC_SUCCESS;
 }
 
 /* Algorithm S-Box */
@@ -621,7 +621,7 @@ static void whirlpool_process_block(UINT64 *hash, UINT64 *p_block)
 	for (i = 0; i < 8; i++) {
 		/* store K^0 and xor it with the intermediate hash state */
 		K[0][i] = hash[i];
-		state[0][i] = PRNG_BIG_ENDIAN_64(p_block[i]) ^ hash[i];
+		state[0][i] = SC_BIG_ENDIAN_64(p_block[i]) ^ hash[i];
 		hash[i] = state[0][i];
 	}
 
@@ -681,8 +681,8 @@ SINT32 whirlpool_update(void *c, const void *msg, size_t size)
 	/* fill partial block */
 	if (index) {
 		size_t left = WHIRLPOOL_BLOCK_SIZE - index;
-		PRNG_MEMCOPY(ctx->message + index, msg_u8, (size < left ? size : left));
-		if (size < left) return PRNG_FUNC_FAILURE;
+		SC_MEMCOPY(ctx->message + index, msg_u8, (size < left ? size : left));
+		if (size < left) return SC_FUNC_FAILURE;
 
 		/* process partial block */
 		whirlpool_process_block(ctx->hash, (UINT64*)ctx->message);
@@ -691,12 +691,12 @@ SINT32 whirlpool_update(void *c, const void *msg, size_t size)
 	}
 	while (size >= WHIRLPOOL_BLOCK_SIZE) {
 		UINT64* aligned_message_block;
-		if (PRNG_IS_ALIGNED_64(msg_u8)) {
+		if (SC_IS_ALIGNED_64(msg_u8)) {
 			/* the most common case is processing of an already aligned message
 			without copying it */
 			aligned_message_block = (UINT64*)msg_u8;
 		} else {
-			PRNG_MEMCOPY(ctx->message, msg_u8, WHIRLPOOL_BLOCK_SIZE);
+			SC_MEMCOPY(ctx->message, msg_u8, WHIRLPOOL_BLOCK_SIZE);
 			aligned_message_block = (UINT64*)ctx->message;
 		}
 
@@ -706,10 +706,10 @@ SINT32 whirlpool_update(void *c, const void *msg, size_t size)
 	}
 	if (size) {
 		/* save leftovers */
-		PRNG_MEMCOPY(ctx->message, msg_u8, size);
+		SC_MEMCOPY(ctx->message, msg_u8, size);
 	}
 
-	return PRNG_FUNC_SUCCESS;
+	return SC_FUNC_SUCCESS;
 }
 
 /**
@@ -740,12 +740,12 @@ SINT32 whirlpool_final(void *c, void *result)
 	while (index < 56) {
 		ctx->message[index++] = 0;
 	}
-	msg64[7] = PRNG_BIG_ENDIAN_64(ctx->length << 3);
+	msg64[7] = SC_BIG_ENDIAN_64(ctx->length << 3);
 	whirlpool_process_block(ctx->hash, msg64);
 
 	/* save result hash */
 	UINT8 *result_u8 = (UINT8 *) result;;
-	PRNG_BIG_ENDIAN_64_COPY(result_u8, 0, ctx->hash, 64);
+	SC_BIG_ENDIAN_64_COPY(result_u8, 0, ctx->hash, 64);
 
-	return PRNG_FUNC_SUCCESS;
+	return SC_FUNC_SUCCESS;
 }

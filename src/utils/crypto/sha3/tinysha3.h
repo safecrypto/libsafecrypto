@@ -32,31 +32,31 @@
 #endif
 
 // state context
-PRNG_STRUCT_PACK_START
+SC_STRUCT_PACK_START
 typedef struct {
     union {                                 // state:
         uint8_t b[200];                     // 8-bit bytes
         uint64_t q[25];                     // 64-bit words
     } st;
     int pt, rsiz, mdlen;                    // these don't overflow
-} PRNG_STRUCT_PACKED sha3_ctx_t;
-PRNG_STRUCT_PACK_END
+} SC_STRUCT_PACKED sha3_ctx_t;
+SC_STRUCT_PACK_END
 
 #if KECCAK_PARALLEL_NUM == 4
 
 #include <immintrin.h>
 
 // A state context for parallel implementation
-PRNG_STRUCT_PACK_START
+SC_STRUCT_PACK_START
 typedef struct {
     union {                                 // state:
     	uint8_t b[800];                     // 8-bit bytes
         uint32_t w[200];                    // 32-bit words
-    } st PRNG_DEFAULT_ALIGNED;
-    PRNG_DEFAULT_ALIGNED __m256i q[25];
+    } st SC_DEFAULT_ALIGNED;
+    SC_DEFAULT_ALIGNED __m256i q[25];
     int pt, rsiz, mdlen;                    // these don't overflow
-} PRNG_STRUCT_PACKED sha3_4x_ctx_t;
-PRNG_STRUCT_PACK_END
+} SC_STRUCT_PACKED sha3_4x_ctx_t;
+SC_STRUCT_PACK_END
 
 #endif
 

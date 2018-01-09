@@ -53,13 +53,9 @@ SINT32 ring_tesla_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
 
     // Precomputation for entropy coding
     sc->coding_pub_key.type             = SC_ENTROPY_NONE;
-    sc->coding_pub_key.entropy_coder    = NULL;
     sc->coding_priv_key.type            = SC_ENTROPY_NONE;
-    sc->coding_priv_key.entropy_coder   = NULL;
     sc->coding_signature.type           = SC_ENTROPY_NONE;
-    sc->coding_signature.entropy_coder  = NULL;
 
-    sc->blinding = (flags[0] & SC_FLAG_0_SAMPLE_BLINDING)?  BLINDING_SAMPLES : NORMAL_SAMPLES;
     sc->sampling_precision =
         ((flags[0] & SC_FLAG_0_SAMPLE_PREC_MASK) == SC_FLAG_0_SAMPLE_32BIT)?  SAMPLING_32BIT :
         ((flags[0] & SC_FLAG_0_SAMPLE_PREC_MASK) == SC_FLAG_0_SAMPLE_64BIT)?  SAMPLING_64BIT :
@@ -259,82 +255,16 @@ static SINT32 sig_entropy_init(safecrypto_t *sc, SINT32 set, sc_entropy_t *codin
     (void) set;
     (void) coding_signature;
 
-    /*switch (coding_signature->type)
-    {
-    case SC_ENTROPY_BAC:
-        switch (set)
-        {
-        case 4:
-            if (!bliss_bac_code_4.initialized) {
-                bliss_sig_destroy_bac(&bliss_bac_code_1);
-                bliss_sig_destroy_bac(&bliss_bac_code_3);
-                if (SC_FUNC_FAILURE == bliss_sig_create_bac(&bliss_bac_code_4)) {
-                    return SC_FUNC_FAILURE;
-                }
-                coding_signature->entropy_coder = (void *) &bliss_bac_code_4;
-            } break;
-        case 3:
-            if (!bliss_bac_code_3.initialized) {
-                bliss_sig_destroy_bac(&bliss_bac_code_1);
-                bliss_sig_destroy_bac(&bliss_bac_code_4);
-                if (SC_FUNC_FAILURE == bliss_sig_create_bac(&bliss_bac_code_3)) {
-                    return SC_FUNC_FAILURE;
-                }
-                coding_signature->entropy_coder = (void *) &bliss_bac_code_3;
-            } break;
-        case 1:
-            if (!bliss_bac_code_1.initialized) {
-                bliss_sig_destroy_bac(&bliss_bac_code_3);
-                bliss_sig_destroy_bac(&bliss_bac_code_4);
-                if (SC_FUNC_FAILURE == bliss_sig_create_bac(&bliss_bac_code_1)) {
-                    return SC_FUNC_FAILURE;
-                }
-                coding_signature->entropy_coder = (void *) &bliss_bac_code_1;
-            } break;
-        }
-        break;
-    case SC_ENTROPY_STRONGSWAN:
-        switch (set)
-        {
-            case 1:
-                bliss_sig_destroy_bac(&bliss_bac_code_1);
-                bliss_sig_destroy_bac(&bliss_bac_code_3);
-                bliss_sig_destroy_bac(&bliss_bac_code_4);
-                coding_signature->entropy_coder = (void *) &bliss_huffman_code_1;
-                break;
-            case 3:
-                bliss_sig_destroy_bac(&bliss_bac_code_1);
-                bliss_sig_destroy_bac(&bliss_bac_code_3);
-                bliss_sig_destroy_bac(&bliss_bac_code_4);
-                coding_signature->entropy_coder = (void *) &bliss_huffman_code_3;
-                break;
-            case 4:
-                bliss_sig_destroy_bac(&bliss_bac_code_1);
-                bliss_sig_destroy_bac(&bliss_bac_code_3);
-                bliss_sig_destroy_bac(&bliss_bac_code_4);
-                coding_signature->entropy_coder = (void *) &bliss_huffman_code_4;
-                break;
-        }
-        break;
-    default:
-        bliss_sig_destroy_bac(&bliss_bac_code_1);
-        bliss_sig_destroy_bac(&bliss_bac_code_3);
-        bliss_sig_destroy_bac(&bliss_bac_code_4);
-        coding_signature->entropy_coder = NULL;
-    }*/
-
     switch (coding_pub_key->type)
     {
     default:
         coding_pub_key->type = SC_ENTROPY_NONE;
-        coding_pub_key->entropy_coder = NULL;
     }
 
     switch (coding_priv_key->type)
     {
     default:
         coding_priv_key->type = SC_ENTROPY_NONE;
-        coding_priv_key->entropy_coder = NULL;
     }
 
     return SC_FUNC_SUCCESS;
@@ -505,9 +435,9 @@ SINT32 ring_tesla_pubkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
     }
     sc->coding_pub_key.type = SC_ENTROPY_NONE;
     entropy_poly_encode_32(packer, n, pubkey, q_bits,
-        SIGNED_COEFF, sc->coding_pub_key.type, &sc->stats.components[SC_STAT_PUB_KEY][0].bits_coded);
+        SIGNED_COEFF, sc->coding_pub_key.type, 0, &sc->stats.components[SC_STAT_PUB_KEY][0].bits_coded);
     entropy_poly_encode_32(packer, n, pubkey + n, q_bits,
-        SIGNED_COEFF, sc->coding_pub_key.type, &sc->stats.components[SC_STAT_PUB_KEY][1].bits_coded);
+        SIGNED_COEFF, sc->coding_pub_key.type, 0, &sc->stats.components[SC_STAT_PUB_KEY][1].bits_coded);
 
     // Extract the buffer with the public key and release the packer resources
     utils_entropy.pack_get_buffer(packer, key, key_len);
@@ -543,11 +473,11 @@ SINT32 ring_tesla_privkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
         return SC_FUNC_FAILURE;
     }
     entropy_poly_encode_16(packer, n, privkey, e_bits,
-        SIGNED_COEFF, sc->coding_priv_key.type, &packer->sc->stats.components[SC_STAT_PRIV_KEY][0].bits_coded);
+        SIGNED_COEFF, sc->coding_priv_key.type, 1, &packer->sc->stats.components[SC_STAT_PRIV_KEY][0].bits_coded);
     entropy_poly_encode_16(packer, n, privkey + n, e_bits,
-        SIGNED_COEFF, sc->coding_priv_key.type, &packer->sc->stats.components[SC_STAT_PRIV_KEY][1].bits_coded);
+        SIGNED_COEFF, sc->coding_priv_key.type, 1, &packer->sc->stats.components[SC_STAT_PRIV_KEY][1].bits_coded);
     entropy_poly_encode_16(packer, n, privkey + 2*n, e_bits,
-        SIGNED_COEFF, sc->coding_priv_key.type, &packer->sc->stats.components[SC_STAT_PRIV_KEY][2].bits_coded);
+        SIGNED_COEFF, sc->coding_priv_key.type, 1, &packer->sc->stats.components[SC_STAT_PRIV_KEY][2].bits_coded);
 
     // Extract the buffer with the polynomial f and release the packer resources
     utils_entropy.pack_get_buffer(packer, key, key_len);
@@ -662,6 +592,19 @@ static SINT32 test_rejection(safecrypto_t *sc, SINT32 *z)
         }
     }
     return 0;
+}
+
+SINT32 ring_tesla_set_key_coding(safecrypto_t *sc, sc_entropy_type_e pub,
+    sc_entropy_type_e priv)
+{
+    return SC_FUNC_FAILURE;
+}
+
+
+SINT32 ring_tesla_get_key_coding(safecrypto_t *sc, sc_entropy_type_e *pub,
+    sc_entropy_type_e *priv)
+{
+    return SC_FUNC_FAILURE;
 }
 
 #ifdef DISABLE_SIGNATURES_SERVER
@@ -942,9 +885,9 @@ SINT32 ring_tesla_sign(safecrypto_t *sc, const UINT8 *m, size_t m_len,
             break;
         }
         entropy_poly_encode_32(packer, n, z, q_bits,
-            SIGNED_COEFF, sc->coding_signature.type, &sc->stats.components[SC_STAT_SIGNATURE][0].bits_coded);
+            SIGNED_COEFF, sc->coding_signature.type, 2, &sc->stats.components[SC_STAT_SIGNATURE][0].bits_coded);
         entropy_poly_encode_8(packer, 64, md, 8,
-            UNSIGNED_COEFF, SC_ENTROPY_NONE, &sc->stats.components[SC_STAT_SIGNATURE][1].bits_coded);
+            UNSIGNED_COEFF, SC_ENTROPY_NONE, 2, &sc->stats.components[SC_STAT_SIGNATURE][1].bits_coded);
         utils_entropy.pack_get_buffer(packer, sigret, siglen);
         utils_entropy.pack_destroy(&packer);
         sc->stats.components[SC_STAT_SIGNATURE][0].bits += n * q_bits;
@@ -979,7 +922,7 @@ SINT32 ring_tesla_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
 SINT32 ring_tesla_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
     const UINT8 *sigbuf, size_t siglen)
 {
-    SINT32 i;
+    SINT32 i, not_equal;
     SINT32 *t, *z, *c, *w1, *w2;
     SINT32 *t1, *t2;
     UINT16 n, q_bits, omega;
@@ -1045,9 +988,9 @@ SINT32 ring_tesla_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
 
     UINT32 value;
     entropy_poly_decode_32(packer, n, z, q_bits,
-        SIGNED_COEFF, sc->coding_signature.type);
+        SIGNED_COEFF, sc->coding_signature.type, 2);
     entropy_poly_decode_8(packer, 64, sigmd, 8,
-        UNSIGNED_COEFF, SC_ENTROPY_NONE);
+        UNSIGNED_COEFF, SC_ENTROPY_NONE, 3);
     utils_entropy.pack_destroy(&packer);
 
     SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Received z", z, n);
@@ -1086,10 +1029,10 @@ SINT32 ring_tesla_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
     oracle(sc, w1, w2, t, n, m, m_len, md);
     SC_PRINT_1D_UINT8(sc, SC_LEVEL_DEBUG, "c'", md, 64);
 
-    for (i = 0; i < 64; i++) {
-        if (md[i] != sigmd[i]) {
-            goto verification_failure;
-        }
+    not_equal = sc_poly->cmp_not_equal_8(md, sigmd, 64);
+    if (not_equal) {
+        sc->stats.sig_num_unverified++;
+        goto verification_failure;
     }
 
     SC_MEMZERO(sc->temp, 5 * n * sizeof(SINT32));
@@ -1145,7 +1088,7 @@ Signature compression:   %s\n\
         sc->stats.sig_num_unverified,
         sc_sampler_names[sc->sampling],
         safecrypto_prng_names[(int)prng_get_type(sc->prng_ctx[0])],
-        crypto_hash_names[sc->ring_tesla->oracle_hash],
+        sc_hash_names[sc->ring_tesla->oracle_hash],
         sc_entropy_names[(int)sc->coding_pub_key.type],
         sc->stats.pub_keys_encoded? (DOUBLE)sc->stats.components[SC_STAT_PUB_KEY][0].bits/(DOUBLE)sc->stats.pub_keys_encoded : 0,
         sc->stats.pub_keys_encoded? (DOUBLE)sc->stats.components[SC_STAT_PUB_KEY][0].bits_coded/(DOUBLE)sc->stats.pub_keys_encoded : 0,

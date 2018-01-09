@@ -419,7 +419,7 @@ SINT32 decode_huffman(sc_packer_t *packer, const huffman_table_t *table, UINT32 
     UINT32 bit, bits = 0, codes;
 
     // Read the maximum number of coded bits but don't extract from the buffer
-    if (!packer->peek(packer, &codes, max_bits)) {
+    if (SC_FUNC_SUCCESS != packer->peek(packer, &codes, max_bits)) {
         return SC_OUT_OF_BOUNDS;
     }
 
@@ -435,7 +435,7 @@ SINT32 decode_huffman(sc_packer_t *packer, const huffman_table_t *table, UINT32 
     }
 
     // Actually read the correct number of bits from the buffer and discard
-    if (!packer->read(packer, &bit, bits)) {
+    if (SC_FUNC_SUCCESS != packer->read(packer, &bit, bits)) {
         return SC_OUT_OF_BOUNDS;
     }
 #endif

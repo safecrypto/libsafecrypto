@@ -39,138 +39,6 @@ extern "C" {
 #define SC_IBE_MAX_ID_LENGTH  128
 
 
-/// An enumerated type for print debug levels
-typedef enum sc_debug_level {
-    SC_LEVEL_NONE = 0,
-    SC_LEVEL_ERROR,
-    SC_LEVEL_WARNING,
-    SC_LEVEL_INFO,
-    SC_LEVEL_DEBUG,
-} sc_debug_level_e;
-
-
-/// A list of the lossless compression coding types to be used
-#define ENTROPY_LIST(m) \
-    m(SC_ENTROPY_NONE) \
-    m(SC_ENTROPY_BAC) \
-    m(SC_ENTROPY_BAC_RLE) \
-    m(SC_ENTROPY_HUFFMAN_STATIC) \
-    m(SC_ENTROPY_STRONGSWAN)
-
-/// An enumerated type for the choice of entropy coding scheme
-GENERATE_ENUM(sc_entropy_type_e, ENTROPY_LIST, SC_ENTROPY_SCHEME_MAX);
-
-/// A list of the enumerated types in the form of human readable strings
-__attribute__((unused))
-GENERATE_ENUM_NAMES(sc_entropy_names, ENTROPY_LIST, SC_ENTROPY_SCHEME_MAX);
-
-
-/// A list of the available hash functions
-#define HASH_LIST(m) \
-    m(SC_HASH_SHA3_512) \
-    m(SC_HASH_SHA3_384) \
-    m(SC_HASH_SHA3_256) \
-    m(SC_HASH_SHA3_224) \
-    m(SC_HASH_SHA2_512) \
-    m(SC_HASH_SHA2_384) \
-    m(SC_HASH_SHA2_256) \
-    m(SC_HASH_SHA2_224) \
-    m(SC_HASH_BLAKE2_512) \
-    m(SC_HASH_BLAKE2_384) \
-    m(SC_HASH_BLAKE2_256) \
-    m(SC_HASH_BLAKE2_224) \
-    m(SC_HASH_WHIRLPOOL_512) \
-    m(SC_HASH_SHAKE128_256) \
-    m(SC_HASH_SHAKE256_512)
-
-/// An enumerated type for the choice of hash algorithm
-GENERATE_ENUM(sc_hash_e, HASH_LIST, SC_HASH_MAX);
-
-
-/// A list of the available AKE types
-#define AKE_LIST(m) \
-    m(SC_AKE_FORWARD_SECURE)
-
-/// An enumerated type for the choice of hash algorithm
-GENERATE_ENUM(sc_ake_e, AKE_LIST, SC_AKE_MAX);
-
-
-/// A list of the available schemes
-#define SCHEME_LIST(m) \
-    m(SC_SCHEME_NONE) \
-    m(SC_SCHEME_SIG_HELLO_WORLD) \
-    m(SC_SCHEME_SIG_BLISS) \
-    m(SC_SCHEME_SIG_RING_TESLA) \
-    m(SC_SCHEME_ENC_RLWE) \
-    m(SC_SCHEME_KEM_ENS) \
-    m(SC_SCHEME_SIG_ENS) \
-    m(SC_SCHEME_SIG_ENS_WITH_RECOVERY) \
-    m(SC_SCHEME_IBE_DLP) \
-    m(SC_SCHEME_SIG_DLP) \
-    m(SC_SCHEME_SIG_DLP_WITH_RECOVERY) \
-    m(SC_SCHEME_SIG_DILITHIUM) \
-    m(SC_SCHEME_SIG_DILITHIUM_G) \
-    m(SC_SCHEME_KEM_KYBER) \
-    m(SC_SCHEME_ENC_KYBER_CPA) \
-    m(SC_SCHEME_ENC_KYBER_HYBRID)
-
-/// An enumerated type for the choice of scheme
-GENERATE_ENUM(sc_scheme_e, SCHEME_LIST, SC_SCHEME_MAX);
-
-/// A list of the enumerated types in the form of human readable strings
-__attribute__((unused))
-GENERATE_ENUM_NAMES(sc_scheme_names, SCHEME_LIST, SC_SCHEME_MAX);
-
-/// A struct used to store the coding details for produced data
-SC_STRUCT_PACK_START
-typedef struct _sc_stat_coding {
-    size_t bits;
-    size_t bits_coded;
-    char   name[32];
-} SC_STRUCT_PACKED sc_stat_coding_t;
-SC_STRUCT_PACK_END
-
-/// The types of data produced by the SAFEcrypto library
-typedef enum _sc_stat_component {
-    SC_STAT_PUB_KEY = 0,
-    SC_STAT_PRIV_KEY,
-    SC_STAT_SIGNATURE,
-    SC_STAT_EXTRACT,
-    SC_STAT_ENCRYPT,
-    SC_STAT_ENCAPSULATE,
-} sc_stat_component_e;
-
-/// A struct used to store statistics for the algorithms
-SC_STRUCT_PACK_START
-typedef struct _sc_statistics {
-    sc_scheme_e scheme;
-    size_t param_set;
-    size_t keygen_num;
-    size_t keygen_num_trials;
-    size_t pub_keys_encoded;
-    size_t pub_keys_loaded;
-    size_t priv_keys_encoded;
-    size_t priv_keys_loaded;
-    size_t sig_num;
-    size_t sig_num_trials;
-    size_t sig_num_verified;
-    size_t sig_num_unverified;
-    size_t encrypt_num;
-    size_t decrypt_num;
-    size_t encapsulate_num;
-    size_t decapsulate_num;
-    size_t extract_num;
-    size_t extract_keys_loaded;
-    size_t num_components[6];
-#if 0
-    sc_stat_coding_t *components[6];
-#else
-    sc_stat_coding_t components[6][5];
-#endif
-} SC_STRUCT_PACKED sc_statistics_t;
-SC_STRUCT_PACK_END
-
-
 /// @todo Add error checking for incompatible flags, e.g. Ziggurat
 /// and Bernoulli are selected
 
@@ -184,9 +52,7 @@ SC_STRUCT_PACK_END
 /// Word 0:
 /// @{
 #define SC_FLAG_0_ENTROPY_BAC                0x00000001  ///< BAC compression
-#define SC_FLAG_0_ENTROPY_BAC_RLE            0x00000002  ///< BAC with RLE compression
-#define SC_FLAG_0_ENTROPY_STRONGSWAN         0x00000004  ///< strongSwan compatible Huffman compression
-#define SC_FLAG_0_ENTROPY_HUFFMAN_STATIC     0x00000008  ///< Huffman compression
+#define SC_FLAG_0_ENTROPY_HUFFMAN            0x00000002  ///< Huffman compression
 #define SC_FLAG_0_SAMPLE_PREC_MASK           0x00000070  ///< A mask used to isloate the Gaussian sample precision bits
 #define SC_FLAG_0_SAMPLE_DEFAULT             0x00000000  ///< Use default Gaussian sampling precision
 #define SC_FLAG_0_SAMPLE_32BIT               0x00000010  ///< Use 32-bit Gaussian sampling precision
@@ -194,7 +60,6 @@ SC_STRUCT_PACK_END
 #define SC_FLAG_0_SAMPLE_128BIT              0x00000030  ///< Use 128-bit Gaussian sampling precision
 #define SC_FLAG_0_SAMPLE_192BIT              0x00000040  ///< Use 192-bit Gaussian sampling precision
 #define SC_FLAG_0_SAMPLE_256BIT              0x00000050  ///< Use 256-bit Gaussian sampling precision
-#define SC_FLAG_0_SAMPLE_BLINDING            0x00000100  ///< Enable blinding countermeasures
 #define SC_FLAG_0_SAMPLE_CDF                 0x00000200  ///< CDF Gaussian sampler
 #define SC_FLAG_0_SAMPLE_KNUTH_YAO           0x00000400  ///< Knuth Yao Gaussian sampler
 #define SC_FLAG_0_SAMPLE_ZIGGURAT            0x00000800  ///< Ziggurat gaussian sampler
@@ -245,6 +110,13 @@ SC_STRUCT_PACK_END
 
 /// Word 2:
 /// @{
+#define SC_FLAG_2_SAMPLE_SCA_DISCARD_LO      0x00000001  ///< Enable discarding Gaussian samples at a low rate (6.25%)
+#define SC_FLAG_2_SAMPLE_SCA_DISCARD_MD      0x00000002  ///< Enable discarding Gaussian samples at a low rate (12.5%)
+#define SC_FLAG_2_SAMPLE_SCA_DISCARD_HI      0x00000003  ///< Enable discarding Gaussian samples at a low rate (25%)
+#define SC_FLAG_2_SAMPLE_CACHE_ACCESS        0x00000004  ///< Enable random cache access of any Gaussian sample LUT
+#define SC_FLAG_2_SAMPLE_NON_CT_MASK         0x00000008  ///< Enable the masking of non-constant time Gaussian sampling
+#define SC_FLAG_2_SAMPLE_SCA_SHUFFLE         0x00000010  ///< Enable Gaussian shuffling countermeasures
+#define SC_FLAG_2_SAMPLE_SCA_BLINDING        0x00000020  ///< Enable Gaussian blinding countermeasures
 #define SC_FLAG_2_MEMORY_TEMP_EXTERNAL       0x10000000  ///< Use an external memory array to store intermediate data
 /// @}
 
@@ -252,12 +124,38 @@ SC_STRUCT_PACK_END
 /// The entropy coder configuration
 typedef struct sc_entropy {
     sc_entropy_type_e type;
-    void* entropy_coder;
 } sc_entropy_t;
 
 
 /// Forward declaration of the SAFEcrypto struct (user does not require a definition)
 typedef struct _safecrypto safecrypto_t;
+
+/// Forward declaration of the Hash struct (user does not require a definition)
+typedef struct _utils_crypto_hash safecrypto_hash_t;
+
+/// Forward declaration of the XOF struct (user does not require a definition)
+typedef struct _utils_crypto_xof safecrypto_xof_t;
+
+/// A struct used to parse a linked list of supported public key signature schemes
+struct sc_pkc_scheme {
+    sc_scheme_e           scheme;
+    struct sc_pkc_scheme *next;
+};
+typedef struct sc_pkc_scheme sc_pkc_scheme_t;
+
+/// A struct used to parse a linked list of supported hash schemes
+struct sc_hash {
+    sc_hash_e       scheme;
+    struct sc_hash *next;
+};
+typedef struct sc_hash sc_hash_t;
+
+/// A struct used to parse a linked list of supported XOF schemes
+struct sc_xof {
+    sc_xof_e       scheme;
+    struct sc_xof *next;
+};
+typedef struct sc_xof sc_xof_t;
 
 
 /** @name Library version
@@ -274,7 +172,43 @@ extern UINT32 safecrypto_get_version(void);
  * 
  *  @return A string representing the SAFEcrypto version number
  */
-extern char *safecrypto_get_version_string(void);
+extern const char *safecrypto_get_version_string(void);
+/**@}*/
+
+
+/** @name Library capabilities
+ *  Functions used to determine the library capabilities.
+ */
+/**@{*/
+/** @brief Retrieve the configure invocation command used when building the library
+ *
+ *  @return A C-string pointer
+ */
+extern const char *safecrypto_get_configure_invocation(void);
+
+/** @brief Obtain a linked list containing the signature schemes supported by SAFEcrypto
+ *
+ *  @return A pointer to the first sc_pkc_scheme_t node in the linked list
+ */
+extern const sc_pkc_scheme_t *safecrypto_get_signature_schemes(void);
+
+/** @brief Obtain a linked list containing the encryption schemes supported by SAFEcrypto
+ *
+ *  @return A pointer to the first sc_pkc_scheme_t node in the linked list
+ */
+extern const sc_pkc_scheme_t *safecrypto_get_encryption_schemes(void);
+
+/** @brief Obtain a linked list containing the KEM schemes supported by SAFEcrypto
+ *
+ *  @return A pointer to the first sc_pkc_scheme_t node in the linked list
+ */
+extern const sc_pkc_scheme_t *safecrypto_get_kem_schemes(void);
+
+/** @brief Obtain a linked list containing the IBE schemes supported by SAFEcrypto
+ *
+ *  @return A pointer to the first sc_pkc_scheme_t node in the linked list
+ */
+extern const sc_pkc_scheme_t *safecrypto_get_ibe_schemes(void);
 /**@}*/
 
 
@@ -294,7 +228,7 @@ extern safecrypto_t *safecrypto_create(sc_scheme_e scheme, SINT32 set,
 
 /** @brief Destroy a SAFEcrypto object
  *  @param sc A pointer to a safecrypto object
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_destroy(safecrypto_t *sc);
 /**@}*/
@@ -308,7 +242,7 @@ extern SINT32 safecrypto_destroy(safecrypto_t *sc);
  *  @param sc A pointer to a safecrypto object
  *  @param mem A pointer to a memory array
  *  @param len The size (in bytes) of the memory array (aligned to SC_DEFAULT_ALIGNED)
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_scratch_external(safecrypto_t *sc, void *mem, size_t len);
 
@@ -319,7 +253,7 @@ extern SINT32 safecrypto_scratch_external(safecrypto_t *sc, void *mem, size_t le
 /** @brief Set an intermediate memory pointer
  *  @param sc A pointer to a safecrypto object
  *  @param len A pointer to the size (in bytes) of the memory array
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_scratch_size(safecrypto_t *sc, size_t *len);
 
@@ -329,7 +263,7 @@ extern SINT32 safecrypto_scratch_size(safecrypto_t *sc, size_t *len);
 /**@{*/
 /** @brief Set a callback function pointer
  *  @param sc A pointer to a func_get_random_entropy function
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_entropy_callback(safecrypto_entropy_cb_func fn_entropy);
 /**@}*/
@@ -343,7 +277,7 @@ extern SINT32 safecrypto_entropy_callback(safecrypto_entropy_cb_func fn_entropy)
  *  @param level The debug verboseness
  *  @param sc A pointer to a safecrypto object
  *  @param level The user specified debug verbosity
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_set_debug_level(safecrypto_t *sc, sc_debug_level_e level);
 
@@ -384,7 +318,7 @@ extern void safecrypto_err_clear_error(safecrypto_t *sc);
 /** @brief Create a SAFEcrypto key-pair and store it in the SAFEcrypto struct.
  *
  *  @param sc A pointer to a safecrypto object
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_keygen(safecrypto_t *sc);
 
@@ -393,7 +327,7 @@ extern SINT32 safecrypto_keygen(safecrypto_t *sc);
  *  @param sc A pointer to a safecrypto object
  *  @param pub Entropy coding to be applied to the public key
  *  @param priv Entropy coding to be applied to the private key
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_set_key_coding(safecrypto_t *sc, sc_entropy_type_e pub,
     sc_entropy_type_e priv);
@@ -403,7 +337,7 @@ extern SINT32 safecrypto_set_key_coding(safecrypto_t *sc, sc_entropy_type_e pub,
  *  @param sc A pointer to a safecrypto object
  *  @param pub Entropy coding to be applied to the public key
  *  @param priv Entropy coding to be applied to the private key polynomial
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_get_key_coding(safecrypto_t *sc, sc_entropy_type_e *pub,
     sc_entropy_type_e *priv);
@@ -413,7 +347,7 @@ extern SINT32 safecrypto_get_key_coding(safecrypto_t *sc, sc_entropy_type_e *pub
  *  @param sc A pointer to a safecrypto object
  *  @param key A serialized public key
  *  @param key_len The length of the key array
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_public_key_load(safecrypto_t *sc, const UINT8 *key, size_t keylen);
 
@@ -422,7 +356,7 @@ extern SINT32 safecrypto_public_key_load(safecrypto_t *sc, const UINT8 *key, siz
  *  @param sc A pointer to a safecrypto object
  *  @param key A serialized private key
  *  @param key_len The length of the key array
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_private_key_load(safecrypto_t *sc, const UINT8 *key, size_t keylen);
 
@@ -431,7 +365,7 @@ extern SINT32 safecrypto_private_key_load(safecrypto_t *sc, const UINT8 *key, si
  *  @param sc A pointer to a safecrypto object
  *  @param key A serialized public key
  *  @param keylen The size of the returned public key
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_public_key_encode(safecrypto_t *sc, UINT8 **key, size_t *keylen);
 
@@ -440,7 +374,7 @@ extern SINT32 safecrypto_public_key_encode(safecrypto_t *sc, UINT8 **key, size_t
  *  @param sc A pointer to a safecrypto object
  *  @param key A serialized private key
  *  @param keylen The size of the returned private key
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_private_key_encode(safecrypto_t *sc, UINT8 **key, size_t *keylen);
 
@@ -457,7 +391,7 @@ extern SINT32 safecrypto_private_key_encode(safecrypto_t *sc, UINT8 **key, size_
  *  @param c_len Ciphertext length
  *  @param k Output master key
  *  @param k_len Master key length
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_encapsulation(safecrypto_t *sc,
 	  UINT8 **c, size_t *c_len,
@@ -470,7 +404,7 @@ extern SINT32 safecrypto_encapsulation(safecrypto_t *sc,
  *  @param c_len Ciphertext length
  *  @param k Output master key
  *  @param k_len Master key length
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_decapsulation(safecrypto_t *sc,
 	  const UINT8 *c, size_t c_len,
@@ -481,7 +415,7 @@ extern SINT32 safecrypto_decapsulation(safecrypto_t *sc,
  *  @param sc Object containing key pair and lattice parameters
  *  @param sklen The size of the user secret key in bytes
  *  @param sk The user secret key obtained from the Private Key Generator
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_secret_key(safecrypto_t *sc, size_t sklen, const UINT8 *sk);
 
@@ -492,7 +426,7 @@ extern SINT32 safecrypto_secret_key(safecrypto_t *sc, size_t sklen, const UINT8 
  *  @param id The User ID
  *  @param sklen The size of the user secret key in bytes
  *  @param sk The output user secret key
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_ibe_extract(safecrypto_t *sc, size_t idlen, const UINT8 *id,
     size_t *sklen, UINT8 **sk);
@@ -506,7 +440,7 @@ extern SINT32 safecrypto_ibe_extract(safecrypto_t *sc, size_t idlen, const UINT8
  *  @param from The input message
  *  @param tlen The size of the ciphertext array in bytes
  *  @param to The output ciphertext
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_ibe_public_encrypt(safecrypto_t *sc,
     size_t idlen, const UINT8 *id,
@@ -520,7 +454,7 @@ extern SINT32 safecrypto_ibe_public_encrypt(safecrypto_t *sc,
  *  @param from The input message
  *  @param tlen The size of the ciphertext array in bytes
  *  @param to The output ciphertext
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_public_encrypt(safecrypto_t *sc,
     size_t flen, const UINT8 *from, size_t *tlen, UINT8 **to);
@@ -532,7 +466,7 @@ extern SINT32 safecrypto_public_encrypt(safecrypto_t *sc,
  *  @param from The input ciphertext
  *  @param tlen The size of the output message in bytes
  *  @param to The output message
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_private_decrypt(safecrypto_t *sc,
     size_t flen, const UINT8 *from, size_t *tlen, UINT8 **to);
@@ -544,7 +478,7 @@ extern SINT32 safecrypto_private_decrypt(safecrypto_t *sc,
  *  @param mlen The size of the message array in bytes
  *  @param sigret The output signature
  *  @param siglen The size of the signature array in bytes
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_sign(safecrypto_t *sc, const UINT8 *m, size_t mlen,
     UINT8 **sigret, size_t *siglen);
@@ -569,7 +503,7 @@ extern SINT32 safecrypto_verify(safecrypto_t *sc, const UINT8 *m, size_t mlen,
  *  @param mlen The size of the message array in bytes when called, modified upon return
  *  @param sigret The output signature
  *  @param siglen The size of the signature array in bytes
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_sign_with_recovery(safecrypto_t *sc, UINT8 **m, size_t *mlen,
     UINT8 **sigret, size_t *siglen);
@@ -624,7 +558,7 @@ extern const sc_statistics_t * safecrypto_get_stats(safecrypto_t *sc);
  *  @param kem_len The length of the output KEM encapsulation key
  *  @param sig A signature of the output KEM encapsulation key
  *  @param sig_len The length of the signature
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
 extern SINT32 safecrypto_ake_2way_init(safecrypto_t *sc_sig, safecrypto_t *sc_kem,
     UINT8 **kem, size_t *kem_len, UINT8 **sig, size_t *sig_len);
@@ -690,46 +624,132 @@ extern SINT32 safecrypto_ake_2way_final(safecrypto_t *sc_sig, safecrypto_t *sc_k
  *  Functions used to provide message hashing functionality.
  */
 /**@{*/
+
+/** @brief Obtain a linked list containing the hash schemes supported by SAFEcrypto
+ *
+ *  @return A pointer to the first sc_hash_t node in the linked list
+ */
+extern const sc_hash_t *safecrypto_get_hash_schemes(void);
+
 /** @brief Create an instance of the selected hash function
  *
  *  @param type The type of hash function
  *  @return Returns a pointer to the hash struct
  */
-extern void * safecrypto_hash_create(sc_hash_e type);
+extern safecrypto_hash_t * safecrypto_hash_create(sc_hash_e type);
 
 /** @brief Destroy an instance of a hash and release all memory resources
  *
  *  @param hash A pointer to the hash struct
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
-extern SINT32 safecrypto_hash_destroy(void *hash);
+extern SINT32 safecrypto_hash_destroy(safecrypto_hash_t *hash);
+
+/** @brief Return the type of hash function
+ *
+ *  @param hash A pointer to the hash struct
+ *  @return Returns the SC_HASH_MAX upon failure
+ */
+extern sc_hash_e safecrypto_hash_type(safecrypto_hash_t *hash);
+
+/** @brief Get the length of the message digest produced by the hash function
+ *
+ *  @param hash A pointer to the hash struct
+ *  @return Returns the length of the message digest (in bytes), or 0 if failure
+ */
+extern size_t safecrypto_hash_length(safecrypto_hash_t *hash);
 
 /** @brief The common hash API function used to initialise
  *
  *  @param hash A pointer to the hash struct
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
-extern SINT32 safecrypto_hash_init(void *hash);
+extern SINT32 safecrypto_hash_init(safecrypto_hash_t *hash);
 
 /** @brief The common hash API function used to update using a specified byte array
  *
  *  @param hash A pointer to the hash struct
  *  @param data A pointer to the memory array containing message bytes
  *  @param len The length of the message data array
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
-extern SINT32 safecrypto_hash_update(void *hash, const UINT8 *data, size_t len);
+extern SINT32 safecrypto_hash_update(safecrypto_hash_t *hash, const UINT8 *data, size_t len);
 
 /** @brief The common hash API function used to finalize the hash output
  *
  *  @param hash A pointer to the hash struct
  *  @param md A pointer to the message digest
- *  @return Returns 1 on success
+ *  @return Returns 0 on success
  */
-extern SINT32 safecrypto_hash_final(void *hash, UINT8 *md);
+extern SINT32 safecrypto_hash_final(safecrypto_hash_t *hash, UINT8 *md);
 /**@}*/
 
 #ifdef __cplusplus
 }
 #endif
 
+
+/** @name Extendible Output Function
+ *  Functions used to provide XOF functionality.
+ */
+/**@{*/
+
+/** @brief Obtain a linked list containing the XOF schemes supported by SAFEcrypto
+ *
+ *  @return A pointer to the first sc_xof_t node in the linked list
+ */
+extern const sc_xof_t *safecrypto_get_xof_schemes(void);
+
+/** @brief Create an instance of the selected XOF function
+ *
+ *  @param type The type of XOF function
+ *  @return Returns a pointer to the XOF struct
+ */
+extern safecrypto_xof_t * safecrypto_xof_create(sc_xof_e type);
+
+/** @brief Destroy an instance of a XOF and release all memory resources
+ *
+ *  @param xof A pointer to the XOF struct
+ *  @return Returns 0 on success
+ */
+extern SINT32 safecrypto_xof_destroy(safecrypto_xof_t* xof);
+
+/** @brief Determine the type of XOF
+ *
+ *  @param xof A pointer to the XOF struct
+ *  @return Returns SC_XOF_MAX on failure
+ */
+extern sc_xof_e safecrypto_xof_type(safecrypto_xof_t *xof);
+
+/** @brief Initialise a XOF instance
+ *
+ *  @param xof A pointer to the XOF struct
+ *  @return Returns 0 on success
+ */
+extern SINT32 safecrypto_xof_init(safecrypto_xof_t *xof);
+
+/** @brief The XOF API function used to seed a XOF
+ *
+ *  @param xof A pointer to the XOF struct
+ *  @param data A pointer to the memory array containing message bytes
+ *  @param len The length of the message data array
+ *  @return Returns 0 on success
+ */
+extern SINT32 safecrypto_xof_absorb(safecrypto_xof_t *xof, const UINT8 *data, size_t len);
+
+/** @brief XOF API function used to finalize the XOF input
+ *
+ *  @param xof A pointer to the XOF struct
+ *  @return Returns 0 on success
+ */
+extern SINT32 safecrypto_xof_final(safecrypto_xof_t *xof);
+
+/** @brief Generate output data
+ *
+ *  @param xof A pointer to the XOF struct
+ *  @param output A pointer to the memory array containing 
+ *  @param len The length of the output data array
+ *  @return Returns 0 on success
+ */
+extern SINT32 safecrypto_xof_squeeze(safecrypto_xof_t *xof, UINT8 *output, size_t len);
+/**@}*/

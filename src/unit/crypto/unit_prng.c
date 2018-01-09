@@ -25,9 +25,9 @@ START_TEST(test_prng_create)
     prng = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM, SC_PRNG_THREADING_NONE, 0x00100000);
     ck_assert_ptr_ne(prng, NULL);
     retval = prng_destroy(NULL);
-    ck_assert_int_eq(retval, PRNG_FUNC_FAILURE);
+    ck_assert_int_eq(retval, SC_FUNC_FAILURE);
     retval = prng_destroy(prng);
-    ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+    ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
 }
 END_TEST
 
@@ -58,7 +58,7 @@ START_TEST(test_prng_entropy_callback)
     ck_assert_int_ne(ave, 0);
 
     retval = prng_destroy(prng_ctx);
-    ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+    ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
 }
 END_TEST
 
@@ -78,7 +78,7 @@ START_TEST(test_prng_bit_isaac)
     ck_assert_int_ge(bit, 0);
 
     retval = prng_destroy(prng_ctx);
-    ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+    ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
 }
 END_TEST
 
@@ -106,7 +106,7 @@ START_TEST(test_prng_var_isaac)
         ck_assert_int_ge(bit, 0);
     }
     retval = prng_destroy(prng_ctx);
-    ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+    ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
 }
 END_TEST
 
@@ -127,7 +127,7 @@ START_TEST(test_prng_u32_isaac)
     ck_assert_int_eq(u32_or, 0xFFFFFFFF);
 
     retval = prng_destroy(prng_ctx);
-    ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+    ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
 }
 END_TEST
 
@@ -148,7 +148,7 @@ START_TEST(test_prng_u64_isaac)
     ck_assert_uint_eq(u64_or, 0xFFFFFFFFFFFFFFFF);
 
     retval = prng_destroy(prng_ctx);
-    ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+    ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
 }
 END_TEST
 
@@ -171,7 +171,7 @@ START_TEST(test_prng_u128_isaac)
     ck_assert_uint_eq(u128_or >> 64, 0xFFFFFFFFFFFFFFFF);
 
     retval = prng_destroy(prng_ctx);
-    ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+    ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
 #endif
 }
 END_TEST
@@ -207,7 +207,7 @@ START_TEST(test_prng_mem_isaac)
     ck_assert_int_lt(ave, 255);
 
     retval = prng_destroy(prng_ctx);
-    ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+    ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
 }
 END_TEST
 #endif
@@ -228,7 +228,7 @@ START_TEST(test_prng_bit_kiss)
     ck_assert_int_ge(bit, 0);
 
     retval = prng_destroy(prng_ctx);
-    ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+    ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
 }
 END_TEST
 
@@ -257,7 +257,7 @@ START_TEST(test_prng_var_kiss)
     }
 
     retval = prng_destroy(prng_ctx);
-    ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+    ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
 }
 END_TEST
 
@@ -278,7 +278,7 @@ START_TEST(test_prng_u32_kiss)
     ck_assert_int_eq(u32_or, 0xFFFFFFFF);
 
     retval = prng_destroy(prng_ctx);
-    ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+    ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
 }
 END_TEST
 
@@ -299,7 +299,7 @@ START_TEST(test_prng_u64_kiss)
     ck_assert_uint_eq(u64_or, 0xFFFFFFFFFFFFFFFF);
 
     retval = prng_destroy(prng_ctx);
-    ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+    ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
 }
 END_TEST
 
@@ -322,7 +322,7 @@ START_TEST(test_prng_u128_kiss)
     ck_assert_uint_eq(u128_or >> 64, 0xFFFFFFFFFFFFFFFF);
 
     retval = prng_destroy(prng_ctx);
-    ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+    ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
 #endif
 }
 END_TEST
@@ -358,7 +358,7 @@ START_TEST(test_prng_mem_kiss)
     ck_assert_int_lt(ave, 255);
 
     retval = prng_destroy(prng_ctx);
-    ck_assert_int_eq(retval, PRNG_FUNC_SUCCESS);
+    ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
 }
 END_TEST
 #endif
@@ -378,6 +378,7 @@ Suite *prng_suite(void)
 
 #ifdef ENABLE_ISAAC
     tc_isaac = tcase_create("ISAAC");
+    tcase_set_timeout(tc_isaac, 10.0f);
     tcase_add_test(tc_isaac, test_prng_bit_isaac);
     tcase_add_test(tc_isaac, test_prng_var_isaac);
     tcase_add_test(tc_isaac, test_prng_u32_isaac);
@@ -389,6 +390,7 @@ Suite *prng_suite(void)
 
 #ifdef ENABLE_KISS
     tc_kiss = tcase_create("KISS");
+    tcase_set_timeout(tc_kiss, 10.0f);
     tcase_add_test(tc_kiss, test_prng_bit_kiss);
     tcase_add_test(tc_kiss, test_prng_var_kiss);
     tcase_add_test(tc_kiss, test_prng_u32_kiss);

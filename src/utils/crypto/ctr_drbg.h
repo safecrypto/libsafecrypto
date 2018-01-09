@@ -33,7 +33,7 @@ typedef struct user_entropy user_entropy_t;
 typedef void (*func_get_random)(size_t, UINT8 *, user_entropy_t *);
 
 /// A struct that stores the CTR-DRBG context
-PRNG_STRUCT_PACK_START
+SC_STRUCT_PACK_START
 typedef struct ctx_ctr_drbg_t {
     aes_encrypt_ctx ctx_aes;
     func_get_random get_random;
@@ -42,8 +42,8 @@ typedef struct ctx_ctr_drbg_t {
     UINT32          seed_period;
     UINT32          counter;
     UINT8           key[32];
-} PRNG_STRUCT_PACKED ctx_ctr_drbg_t;
-PRNG_STRUCT_PACK_END
+} SC_STRUCT_PACKED ctx_ctr_drbg_t;
+SC_STRUCT_PACK_END
 
 
 /// Create an instance of the CTR-DRBG

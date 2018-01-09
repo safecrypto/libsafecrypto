@@ -14,7 +14,52 @@
 #include "safecrypto_version.h"
 #include "utils/arith/sc_math.c"
 #include <math.h>
+#include <limits.h>
 
+
+START_TEST(test_constant_time_less_than_u32)
+{
+    UINT32 cmp;
+    cmp = sc_const_time_u32_lessthan(0, 0);
+    ck_assert_uint_eq(cmp, 0);
+    cmp = sc_const_time_u32_lessthan(0, 0xFFFFFFFF);
+    ck_assert_uint_eq(cmp, 1);
+    cmp = sc_const_time_u32_lessthan(0xFFFFFFFF, 0);
+    ck_assert_uint_eq(cmp, 0);
+    cmp = sc_const_time_u32_lessthan(0xFFFFFFFF, 0xFFFFFFFF);
+    ck_assert_uint_eq(cmp, 0);
+    cmp = sc_const_time_u32_lessthan(0, 1);
+    ck_assert_uint_eq(cmp, 1);
+    cmp = sc_const_time_u32_lessthan(1, 0);
+    ck_assert_uint_eq(cmp, 0);
+    cmp = sc_const_time_u32_lessthan(1, 1);
+    ck_assert_uint_eq(cmp, 0);
+    cmp = sc_const_time_u32_lessthan(1, 2);
+    ck_assert_uint_eq(cmp, 1);
+}
+END_TEST
+
+START_TEST(test_constant_time_less_than_u64)
+{
+    UINT32 cmp;
+    cmp = sc_const_time_u64_lessthan(0, 0);
+    ck_assert_uint_eq(cmp, 0);
+    cmp = sc_const_time_u64_lessthan(0, 0xFFFFFFFFFFFFFFFF);
+    ck_assert_uint_eq(cmp, 1);
+    cmp = sc_const_time_u64_lessthan(0xFFFFFFFFFFFFFFFF, 0);
+    ck_assert_uint_eq(cmp, 0);
+    cmp = sc_const_time_u64_lessthan(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF);
+    ck_assert_uint_eq(cmp, 0);
+    cmp = sc_const_time_u64_lessthan(0, 1);
+    ck_assert_uint_eq(cmp, 1);
+    cmp = sc_const_time_u64_lessthan(1, 0);
+    ck_assert_uint_eq(cmp, 0);
+    cmp = sc_const_time_u64_lessthan(1, 1);
+    ck_assert_uint_eq(cmp, 0);
+    cmp = sc_const_time_u64_lessthan(1, 2);
+    ck_assert_uint_eq(cmp, 1);
+}
+END_TEST
 
 START_TEST(test_parity_8)
 {
@@ -66,7 +111,7 @@ END_TEST
 
 START_TEST(test_parity_64)
 {
-#ifdef HAVE_64BIT
+#if __WORDSIZE == 64
     UINT32 parity;
     parity = sc_bit_parity_64(0xFFFFFFFFFFFFFFFFULL);
     ck_assert_uint_eq(parity, 0);
@@ -156,7 +201,7 @@ END_TEST
 
 START_TEST(test_hamming_64)
 {
-#ifdef HAVE_64BIT
+#if __WORDSIZE == 64
     UINT64 hamming;
     hamming = sc_hamming_64(0xFFFFFFFFFFFFFFFFULL);
     ck_assert_uint_eq(hamming, 64);
@@ -219,7 +264,7 @@ END_TEST
 
 START_TEST(test_ctz_64)
 {
-#ifdef HAVE_64BIT
+#if __WORDSIZE == 64
     UINT32 ctz = sc_ctz_64(0xFFFFFFFFFFFFFFFFULL);
     ck_assert_uint_eq(ctz, 0);
     ctz = sc_ctz_64(0x0000000000000000ULL);
@@ -281,7 +326,7 @@ END_TEST
 
 START_TEST(test_clz_64)
 {
-#ifdef HAVE_64BIT
+#if __WORDSIZE == 64
     UINT32 clz = sc_clz_64(0xFFFFFFFFFFFFFFFFULL);
     ck_assert_uint_eq(clz, 0);
     clz = sc_clz_64(0x0000000000000000ULL);
@@ -321,7 +366,7 @@ END_TEST
 
 START_TEST(test_log2_64)
 {
-#ifdef HAVE_64BIT
+#if __WORDSIZE == 64
     UINT32 log2 = sc_log2_64(0xFFFFFFFFFFFFFFFFULL);
     ck_assert_uint_eq(log2, 63);
     log2 = sc_log2_64(0x0000000000000000ULL);
@@ -797,12 +842,17 @@ END_TEST
 Suite *sc_math_suite(void)
 {
     Suite *s;
-    TCase *tc_parity, *tc_hamming, *tc_ctz, *tc_clz, *tc_rev, *tc_log2,
+    TCase *tc_constant, *tc_parity, *tc_hamming, *tc_ctz, *tc_clz, *tc_rev, *tc_log2,
           *tc_ceil_log2, *tc_rot, *tc_endianness;
 
     s = suite_create("SC_MATH");
 
     /* Test cases */
+    tc_constant = tcase_create("CONSTANT_TIME");
+    tcase_add_test(tc_constant, test_constant_time_less_than_u32);
+    tcase_add_test(tc_constant, test_constant_time_less_than_u64);
+    suite_add_tcase(s, tc_constant);
+
     tc_parity = tcase_create("PARITY");
     tcase_add_test(tc_parity, test_parity_8);
     tcase_add_test(tc_parity, test_parity_16);

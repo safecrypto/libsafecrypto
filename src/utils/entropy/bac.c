@@ -507,3 +507,178 @@ SINT32 bac_decode_64_16(sc_packer_t *packer, SINT16 *out, size_t outlen,
 
     return SC_FUNC_SUCCESS;
 }
+
+
+SINT32 bac_encode_64_8(sc_packer_t *packer, const SINT8 *in, size_t inlen,
+    const UINT64 *dist, SINT32 bits, SINT32 offset)
+{
+    SINT32 iptr, icnt, optr, ocnt;
+    UINT32 data;                          // output byte; can handle carry
+    UINT32 iwrd;                          // input word
+    UINT64 b, l, c;                       // range variables
+    UINT8 *buffer, *bufhdr;
+    SINT8 *l_in = (SINT8*)in;
+
+    // Flush the packer to obtain byte alignment
+    utils_entropy.pack_flush(packer);
+
+    bufhdr = utils_entropy.pack_get_write_ptr(packer);
+    if (SC_FUNC_FAILURE == packer->write(packer, 0x0000, 16)) {
+        return SC_FUNC_FAILURE;
+    }
+    utils_entropy.pack_flush(packer);
+    buffer = utils_entropy.pack_get_write_ptr(packer);
+
+    b = BAC_64_LOWER_BOUND;                 // lower bound
+    l = BAC_64_RANGE;                       // range
+
+    data = 0;                               // (partial) output byte
+    ocnt = 0;                               // bit count 0..7
+    optr = 0;
+
+    for (iptr=inlen; iptr--;) {
+
+        iwrd = offset + *l_in++;
+
+        for (icnt = bits; icnt--;) {
+
+            // Midpoint split
+            c = dist[(iwrd & (BAC_64_MID_LSB_MASK << icnt)) | (1 << icnt)];
+            c = mul64hi(l, c);              // scale to range
+
+            if (0 == ((iwrd >> icnt) & 1)) {
+                l = c;                      // 0 bit; lower part
+            }
+            else {
+                b += c;                     // 1 bit; higher part
+                l -= c;                     // flip range to upper half
+                if (b < c) {                // overflow ?
+                    data++;                 // carry
+                }
+            }
+
+            // Norrmalize and output bits whilst the range is within bounds
+            if (l) {
+            while (l < BAC_64_RANGE_MSB) {
+                data <<= 1;
+                data |= (b >> 63) & 1;
+                ocnt++;
+                if (ocnt >= 8) {            // full byte ?
+                    if (SC_FUNC_FAILURE == packer->write(packer, data & BYTE_MASK, 8)) {
+                        return SC_FUNC_FAILURE;
+                    }
+                    utils_entropy.pack_flush(packer);
+                    carry_propagation(optr, data, buffer);
+                    optr++;
+                    ocnt = 0;
+                    data = 0;
+                }
+
+                b <<= 1;                    // shift left
+                l <<= 1;                    // double range
+            }
+            }
+        }
+    }
+
+    while (ocnt < 8) {                      // flush output byte
+        data = (data << 1) ^ (b >> 63);
+        b <<= 1;
+        ocnt++;
+    }
+
+    if (SC_FUNC_FAILURE == packer->write(packer, data, 8)) {  // final carry
+        return SC_FUNC_FAILURE;
+    } 
+    utils_entropy.pack_flush(packer);
+    carry_propagation(optr, data, buffer);
+    optr++;
+    while (0 != b) {
+        if (SC_FUNC_FAILURE == packer->write(packer, b >> 56, 8)) {
+            return SC_FUNC_FAILURE;
+        }
+        b <<= 8;
+        optr++;
+    }
+
+    // Assign the length of the encoded stream
+    bufhdr[0] = optr >> 8;
+    bufhdr[1] = optr & BYTE_MASK;
+
+    return SC_FUNC_SUCCESS;
+}
+
+SINT32 bac_decode_64_8(sc_packer_t *packer, SINT8 *out, size_t outlen,
+    const UINT64 *dist, SINT32 bits, SINT32 offset)
+{
+    SINT32 iptr, icnt, optr, ocnt;
+    UINT64 b, l, c, v;
+    UINT32 ibyt;
+    UINT32 owrd;
+    UINT32 value, length;
+    SINT8 *l_out = out;
+
+    b = BAC_64_LOWER_BOUND;                    // lower bound
+    l = BAC_64_RANGE;                          // range
+
+    SINT32 num_bits = utils_entropy.pack_get_bits(packer);
+    packer->read(packer, &value, num_bits & 0x7);  // byte alignment
+    packer->read(packer, &value, 8);        // header
+    packer->read(packer, &length, 8);       // header
+    length += value << 8;
+
+    // Read 64 bits
+    if (SC_FUNC_FAILURE == packer->read(packer, &ibyt, 32)) {
+        return SC_FUNC_FAILURE;
+    }
+    v = (UINT64) ibyt;
+    v <<= 32;
+    if (SC_FUNC_FAILURE == packer->read(packer, &ibyt, 32)) {
+        return SC_FUNC_FAILURE;
+    }
+    v |= (UINT64) ibyt;
+    ibyt = 0;
+    icnt = 0;
+    iptr = 8;
+
+    for (optr=outlen; optr--;) {
+
+        owrd = 0;
+        for (ocnt = bits; ocnt--;) {
+
+            // Midpoint split
+            c = dist[(owrd & (BAC_64_MID_LSB_MASK << ocnt)) | (1 << ocnt)];
+            c = mul64hi(l, c);              // scale to range
+
+            if (v - b < c) {                // compare
+                l = c;                      // 0 bit; lower part
+            }
+            else {
+                b += c;                     // 1 bit; higher part
+                l -= c;                     // flip range to upper half
+                owrd |= 1 << ocnt;          // set the bit
+            }
+
+            while (l < BAC_64_RANGE_MSB) {
+
+                icnt--;                     // fetch a new bit
+                if (icnt < 0 && iptr < (SINT32)length) {
+                    if (SC_FUNC_FAILURE == packer->read(packer, &ibyt, 8)) {     // insert zeros is over buffer
+                        ibyt = 0;
+                    }
+                    iptr++;
+                    icnt = 7;
+                }
+                v <<= 1;                    // add bit to v
+                v += (ibyt >> icnt) & 1;
+
+                b <<= 1;                    // shift left
+                l <<= 1;                    // double range
+            }
+        }
+        
+        *l_out++ = owrd - offset;          // have full output byte
+    }
+
+    return SC_FUNC_SUCCESS;
+}

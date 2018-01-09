@@ -112,12 +112,8 @@ int main(void)
         printf("Parameter Set: %d\n", i);
 
 #ifdef USE_HUFFMAN_STATIC_ENTROPY
-        UINT32 flags[2] = {SC_FLAG_0_ENTROPY_HUFFMAN_STATIC, SC_FLAG_NONE};
+        UINT32 flags[2] = {SC_FLAG_0_ENTROPY_HUFFMAN, SC_FLAG_NONE};
         sc_entropy_type_e coding = SC_ENTROPY_HUFFMAN_STATIC;
-#else
-#ifdef USE_BAC_RLE_ENTROPY
-        UINT32 flags[2] = {SC_FLAG_0_ENTROPY_BAC_RLE, SC_FLAG_NONE};
-        sc_entropy_type_e coding = SC_ENTROPY_BAC_RLE;
 #else
 #ifdef USE_BAC_ENTROPY
         UINT32 flags[2] = {SC_FLAG_0_ENTROPY_BAC, SC_FLAG_NONE};
@@ -127,9 +123,8 @@ int main(void)
         sc_entropy_type_e coding = SC_ENTROPY_NONE;
 #endif
 #endif
-#endif
         flags[0] |= SC_FLAG_MORE;
-        flags[1] |= SC_FLAG_1_CSPRNG_AES_CTR_DRBG;//SC_FLAG_1_CSPRNG_ISAAC;//SC_FLAG_1_CSPRNG_AES_CTR_DRBG;
+        flags[1] |= SC_FLAG_1_CSPRNG_AES_CTR_DRBG;
 
         // Create a SAFEcrypto object
         sc = safecrypto_create(SC_SCHEME_SIG_ENS, i, flags);

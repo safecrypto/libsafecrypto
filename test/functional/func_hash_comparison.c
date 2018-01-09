@@ -18,7 +18,6 @@
 #include <stdlib.h>
 #include "safecrypto.h"
 #include "safecrypto_debug.h"
-#include "utils/crypto/hash.h"
 #include "utils/crypto/prng.h"
 
 #include <string.h>
@@ -68,23 +67,23 @@ int main(void)
 
         for (j=0; j<NUM_HASH_FUNCIONS; j++) {
             char disp_msg[128];
-            snprintf(disp_msg, 128, "%-20s", crypto_hash_names[j]);
+            snprintf(disp_msg, 128, "%-20s", sc_hash_names[j]);
             
-            utils_crypto_hash_t *hash;
+            safecrypto_hash_t *hash;
             switch (j) {
-                case 0:  hash = utils_crypto_hash_create(SC_HASH_SHA3_224); break;
-                case 1:  hash = utils_crypto_hash_create(SC_HASH_SHA3_256); break;
-                case 2:  hash = utils_crypto_hash_create(SC_HASH_SHA3_384); break;
-                case 3:  hash = utils_crypto_hash_create(SC_HASH_SHA3_512); break;
-                case 4:  hash = utils_crypto_hash_create(SC_HASH_SHA2_224); break;
-                case 5:  hash = utils_crypto_hash_create(SC_HASH_SHA2_256); break;
-                case 6:  hash = utils_crypto_hash_create(SC_HASH_SHA2_384); break;
-                case 7:  hash = utils_crypto_hash_create(SC_HASH_SHA2_512); break;
-                case 8:  hash = utils_crypto_hash_create(SC_HASH_BLAKE2_224); break;
-                case 9:  hash = utils_crypto_hash_create(SC_HASH_BLAKE2_256); break;
-                case 10: hash = utils_crypto_hash_create(SC_HASH_BLAKE2_384); break;
-                case 11: hash = utils_crypto_hash_create(SC_HASH_BLAKE2_512); break;
-                case 12: hash = utils_crypto_hash_create(SC_HASH_WHIRLPOOL_512); break;
+                case 0:  hash = safecrypto_hash_create(SC_HASH_SHA3_224); break;
+                case 1:  hash = safecrypto_hash_create(SC_HASH_SHA3_256); break;
+                case 2:  hash = safecrypto_hash_create(SC_HASH_SHA3_384); break;
+                case 3:  hash = safecrypto_hash_create(SC_HASH_SHA3_512); break;
+                case 4:  hash = safecrypto_hash_create(SC_HASH_SHA2_224); break;
+                case 5:  hash = safecrypto_hash_create(SC_HASH_SHA2_256); break;
+                case 6:  hash = safecrypto_hash_create(SC_HASH_SHA2_384); break;
+                case 7:  hash = safecrypto_hash_create(SC_HASH_SHA2_512); break;
+                case 8:  hash = safecrypto_hash_create(SC_HASH_BLAKE2_224); break;
+                case 9:  hash = safecrypto_hash_create(SC_HASH_BLAKE2_256); break;
+                case 10: hash = safecrypto_hash_create(SC_HASH_BLAKE2_384); break;
+                case 11: hash = safecrypto_hash_create(SC_HASH_BLAKE2_512); break;
+                case 12: hash = safecrypto_hash_create(SC_HASH_WHIRLPOOL_512); break;
             }
 
             SC_TIMER_RESET(hash_timer);
@@ -95,9 +94,9 @@ int main(void)
                 prng_mem(prng_ctx, message, length);
     
                 SC_TIMER_START(hash_timer);
-                hash_init(hash);
-                hash_update(hash, message, length);
-                hash_final(hash, md);
+                safecrypto_hash_init(hash);
+                safecrypto_hash_update(hash, message, length);
+                safecrypto_hash_final(hash, md);
                 SC_TIMER_STOP(hash_timer);
     
                 if ((k & 0x1F) == 0x1F) show_progress(disp_msg, k, MAX_ITER);
@@ -105,14 +104,14 @@ int main(void)
 
             show_progress(disp_msg, MAX_ITER, MAX_ITER);
 
-            utils_crypto_hash_destroy(hash);
+            safecrypto_hash_destroy(hash);
 
             elapsed[j] = SC_TIMER_GET_ELAPSED(hash_timer);
         }
 
         for (j=0; j<NUM_HASH_FUNCIONS; j++) {
             printf("%-20s elapsed time: %f (%f bytes per sec)\n",
-                crypto_hash_names[j], elapsed[j], (double)length * (double)MAX_ITER / elapsed[j]);
+                sc_hash_names[j], elapsed[j], (double)length * (double)MAX_ITER / elapsed[j]);
         }
         printf("\n");
 

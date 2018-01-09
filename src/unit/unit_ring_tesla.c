@@ -117,6 +117,7 @@ Suite *ring_tesla_suite(void)
 
     /* Test cases */
     tc_core = tcase_create("CORE");
+    tcase_set_timeout(tc_core, 30.0f);
     tcase_add_test(tc_core, test_ring_tesla_create_null);
     tcase_add_test(tc_core, test_ring_tesla_create_good);
     tcase_add_test(tc_core, test_ring_tesla_keygen);
@@ -129,6 +130,7 @@ Suite *ring_tesla_suite(void)
     suite_add_tcase(s, tc_keys);
 
     tc_f = tcase_create("F_FUNCTION");
+    tcase_set_timeout(tc_f, 20.0f);
     tcase_add_test(tc_f, test_f_function);
     suite_add_tcase(s, tc_f);
 
@@ -143,7 +145,6 @@ int main(void)
     int number_failed;
     Suite *s;
     SRunner *sr;
-
     s = ring_tesla_suite();
     sr = srunner_create(s);
 

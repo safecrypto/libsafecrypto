@@ -1,3 +1,5 @@
+#pragma once
+
 /*
 ------------------------------------------------------------------------------
 isaac64.h: definitions for a random number generator
@@ -16,7 +18,7 @@ Bob Jenkins, 1996, Public Domain
 #define RANDSIZ    (1<<RANDSIZL)
 
 /* context of random number generator */
-PRNG_STRUCT_PACK_START
+SC_STRUCT_PACK_START
 typedef struct randctx {
   ub8 randcnt;
   ub8 randrsl[RANDSIZ];
@@ -24,8 +26,8 @@ typedef struct randctx {
   ub8 randa;
   ub8 randb;
   ub8 randc;
-} PRNG_STRUCT_PACKED randctx;
-PRNG_STRUCT_PACK_END
+} SC_STRUCT_PACKED randctx;
+SC_STRUCT_PACK_END
 
 /*
 ------------------------------------------------------------------------------

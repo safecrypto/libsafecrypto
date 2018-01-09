@@ -5,6 +5,7 @@ Public domain.
 */
 
 #include "salsa20.h"
+#include "safecrypto_private.h"
 
 #define U8C(v) (v##U)
 #define U32C(v) (v##U)
@@ -47,7 +48,7 @@ void salsa20_core(const UINT32 *input, UINT8 *output)
     size_t i;
     UINT32 x[16];
 
-    PRNG_LITTLE_ENDIAN_32_COPY(x, 0, input, 16*sizeof(UINT32));
+    SC_LITTLE_ENDIAN_32_COPY(x, 0, input, 16*sizeof(UINT32));
 
     for (i = 20; i > 0; i -= 2) {
         x[ 4] ^= ROTATE(x[ 0] + x[12],  7);
@@ -88,7 +89,7 @@ void salsa20_core(const UINT32 *input, UINT8 *output)
         x[i] += input[i];
     }
 
-    PRNG_BIG_ENDIAN_32_COPY((UINT32*) output, 0, x, 16*sizeof(UINT32));
+    SC_BIG_ENDIAN_32_COPY((UINT32*) output, 0, x, 16*sizeof(UINT32));
 }
 
 void salsa_keysetup(salsa_ctx_t *ctx, const UINT8 *k, UINT32 kbits)

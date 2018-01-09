@@ -16,6 +16,7 @@
  */
 
 #include "ctr_drbg.h"
+#include "safecrypto_private.h"
 
 #include <string.h>
 #if defined( __linux__ ) || defined( __GNUC__ ) || defined( __GNU_LIBRARY__ )
@@ -36,7 +37,7 @@ HCRYPTPROV hCryptProv;
 ctx_ctr_drbg_t* ctr_drbg_create(func_get_random func,
     user_entropy_t *user_entropy, size_t seed_period)
 {
-    ctx_ctr_drbg_t *ctx = PRNG_MALLOC(sizeof(ctx_ctr_drbg_t));
+    ctx_ctr_drbg_t *ctx = SC_MALLOC(sizeof(ctx_ctr_drbg_t));
     ctx->get_random = func;
     ctx->entropy_arg = user_entropy;
 
@@ -53,14 +54,14 @@ ctx_ctr_drbg_t* ctr_drbg_create(func_get_random func,
 
     // Reset the key and counter to zero
     ctx->counter = 0;
-    //PRNG_MEMZERO(ctx->key, 32);
+    //SC_MEMZERO(ctx->key, 32);
 
     // Generate new initial keys
     aes_encrypt_key256(ctx->key, &ctx->ctx_aes);
 
     // Reseed the context
-    if (PRNG_FUNC_FAILURE == ctr_drbg_reseed(ctx)) {
-        PRNG_FREE(ctx, sizeof(ctx_ctr_drbg_t));
+    if (SC_FUNC_FAILURE == ctr_drbg_reseed(ctx)) {
+        SC_FREE(ctx, sizeof(ctx_ctr_drbg_t));
         return NULL;
     }
 
@@ -70,33 +71,33 @@ ctx_ctr_drbg_t* ctr_drbg_create(func_get_random func,
 SINT32 ctr_drbg_destroy(ctx_ctr_drbg_t *ctx)
 {
     if (NULL == ctx) {
-        return PRNG_FUNC_FAILURE;
+        return SC_FUNC_FAILURE;
     }
 
-    PRNG_FREE(ctx, sizeof(ctx_ctr_drbg_t));
+    SC_FREE(ctx, sizeof(ctx_ctr_drbg_t));
 
-    return PRNG_FUNC_SUCCESS;
+    return SC_FUNC_SUCCESS;
 }
 
 SINT32 ctr_drbg_reset(ctx_ctr_drbg_t *ctx)
 {
     if (NULL == ctx) {
-        return PRNG_FUNC_FAILURE;
+        return SC_FUNC_FAILURE;
     }
 
     // Reset the key and counter to zero
     ctx->counter = 0;
-    PRNG_MEMZERO(ctx->key, 32);
+    SC_MEMZERO(ctx->key, 32);
 
     // Generate new initial keys
     aes_encrypt_key256(ctx->key, &ctx->ctx_aes);
 
     // Reseed the context
-    if (PRNG_FUNC_FAILURE == ctr_drbg_reseed(ctx)) {
-        return PRNG_FUNC_FAILURE;
+    if (SC_FUNC_FAILURE == ctr_drbg_reseed(ctx)) {
+        return SC_FUNC_FAILURE;
     }
 
-    return PRNG_FUNC_SUCCESS;
+    return SC_FUNC_SUCCESS;
 }
 
 static void aes_ctr_drbg_update(ctx_ctr_drbg_t *ctx)
@@ -151,13 +152,13 @@ static void aes_ctr_drbg_update(ctx_ctr_drbg_t *ctx)
 SINT32 ctr_drbg_reseed(ctx_ctr_drbg_t *ctx)
 {
     if (NULL == ctx) {
-        return PRNG_FUNC_FAILURE;
+        return SC_FUNC_FAILURE;
     }
 
     ctx->reseed_ctr = 0;
     aes_ctr_drbg_update(ctx);
 
-    return PRNG_FUNC_SUCCESS;
+    return SC_FUNC_SUCCESS;
 }
 
 SINT32 ctr_drbg_update(ctx_ctr_drbg_t *ctx, UINT8 *bytes)
@@ -165,11 +166,11 @@ SINT32 ctr_drbg_update(ctx_ctr_drbg_t *ctx, UINT8 *bytes)
     size_t i;
 
     if (NULL == ctx) {
-        return PRNG_FUNC_FAILURE;
+        return SC_FUNC_FAILURE;
     }
 
     if (NULL == bytes) {
-        return PRNG_FUNC_FAILURE;
+        return SC_FUNC_FAILURE;
     }
 
     // Encrypt the counter using the specified key
@@ -192,5 +193,5 @@ SINT32 ctr_drbg_update(ctx_ctr_drbg_t *ctx, UINT8 *bytes)
         ctr_drbg_reseed(ctx);
     }
 
-    return PRNG_FUNC_SUCCESS;
+    return SC_FUNC_SUCCESS;
 }

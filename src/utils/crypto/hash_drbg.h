@@ -33,7 +33,7 @@ typedef struct _utils_crypto_hash utils_crypto_hash_t;
 typedef void (*func_get_random)(size_t, UINT8 *, user_entropy_t *);
 
 /// A struct that stores the HASH-DRBG context
-PRNG_STRUCT_PACK_START
+SC_STRUCT_PACK_START
 typedef struct hash_drbg_t {
     utils_crypto_hash_t *ctx_hash;
     func_get_random      get_random;
@@ -47,13 +47,13 @@ typedef struct hash_drbg_t {
     UINT8*               temp;
     UINT32               len_nonce;
     UINT8                nonce[32];
-} PRNG_STRUCT_PACKED hash_drbg_t;
-PRNG_STRUCT_PACK_END
+} SC_STRUCT_PACKED hash_drbg_t;
+SC_STRUCT_PACK_END
 
 
 /// Create an instance of the HASH-DRBG
 hash_drbg_t* hash_drbg_create(func_get_random func,
-    user_entropy_t *user_entropy, crypto_hash_e hash, size_t seed_period,
+    user_entropy_t *user_entropy, sc_hash_e hash, size_t seed_period,
     const UINT8 *nonce, size_t len_nonce);
 
 /// Free resources associated with the specified HASH-DRBG
