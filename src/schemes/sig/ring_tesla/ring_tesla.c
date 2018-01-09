@@ -668,14 +668,12 @@ SINT32 ring_tesla_keygen(safecrypto_t *sc)
     // Generate e1 and e2 from a discrete Gaussian distribution and
     // verify that the checkE() conditions are met
     // Generating e1
-    fprintf(stderr, "Getting e1\n");
     do {
         get_vector_32(sc_gauss, e1, n, 0);
     } while (SC_FUNC_FAILURE == check_e(sc, e1, n));
     SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "e1", e1, n);
 
     // Generating e2
-    fprintf(stderr, "Getting e2\nN");
     do {
         get_vector_32(sc_gauss, e2, n, 0);
     } while (SC_FUNC_FAILURE == check_e(sc, e2, n));
@@ -683,10 +681,8 @@ SINT32 ring_tesla_keygen(safecrypto_t *sc)
 
     // Generate s from a discrete Gaussian distribution
     // Generating s
-    fprintf(stderr, "Getting s\n");
     get_vector_32(sc_gauss, s, n, 0);
     SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "s", s, n);
-    fprintf(stderr, "Done\n");
 
     // Allocate key pair memory
     if (NULL == sc->privkey->key) {
