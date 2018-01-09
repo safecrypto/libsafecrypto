@@ -209,7 +209,7 @@ SC_INLINE sc_ulimb_t limb_inverse(sc_ulimb_t p)
     sc_ulimb_t inv, dummy;
     sc_ulimb_t lz = limb_clz(p);
     p <<= lz;
-    udiv_qrnnd(&inv, &dummy, ~p, ~(0), p);
+    udiv_qrnnd(&inv, &dummy, ~p, SC_LIMB_MASK, p);
     return inv;
 }
 

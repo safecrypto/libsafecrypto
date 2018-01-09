@@ -24,44 +24,34 @@
 //------------------ ENDIAN CONVERSION HELPER FUNCTIONS ---------------------//
 
 #ifdef HAVE_64BIT
-UINT64 sc_bswap_64(UINT64 x)
+void sc_swap_copy_64(void* to, size_t index, const void* from, size_t length)
 {
-    union {
-        UINT64 ll;
-        UINT32 l[2];
-    } w, r;
-    w.ll = x;
-    r.l[0] = SC_BIG_ENDIAN_32(w.l[1]);
-    r.l[1] = SC_BIG_ENDIAN_32(w.l[0]);
-    return r.ll;
-}
-
-void sc_swap_copy_64(void* to, SINT32 index, const void* from, size_t length)
-{
-    // If all pointers and length are 64-bits aligned
-    if ( 0 == (( (SINT32)((UINT8*)to - (UINT8*)0) | ((UINT8*)from - (UINT8*)0) | index | length ) & 7) ) {
-        // Copy aligned memory block as 64-bit integers
+    // If all pointers, offset and length are 64-bits aligned
+    if ( 0 == (( (size_t)((UINT8*)to) | (size_t)((UINT8*)from) | index | length ) & 7) ) {
+        // Efficiently copy aligned memory block as 64-bit integers
         const UINT64 *src = (const UINT64*)from;
         const UINT64 *end = (const UINT64*)((const UINT8*)src + length);
         UINT64 *dst = (UINT64*)((UINT8*)to + index);
         while (src < end) {
-            *(dst++) = sc_bswap_64(*(src++));
+            *(dst++) = SC_BIG_ENDIAN_64(*(src));
+            src++;
         }
     }
     else {
+        // No alignment so copy is performed byte-per-byte
         const UINT8* src = (const UINT8*)from;
-        for (length += index; (size_t)index < length; index++) {
+        for (length += index; index < length; index++) {
             ((UINT8*)to)[index ^ 7] = *(src++);
         }
     }
 }
 #endif
 
-void sc_swap_copy_32(void* to, SINT32 index, const void* from, size_t length)
+void sc_swap_copy_32(void* to, size_t index, const void* from, size_t length)
 {
-    // If all pointers and length are 32-bits aligned
-    if ( 0 == (( (SINT32)((UINT8*)to - (UINT8*)0) | ((UINT8*)from - (UINT8*)0) | index | length ) & 3) ) {
-        // Copy aligned memory block as 32-bit integers
+    // If all pointers, offset and length are 32-bits aligned
+    if ( 0 == (( (size_t)((UINT8*)to) | (size_t)((UINT8*)from) | index | length ) & 3) ) {
+        // Efficiently copy aligned memory block as 32-bit integers
         const UINT32 *src = (const UINT32*)from;
         const UINT32 *end = (const UINT32*)((const UINT8*)src + length);
         UINT32 *dst = (UINT32*)((UINT8*)to + index);
@@ -71,8 +61,9 @@ void sc_swap_copy_32(void* to, SINT32 index, const void* from, size_t length)
         }
     }
     else {
+        // No alignment so copy is performed byte-per-byte
         const UINT8* src = (const UINT8*)from;
-        for (length += index; (size_t)index < length; index++) {
+        for (length += index; index < length; index++) {
             ((UINT8*)to)[index ^ 3] = *(src++);
         }
     }

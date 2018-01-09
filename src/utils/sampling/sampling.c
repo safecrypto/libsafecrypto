@@ -61,7 +61,7 @@ static utils_sampling_t utils_sampling_table = {
 #else
     SAMPLING_32BIT,
 #endif
-    256, SAMPLING_DISABLE_BOOTSTRAP, 0.0f, NULL, NULL
+    256, SAMPLING_DISABLE_BOOTSTRAP, 0.0f, 0.0f, 0.0f, NULL, NULL
 };
 
 /// Return a random unbiased integer in the range 0 to x inclusive
@@ -99,7 +99,7 @@ static SINT32 discard_sample(prng_ctx_t *csprng, UINT32 thresh)
     }
     else {
         UINT32 rnd = prng_32(csprng);
-        return sc_const_time_lessthan(rnd, thresh);
+        return sc_const_time_u32_lessthan(rnd, thresh);
     }
 }
 
@@ -218,6 +218,7 @@ static SINT32 sample_vector_32(const utils_sampling_t *sampling, SINT32 *v, size
         UINT32 discard;
         v[i] = sampling->sample(gauss) + centre;
         discard = discard_sample(ctx, thresh);
+        fprintf(stderr, "v = %d, discard = %d\n", v[i], discard);
         skip += discard;
         i   -= discard;
     }
@@ -439,8 +440,12 @@ utils_sampling_t * create_sampler(random_sampling_e type,
     // Set a pointer to the CSPRNG
     sampler->prng_ctx = prng_ctx;
 
+    // Record the standard deviation and tail to be used
+    sampler->sigma    = sigma;
+    sampler->tail     = tail;
+
     // Default sample discarding to NONE
-    sampler->discard = 0;
+    sampler->discard  = 0;
 
     if (SAMPLING_MW_BOOTSTRAP == bootstrapped) {
         sampler->sigma2 = sigma * sigma;
@@ -507,7 +512,14 @@ SINT32 get_bootstrap_sample(utils_sampling_t *sampler, FLOAT sigma, FLOAT centre
     SINT32 sample;
     
     if (SAMPLING_MW_BOOTSTRAP == sampler->bootstrapped) {
+        FLOAT limit = sigma * sampler->tail;
         sample = mw_bootstrap_sample(sampler->bootstrap, sigma * sigma, centre);
+        if (sample < (-limit + centre)) {
+            sample = (-limit + centre);
+        }
+        if (sample > (limit + centre)) {
+            sample = (limit + centre);
+        }
     }
     else {
         sample = 0;
@@ -521,8 +533,17 @@ SINT32 get_vector_16(utils_sampling_t *sampler, SINT16 *v, size_t n, FLOAT centr
     size_t i;
 
     if (SAMPLING_MW_BOOTSTRAP == sampler->bootstrapped) {
+        FLOAT limit = sampler->sigma * sampler->tail;
+        SINT32 limits[2] = {-limit + centre, limit + centre};
         for (i=0; i<n; i++) {
-            v[i] = mw_bootstrap_sample(sampler->bootstrap, sampler->sigma2, centre);
+            SINT32 result = mw_bootstrap_sample(sampler->bootstrap, sampler->sigma2, centre);
+            if (result < limits[0]) {
+                result = limits[0];
+            }
+            else if (result > limits[1]) {
+                result = limits[1];
+            }
+            v[i] = result;
         }
     }
     else {
@@ -537,8 +558,18 @@ SINT32 get_vector_32(utils_sampling_t *sampler, SINT32 *v, size_t n, FLOAT centr
     size_t i;
 
     if (SAMPLING_MW_BOOTSTRAP == sampler->bootstrapped) {
+        FLOAT limit = sampler->sigma * sampler->tail;
+        SINT32 limits[2] = {-limit + centre, limit + centre};
         for (i=0; i<n; i++) {
-            v[i] = mw_bootstrap_sample(sampler->bootstrap, sampler->sigma2, centre);
+            SINT32 result;
+            result = mw_bootstrap_sample(sampler->bootstrap, sampler->sigma2, centre);
+            if (result < limits[0]) {
+                result = limits[0];
+            }
+            else if (result > limits[1]) {
+                result = limits[1];
+            }
+            v[i] = result;
         }
     }
     else {

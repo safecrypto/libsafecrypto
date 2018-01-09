@@ -114,7 +114,8 @@ int main(void)
 
         printf("Message length: %6d bytes\n", (int)length);
 
-        UINT32 flags[2] = {SC_FLAG_MORE, SC_FLAG_1_CSPRNG_AES_CTR_DRBG};
+        flags[0] = SC_FLAG_MORE;
+        flags[1] = SC_FLAG_1_CSPRNG_AES_CTR_DRBG;
         sc_entropy_type_e coding = SC_ENTROPY_NONE;
 
         // Create a SAFEcrypto object

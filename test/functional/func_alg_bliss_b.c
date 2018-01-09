@@ -102,24 +102,24 @@ int main(void)
     hash = utils_crypto_hash_create(SC_HASH_SHA2_512);
 
 #ifdef USE_HUFFMAN_STATIC_ENTROPY
-    UINT32 flags[3] = {SC_FLAG_0_ENTROPY_HUFFMAN};
+    UINT32 flags[3] = {SC_FLAG_0_ENTROPY_HUFFMAN, SC_FLAG_NONE, SC_FLAG_NONE};
     sc_entropy_type_e coding = SC_ENTROPY_HUFFMAN_STATIC;
 #else
 #ifdef USE_BAC_ENTROPY
-    UINT32 flags[3] = {SC_FLAG_0_ENTROPY_BAC};
+    UINT32 flags[3] = {SC_FLAG_0_ENTROPY_BAC, SC_FLAG_NONE, SC_FLAG_NONE};
     sc_entropy_type_e coding = SC_ENTROPY_BAC;
 #else
-    UINT32 flags[3] = {SC_FLAG_NONE};
+    UINT32 flags[3] = {SC_FLAG_NONE, SC_FLAG_NONE, SC_FLAG_NONE};
     sc_entropy_type_e coding = SC_ENTROPY_NONE;
 #endif
 #endif
 
-    flags[0] |= SC_FLAG_MORE;
+    flags[0]  = SC_FLAG_MORE;
     flags[0] |= SC_FLAG_0_SAMPLE_CDF | SC_FLAG_0_SAMPLE_128BIT;
     flags[1]  = SC_FLAG_1_CSPRNG_AES_CTR_DRBG;
     flags[1] |= SC_FLAG_1_CSPRNG_USE_CALLBACK_RANDOM;
     flags[1] |= SC_FLAG_MORE;
-    flags[2]  = 0;//SC_FLAG_2_SAMPLE_SCA_BLINDING;
+    flags[2]  = SC_FLAG_NONE;
 
     SC_TIMER_INSTANCE(keygen_timer);
     SC_TIMER_INSTANCE(sign_timer);

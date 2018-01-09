@@ -60,7 +60,6 @@ int32_t helloworld_sign(safecrypto_t *sc, const uint8_t *m, size_t m_len,
     SC_PRINT_DEBUG(sc, "Exit: %s, %s, %d\n", __FUNCTION__, __FILE__, __LINE__);
 
     (void) m_len;
-    (void) siglen;
     return SC_FUNC_SUCCESS;
 }
 

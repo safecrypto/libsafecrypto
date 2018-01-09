@@ -122,24 +122,28 @@ static SINT32 compare_ge_prec(volatile const sc_ulimb_t *x, volatile const sc_ul
         sc_ulimb_t a      = x[i];
         sc_ulimb_t b      = y[i];
         sc_ulimb_t equal  = !(a ^ b);
-        sc_ulimb_t x_lt_y = sc_const_time_lessthan(a, b);
-        retval = !x_lt_y || (equal && retval);
+#if 32 == SC_LIMB_BITS
+        sc_ulimb_t x_lt_y = sc_const_time_u32_lessthan(a, b);
+#else
+        sc_ulimb_t x_lt_y = sc_const_time_u64_lessthan(a, b);
+#endif
+        retval = !x_lt_y | (equal & retval);
     }
     return retval;
 }
 
-static SINT32 binary_search_128(u128_t x, const u128_t *l, SINT32 n)
+static UINT32 binary_search_128(u128_t x, const u128_t *l, size_t n)
 {
     // Given the table l of length n, return the address in the table
     // that satisfies the condition x >= l[b]
 
-    SINT32 a;
-    SINT32 st = n >> 1;
+    UINT32 a;
+    UINT32 st = n >> 1;
 
     a = 0;
     while (st > 0) {
-        SINT32 b = a + st;
-        if (b < n && compare_ge_prec(x.w, (sc_ulimb_t *)l[b].w, 128)) {
+        UINT32 b = a + st;
+        if (sc_const_time_u32_lessthan(b, n) & compare_ge_prec(x.w, (sc_ulimb_t *)l[b].w, 128)) {
             a = b;
         }
         st >>= 1;
@@ -147,18 +151,18 @@ static SINT32 binary_search_128(u128_t x, const u128_t *l, SINT32 n)
     return a;
 }
 
-static SINT32 binary_search_192(u192_t x, const u192_t *l, SINT32 n)
+static UINT32 binary_search_192(u192_t x, const u192_t *l, size_t n)
 {
     // Given the table l of length n, return the address in the table
     // that satisfies the condition x >= l[b]
 
-    SINT32 a;
-    SINT32 st = n >> 1;
+    UINT32 a;
+    UINT32 st = n >> 1;
 
     a = 0;
     while (st > 0) {
-        SINT32 b = a + st;
-        if (b < n && compare_ge_prec(x.w, (sc_ulimb_t *)l[b].w, 192)) {
+        UINT32 b = a + st;
+        if (sc_const_time_u32_lessthan(b, n) & compare_ge_prec(x.w, (sc_ulimb_t *)l[b].w, 192)) {
             a = b;
         }
         st >>= 1;
@@ -166,18 +170,18 @@ static SINT32 binary_search_192(u192_t x, const u192_t *l, SINT32 n)
     return a;
 }
 
-static SINT32 binary_search_256(u256_t x, const u256_t *l, SINT32 n)
+static UINT32 binary_search_256(u256_t x, const u256_t *l, size_t n)
 {
     // Given the table l of length n, return the address in the table
     // that satisfies the condition x >= l[b]
 
-    SINT32 a;
-    SINT32 st = n >> 1;
+    UINT32 a;
+    UINT32 st = n >> 1;
 
     a = 0;
     while (st > 0) {
-        SINT32 b = a + st;
-        if (b < n && compare_ge_prec(x.w, (sc_ulimb_t *)l[b].w, 256)) {
+        UINT32 b = a + st;
+        if (sc_const_time_u32_lessthan(b, n) & compare_ge_prec(x.w, (sc_ulimb_t *)l[b].w, 256)) {
             a = b;
         }
         st >>= 1;
@@ -469,13 +473,16 @@ SINT32 gaussian_cdf_sample_128(void *sampler)
     u128_t x;
     gauss_cdf_high_t *gauss = (gauss_cdf_high_t *) sampler;
 
-    x.w[0] = prng_64(gauss->prng_ctx);
-    x.w[1] = prng_64(gauss->prng_ctx);
 #if 32 == SC_LIMB_BITS
+    x.w[0] = prng_32(gauss->prng_ctx);
+    x.w[1] = prng_32(gauss->prng_ctx);
     x.w[2] = prng_32(gauss->prng_ctx);
     x.w[3] = prng_32(gauss->prng_ctx);
+#else
+    x.w[0] = prng_64(gauss->prng_ctx);
+    x.w[1] = prng_64(gauss->prng_ctx);
 #endif
-    a = binary_search_128(x, gauss->cdf_128, gauss->cdf_size);
+    a = (SINT32) binary_search_128(x, gauss->cdf_128, gauss->cdf_size);
 
     return (x.w[0] & 1)? a : -a;
 }
@@ -526,19 +533,20 @@ SINT32 gaussian_cdf_sample_256(void *sampler)
 #endif
 
 
-static SINT32 binary_search_64(UINT64 x, const UINT64 *l, SINT32 n)
+static UINT32 binary_search_64(UINT64 x, const UINT64 *l, size_t n)
 {
     // Given the table l of length n, return the address in the table
     // that satisfies the condition x >= l[b]
 
-    SINT32 a;
-    SINT32 st = n >> 1;
+    UINT32 a;
+    UINT32 st = n >> 1;
 
     a = 0;
     while (st > 0) {
-        SINT32 b = a + st;
-        if (b < n && x >= l[b])
+        UINT32 b = a + st;
+        if (sc_const_time_u64_lessthan(b, n) & sc_const_time_u64_lessthan(l[b], x)) {
             a = b;
+        }
         st >>= 1;
     }
     return a;
@@ -640,29 +648,30 @@ SINT32 gaussian_cdf_sample_64(void *sampler)
     x = prng_64(gauss->prng_ctx);
     a = binary_search_64(x, gauss->cdf, gauss->cdf_size);
     if (k > 0) {
-        SINT32 b;
+        UINT32 b;
         UINT64 y;
         y  = prng_64(gauss->prng_ctx);
-        b  = binary_search_64(y, gauss->cdf, gauss->cdf_size);
+        b  = (SINT32) binary_search_64(y, gauss->cdf, gauss->cdf_size);
         a += k * b;
     }
 
     return (x & 1)? a : -a;
 }
 
-static SINT32 binary_search_32(UINT32 x, const UINT32 *l, SINT32 n)
+static UINT32 binary_search_32(UINT32 x, const UINT32 *l, size_t n)
 {
     // Given the table l of length n, return the address in the table
     // that satisfies the condition x >= l[b]
 
-    SINT32 a;
-    SINT32 st = n >> 1;
+    UINT32 a;
+    UINT32 st = n >> 1;
 
     a = 0;
     while (st > 0) {
-        SINT32 b = a + st;
-        if (b < n && x >= l[b])
+        UINT32 b = a + st;
+        if (sc_const_time_u32_lessthan(b, n) & sc_const_time_u64_lessthan(l[b], x)) {
             a = b;
+        }
         st >>= 1;
     }
     return a;
@@ -759,7 +768,7 @@ SINT32 gaussian_cdf_sample_32(void *sampler)
     gauss_cdf_32_t *gauss = (gauss_cdf_32_t *) sampler;
 
     x = prng_32(gauss->prng_ctx);
-    a = binary_search_32(x, gauss->cdf, gauss->cdf_size);
+    a = (SINT32) binary_search_32(x, gauss->cdf, gauss->cdf_size);
 
     return (x & 1)? a : -a;
 }

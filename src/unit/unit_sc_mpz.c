@@ -343,7 +343,7 @@ START_TEST(test_mpi_mul_ui)
     ck_assert_int_eq(sc_mpz_get_si(&out), SC_LIMB_WORD(65536));
     sc_mpz_set_si(&in1, SC_LIMB_WORD(-1));
     sc_mpz_mul_ui(&out, &in1, 256);
-    ck_assert_int_eq(sc_mpz_get_si(&out), SC_LIMB_WORD(-256));
+    ck_assert_int_eq(SC_LIMB_WORD(sc_mpz_get_si(&out)), SC_LIMB_WORD(-256));
     sc_mpz_clear(&in1);
     sc_mpz_clear(&out);
 }
@@ -368,13 +368,13 @@ START_TEST(test_mpi_mul_si)
     ck_assert_int_eq(sc_mpz_get_si(&out), SC_LIMB_WORD(1));
     sc_mpz_set_si(&in1, SC_LIMB_WORD(2));
     sc_mpz_mul_si(&out, &in1, -1);
-    ck_assert_int_eq(sc_mpz_get_si(&out), -SC_LIMB_WORD(2));
+    ck_assert_int_eq(SC_LIMB_WORD(sc_mpz_get_si(&out)), -SC_LIMB_WORD(2));
     sc_mpz_set_si(&in1, SC_LIMB_WORD(2));
     sc_mpz_mul_si(&out, &in1, -2);
-    ck_assert_int_eq(sc_mpz_get_si(&out), -SC_LIMB_WORD(4));
+    ck_assert_int_eq(sc_mpz_get_si(&out), (sc_slimb_t)SC_LIMB_WORD(-4));
     sc_mpz_set_si(&in1, SC_LIMB_WORD(256));
     sc_mpz_mul_si(&out, &in1, -256);
-    ck_assert_int_eq(sc_mpz_get_si(&out), -SC_LIMB_WORD(65536));
+    ck_assert_int_eq(sc_mpz_get_si(&out), (sc_slimb_t)SC_LIMB_WORD(-65536));
     sc_mpz_clear(&in1);
     sc_mpz_clear(&out);
 }
@@ -398,7 +398,7 @@ START_TEST(test_mpi_addmul)
     sc_mpz_set_si(&in1, SC_LIMB_WORD(12));
     sc_mpz_set_si(&in2, SC_LIMB_WORD(-1));
     sc_mpz_addmul(&out, &in1, &in2);
-    ck_assert_int_eq(sc_mpz_get_si(&out), SC_LIMB_WORD(-10));
+    ck_assert_int_eq(SC_LIMB_WORD(sc_mpz_get_si(&out)), SC_LIMB_WORD(-10));
     sc_mpz_clear(&in1);
     sc_mpz_clear(&in2);
     sc_mpz_clear(&out);
@@ -415,11 +415,11 @@ START_TEST(test_mpi_submul)
     sc_mpz_set_si(&in2, SC_LIMB_WORD(1));
     sc_mpz_set_si(&out, SC_LIMB_WORD(0));
     sc_mpz_submul(&out, &in1, &in2);
-    ck_assert_int_eq(sc_mpz_get_si(&out), SC_LIMB_WORD(-1));
+    ck_assert_int_eq(SC_LIMB_WORD(sc_mpz_get_si(&out)), SC_LIMB_WORD(-1));
     sc_mpz_set_si(&in1, SC_LIMB_WORD(1));
     sc_mpz_set_si(&in2, SC_LIMB_WORD(1));
     sc_mpz_submul(&out, &in1, &in2);
-    ck_assert_int_eq(sc_mpz_get_si(&out), SC_LIMB_WORD(-2));
+    ck_assert_int_eq(SC_LIMB_WORD(sc_mpz_get_si(&out)), SC_LIMB_WORD(-2));
     sc_mpz_set_si(&in1, SC_LIMB_WORD(2048));
     sc_mpz_set_si(&in2, SC_LIMB_WORD(-2));
     sc_mpz_submul(&out, &in1, &in2);
@@ -444,7 +444,7 @@ START_TEST(test_mpi_addmul_ui)
     ck_assert_int_eq(sc_mpz_get_si(&out), SC_LIMB_WORD(2));
     sc_mpz_set_si(&in1, SC_LIMB_WORD(-1));
     sc_mpz_addmul_ui(&out, &in1, 12);
-    ck_assert_int_eq(sc_mpz_get_si(&out), SC_LIMB_WORD(-10));
+    ck_assert_int_eq(SC_LIMB_WORD(sc_mpz_get_si(&out)), SC_LIMB_WORD(-10));
     sc_mpz_clear(&in1);
     sc_mpz_clear(&out);
 }
@@ -458,10 +458,10 @@ START_TEST(test_mpi_submul_ui)
     sc_mpz_set_si(&in1, SC_LIMB_WORD(1));
     sc_mpz_set_si(&out, SC_LIMB_WORD(0));
     sc_mpz_submul_ui(&out, &in1, 1);
-    ck_assert_int_eq(sc_mpz_get_si(&out), SC_LIMB_WORD(-1));
+    ck_assert_int_eq(SC_LIMB_WORD(sc_mpz_get_si(&out)), SC_LIMB_WORD(-1));
     sc_mpz_set_si(&in1, SC_LIMB_WORD(1));
     sc_mpz_submul_ui(&out, &in1, 1);
-    ck_assert_int_eq(sc_mpz_get_si(&out), SC_LIMB_WORD(-2));
+    ck_assert_int_eq(SC_LIMB_WORD(sc_mpz_get_si(&out)), SC_LIMB_WORD(-2));
     sc_mpz_set_si(&in1, SC_LIMB_WORD(-2));
     sc_mpz_submul_ui(&out, &in1, 2048);
     ck_assert_int_eq(sc_mpz_get_si(&out), SC_LIMB_WORD(4094));
@@ -621,7 +621,11 @@ START_TEST(test_mpi_get_ui_mod)
     retval = sc_mpz_get_ui_mod(&a, &mod);
     ck_assert_int_eq(retval, 0);
 
+#if SC_LIMB_BITS == 64
     limb_mod_init(&mod, 9223372036854775837U);
+#else
+    limb_mod_init(&mod, 3221226240);
+#endif
     sc_mpz_set_si(&a, SC_LIMB_WORD(768));
     retval = sc_mpz_get_ui_mod(&a, &mod);
     ck_assert_int_eq(retval, 768);
@@ -844,10 +848,10 @@ START_TEST(test_mpi_cmp_si)
     ck_assert_int_eq(retval, 0);
     sc_mpz_set_si(&a, -1);
     retval = sc_mpz_cmp_si(&a, 0);
-    ck_assert_int_eq(retval, -1);
+    ck_assert_int_lt(retval, 0);
     sc_mpz_set_si(&a, SC_LIMB_SMIN);
     retval = sc_mpz_cmp_si(&a, SC_LIMB_SMAX);
-    ck_assert_int_eq(retval, -1);
+    ck_assert_int_lt(retval, 0);
     sc_mpz_set_si(&a, SC_LIMB_SMAX);
     retval = sc_mpz_cmp_si(&a, SC_LIMB_SMIN);
     ck_assert_int_gt(retval, 0);

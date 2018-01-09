@@ -88,10 +88,9 @@ extern SINT32 sc_init_stats(safecrypto_t *sc, size_t pub_key, size_t priv_key,
 /// Endianness conversion
 /// @{
 #ifdef HAVE_64BIT
-UINT64 prng_bswap_64(UINT64 x);
-void sc_swap_copy_64(void* to, SINT32 index, const void* from, size_t length);
+void sc_swap_copy_64(void* to, size_t index, const void* from, size_t length);
 #endif
-void sc_swap_copy_32(void* to, SINT32 index, const void* from, size_t length);
+void sc_swap_copy_32(void* to, size_t index, const void* from, size_t length);
 
 #if __BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__
 // We are big-endian

@@ -59,7 +59,7 @@ int main(void)
     safecrypto_t *sc = NULL;
 
 #ifdef DISABLE_SIGNATURES
-    UINT32 flags[1] = {0};
+    UINT32 flags[2] = {SC_FLAG_NONE, SC_FLAG_NONE};
 
     sc = safecrypto_create(SC_SCHEME_SIG_RING_TESLA, 0, flags);
     if (NULL != sc) {

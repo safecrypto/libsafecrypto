@@ -459,11 +459,15 @@ START_TEST(test_safecrypto_initial_api_temp_ram)
     int32_t retcode;
     uint32_t errcode;
     size_t scratch_len;
-    uint8_t m[1024], sigret[1024], scratch[1024];
+    uint8_t *m, *sigret, *scratch;
     size_t m_len, siglen;
     safecrypto_t *sc;
     UINT32 flags[3] = {SC_FLAG_MORE, SC_FLAG_MORE, SC_FLAG_2_MEMORY_TEMP_EXTERNAL};
     sc_debug_level_e level;
+
+    m = malloc(1024);
+    sigret = malloc(1024);
+    scratch = malloc(1024);
 
     sc = safecrypto_create(SC_SCHEME_SIG_HELLO_WORLD, 0, flags);
     ck_assert_ptr_ne(sc, NULL);
@@ -474,7 +478,8 @@ START_TEST(test_safecrypto_initial_api_temp_ram)
 
     // A call to any API function other than those involved in configuring the
     // scratch memory will result in failure
-    retcode = safecrypto_sign(sc, m, m_len, (uint8_t**)&sigret, &siglen);
+    retcode = safecrypto_sign(sc, m, m_len, &sigret, &siglen);
+    ck_assert_ptr_ne(sigret, NULL);
     ck_assert_int_eq(retcode, SC_FUNC_FAILURE);
 
     retcode = safecrypto_destroy(sc);
@@ -489,10 +494,15 @@ START_TEST(test_safecrypto_initial_api_temp_ram)
     ck_assert_uint_eq(scratch_len, 0);
     retcode = safecrypto_scratch_external(sc, scratch, 1024);
     ck_assert_uint_eq(retcode, SC_FUNC_SUCCESS);
-    retcode = safecrypto_sign(sc, m, m_len, (uint8_t**)&sigret, &siglen);
+    retcode = safecrypto_sign(sc, m, m_len, &sigret, &siglen);
+    ck_assert_ptr_ne(sigret, NULL);
     ck_assert_int_eq(retcode, SC_FUNC_SUCCESS);
     retcode = safecrypto_destroy(sc);
     ck_assert_int_eq(retcode, SC_FUNC_SUCCESS);
+
+    free(m);
+    free(sigret);
+    free(scratch);
 }
 END_TEST
 

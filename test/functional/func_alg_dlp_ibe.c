@@ -61,8 +61,8 @@ static void prng_entropy_source(size_t n, UINT8 *data)
 int main(void)
 {
     safecrypto_t *sc = NULL;
-    UINT32 flags[2] = {SC_FLAG_NONE, SC_FLAG_NONE};
-    flags[0] = SC_FLAG_MORE | SC_FLAG_0_SAMPLE_CDF;// | SC_FLAG_0_ENTROPY_HUFFMAN | SC_FLAG_MORE;
+    UINT32 flags[2];
+    flags[0] = SC_FLAG_MORE | SC_FLAG_0_SAMPLE_CDF;
     flags[1] = SC_FLAG_1_CSPRNG_USE_CALLBACK_RANDOM | SC_FLAG_1_CSPRNG_AES_CTR_DRBG;
 
 #ifdef DISABLE_IBE
