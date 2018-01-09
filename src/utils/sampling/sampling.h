@@ -75,6 +75,8 @@ typedef struct _utils_sampling {
     sample_precision_e                precision;
     SINT32                            dimension;
     sample_bootstrap_e                bootstrapped;
+    FLOAT                             tail;
+    FLOAT                             sigma;
     FLOAT                             sigma2;
     void                             *gauss;
     prng_ctx_t                       *prng_ctx;

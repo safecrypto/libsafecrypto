@@ -35,11 +35,10 @@
 /// Arithmetic comparison functions (constant-time)
 /// @{
 /// Return 1 if less than, 0 otherwise
-#if NATIVE_WORD_SIZE == 64
-volatile SINT32 sc_const_time_lessthan(volatile UINT64 a, volatile UINT64 b);
-#else
-volatile SINT32 sc_const_time_lessthan(volatile UINT32 a, volatile UINT32 b);
+#ifdef HAVE_64BIT
+volatile SINT32 sc_const_time_u64_lessthan(volatile UINT64 a, volatile UINT64 b);
 #endif
+volatile SINT32 sc_const_time_u32_lessthan(volatile UINT32 a, volatile UINT32 b);
 /// @}
 
 

@@ -94,7 +94,7 @@ START_TEST(test_gaussian_range_128)
 #endif
     for (i=1; i<gauss_data->cdf_size-1; i++) {
 #if 32 == SC_LIMB_BITS
-        fprintf(stderr, "%zu %08lX%08lX\n", i, gauss_data->cdf_128[i].w[3], gauss_data->cdf_128[i].w[2], gauss_data->cdf_128[i].w[1], gauss_data->cdf_128[i].w[0]);
+        fprintf(stderr, "%zu %08lX%08lX%08lX%08lX\n", i, gauss_data->cdf_128[i].w[3], gauss_data->cdf_128[i].w[2], gauss_data->cdf_128[i].w[1], gauss_data->cdf_128[i].w[0]);
 #else
         fprintf(stderr, "%zu %016lX%016lX\n", i, gauss_data->cdf_128[i].w[1], gauss_data->cdf_128[i].w[0]);
 #endif
@@ -110,7 +110,7 @@ START_TEST(test_gaussian_range_128)
     ck_assert_uint_eq(gauss_data->cdf_128[gauss_data->cdf_size-1].w[0], 0xFFFFFFFFFFFFFFFF);
 #endif
 
-    for (i=0; i<(1 << 16); i++) {
+    for (i=0; i<(1 << 10); i++) {
         SINT32 sample = gaussian_cdf_sample_128(gauss);
         ck_assert_int_ge(sample, -(1 << 12));
         ck_assert_int_le(sample, (1 << 12));
@@ -209,7 +209,7 @@ START_TEST(test_gaussian_range_64)
     }
     ck_assert_int_eq(gauss_data->cdf[gauss_data->cdf_size-1], 0xFFFFFFFFFFFFFFFF);
 
-    for (i=0; i<(1 << 16); i++) {
+    for (i=0; i<(1 << 10); i++) {
         SINT32 sample = gaussian_cdf_sample_64(gauss);
         ck_assert_int_ge(sample, -(1 << 12));
         ck_assert_int_le(sample, (1 << 12));
@@ -308,7 +308,7 @@ START_TEST(test_gaussian_range_32)
     }
     ck_assert_int_eq(gauss_data->cdf[gauss_data->cdf_size-1], 0xFFFFFFFF);
 
-    for (i=0; i<(1 << 16); i++) {
+    for (i=0; i<(1 << 10); i++) {
         SINT32 sample = gaussian_cdf_sample_32(gauss);
         ck_assert_int_ge(sample, -max);
         ck_assert_int_le(sample, max);
@@ -882,7 +882,7 @@ START_TEST(test_mw_range_2)
         prng_ctx, 13.0f, sigma);
 
     //UINT32 *temp = SC_MALLOC(sizeof(UINT32) * 65537);
-    for (i=0; i<65536; i++) {
+    for (i=0; i<16384; i++) {
         SINT32 sample = get_bootstrap_sample(sampling, sigma, 0.0f);
         ck_assert_int_ge(sample, -ceil(13.0f * 1000.0f));
         ck_assert_int_le(sample, ceil(13.0f * 1000.0f));
