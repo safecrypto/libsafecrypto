@@ -215,6 +215,15 @@ SINT32 poly_limb_degree(const sc_ulimb_t *h, size_t n)
     return deg;
 }
 
+SINT32 poly_limb_is_zero(const sc_ulimb_t *h, size_t n)
+{
+    SINT32 degree = poly_limb_degree(h, n);
+    if (0 == degree && 0 == h[0]) {
+        return 0;
+    }
+    return 1;
+}
+
 void poly_limb_reset(sc_ulimb_t *inout, size_t n)
 {
     size_t i;
@@ -350,13 +359,8 @@ static void poly_limb_mul_mod_gradeschool(sc_ulimb_t *out, const sc_ulimb_t *a, 
     const SINT32     log_len = SC_LIMB_BITS - limb_clz(len_b);
     const sc_ulimb_t bits    = mod->b_norm;
 
-    if ((2*bits + log_len) <= SC_LIMB_BITS) {
-        poly_limb_mul_mod_simple(out, a, len_a, b, len_b, mod);
-        return;
-    }
-
 #if 1
-    if (len_a == 0 || len_b == 0) {
+    if (0 == len_a || 0 == len_b) {
         for (i=len_a+len_b-1; i--;) {
             out[i] = 0;
         }

@@ -17,24 +17,46 @@
 #include <limits.h>
 
 
-START_TEST(test_constant_time_less_than)
+START_TEST(test_constant_time_less_than_u32)
 {
     UINT32 cmp;
-    cmp = sc_const_time_lessthan(0, 0);
+    cmp = sc_const_time_u32_lessthan(0, 0);
     ck_assert_uint_eq(cmp, 0);
-    cmp = sc_const_time_lessthan(0, 0xFFFFFFFF);
+    cmp = sc_const_time_u32_lessthan(0, 0xFFFFFFFF);
     ck_assert_uint_eq(cmp, 1);
-    cmp = sc_const_time_lessthan(0xFFFFFFFF, 0);
+    cmp = sc_const_time_u32_lessthan(0xFFFFFFFF, 0);
     ck_assert_uint_eq(cmp, 0);
-    cmp = sc_const_time_lessthan(0xFFFFFFFF, 0xFFFFFFFF);
+    cmp = sc_const_time_u32_lessthan(0xFFFFFFFF, 0xFFFFFFFF);
     ck_assert_uint_eq(cmp, 0);
-    cmp = sc_const_time_lessthan(0, 1);
+    cmp = sc_const_time_u32_lessthan(0, 1);
     ck_assert_uint_eq(cmp, 1);
-    cmp = sc_const_time_lessthan(1, 0);
+    cmp = sc_const_time_u32_lessthan(1, 0);
     ck_assert_uint_eq(cmp, 0);
-    cmp = sc_const_time_lessthan(1, 1);
+    cmp = sc_const_time_u32_lessthan(1, 1);
     ck_assert_uint_eq(cmp, 0);
-    cmp = sc_const_time_lessthan(1, 2);
+    cmp = sc_const_time_u32_lessthan(1, 2);
+    ck_assert_uint_eq(cmp, 1);
+}
+END_TEST
+
+START_TEST(test_constant_time_less_than_u64)
+{
+    UINT32 cmp;
+    cmp = sc_const_time_u64_lessthan(0, 0);
+    ck_assert_uint_eq(cmp, 0);
+    cmp = sc_const_time_u64_lessthan(0, 0xFFFFFFFFFFFFFFFF);
+    ck_assert_uint_eq(cmp, 1);
+    cmp = sc_const_time_u64_lessthan(0xFFFFFFFFFFFFFFFF, 0);
+    ck_assert_uint_eq(cmp, 0);
+    cmp = sc_const_time_u64_lessthan(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF);
+    ck_assert_uint_eq(cmp, 0);
+    cmp = sc_const_time_u64_lessthan(0, 1);
+    ck_assert_uint_eq(cmp, 1);
+    cmp = sc_const_time_u64_lessthan(1, 0);
+    ck_assert_uint_eq(cmp, 0);
+    cmp = sc_const_time_u64_lessthan(1, 1);
+    ck_assert_uint_eq(cmp, 0);
+    cmp = sc_const_time_u64_lessthan(1, 2);
     ck_assert_uint_eq(cmp, 1);
 }
 END_TEST
@@ -827,7 +849,8 @@ Suite *sc_math_suite(void)
 
     /* Test cases */
     tc_constant = tcase_create("CONSTANT_TIME");
-    tcase_add_test(tc_constant, test_constant_time_less_than);
+    tcase_add_test(tc_constant, test_constant_time_less_than_u32);
+    tcase_add_test(tc_constant, test_constant_time_less_than_u64);
     suite_add_tcase(s, tc_constant);
 
     tc_parity = tcase_create("PARITY");

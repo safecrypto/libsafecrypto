@@ -26,6 +26,9 @@
 /// Initialise an MP integer
 void sc_mpz_init(sc_mpz_t *inout);
 
+/// Initialise an MP integer with storage for "bits" sized numbers and initialised to zero
+void sc_mpz_init2(sc_mpz_t *inout, size_t bits);
+
 /// Free memory resources associated with an MP integer
 void sc_mpz_clear(sc_mpz_t *inout);
 
@@ -44,12 +47,16 @@ sc_ulimb_t sc_mpz_get_ui(const sc_mpz_t *in);
 sc_slimb_t sc_mpz_get_si(const sc_mpz_t *in);
 DOUBLE sc_mpz_get_d(const sc_mpz_t *in);
 sc_ulimb_t sc_mpz_get_ui_mod(const sc_mpz_t *a, const sc_mod_t *mod);
+SINT32 sc_mpz_get_bytes(UINT8 *out, const sc_mpz_t *in);
 sc_ulimb_t * sc_mpz_get_limbs(const sc_mpz_t *in);
 SINT32 sc_mpz_get_size(const sc_mpz_t *in);
 void sc_mpz_set_ui(sc_mpz_t *inout, sc_ulimb_t value);
 void sc_mpz_set_si(sc_mpz_t *inout, sc_slimb_t value);
 void sc_mpz_set_d(sc_mpz_t *inout, DOUBLE value);
 void sc_mpz_set_size(sc_mpz_t *inout, SINT32 size);
+void sc_mpz_set_bytes(sc_mpz_t *out, const UINT8 *bytes, size_t n);
+void sc_mpz_set_limbs(sc_mpz_t *out, const sc_ulimb_t *limbs, size_t n);
+SINT32 sc_mpz_set_str(sc_mpz_t *out, SINT32 base, const char *str);
 /// @}
 
 /// Comparison functions
@@ -81,7 +88,7 @@ SINT32 sc_mpz_sizeinbase(const sc_mpz_t *in, SINT32 base);
 /// Compute the bitwise complement of a specified array of limbs
 void sc_mpz_com_to_poly_limb(sc_ulimb_t *out, const sc_ulimb_t *in, size_t size);
 
-/// Return the modular multiplicative inverse iusing modulus m
+/// Return the modular multiplicative inverse using modulus m
 SINT32 sc_mpz_invmod(sc_mpz_t *out, const sc_mpz_t *in, const sc_mpz_t *m);
 
 /// Additive and multiplicative functions
@@ -94,6 +101,7 @@ void sc_mpz_mul(sc_mpz_t *out, const sc_mpz_t *in1, const sc_mpz_t *in2);
 void sc_mpz_mul_scalar(sc_mpz_t *inout, const sc_mpz_t *in);
 void sc_mpz_mul_ui(sc_mpz_t *out, const sc_mpz_t *in1, const sc_ulimb_t in2);
 void sc_mpz_mul_si(sc_mpz_t *out, const sc_mpz_t *in1, const sc_slimb_t in2);
+void sc_mpz_mul_2exp(sc_mpz_t *out, const sc_mpz_t *in, size_t exp);
 void sc_mpz_addmul(sc_mpz_t *inout, const sc_mpz_t *in1, const sc_mpz_t *in2);
 void sc_mpz_submul(sc_mpz_t *inout, const sc_mpz_t *in1, const sc_mpz_t *in2);
 void sc_mpz_addmul_ui(sc_mpz_t *inout, const sc_mpz_t *in1, sc_ulimb_t in2);

@@ -989,6 +989,135 @@ START_TEST(test_mpi_invert)
 }
 END_TEST
 
+START_TEST(test_mpz_set_str)
+{
+    SINT32 result;
+    sc_mpz_t a;
+    sc_ulimb_t *limbs;
+
+    sc_mpz_init(&a);
+    sc_mpz_set_str(&a, 16, "0");
+    result = sc_mpz_is_zero(&a);
+    ck_assert_int_eq(result, 1);
+    sc_mpz_clear(&a);
+
+    sc_mpz_init(&a);
+    sc_mpz_set_str(&a, 16, "1");
+    result = sc_mpz_is_one(&a);
+    ck_assert_int_eq(result, 1);
+    sc_mpz_clear(&a);
+
+    sc_mpz_init(&a);
+
+    sc_mpz_set_str(&a, 16, "10000000000000000");
+    limbs = sc_mpz_get_limbs(&a);
+    ck_assert_ptr_ne(limbs, NULL);
+#if 64 == SC_LIMB_BITS
+    ck_assert_uint_eq(limbs[0], 0);
+    ck_assert_uint_eq(limbs[1], 1);
+#else
+    ck_assert_uint_eq(limbs[0], 0);
+    ck_assert_uint_eq(limbs[1], 0);
+    ck_assert_uint_eq(limbs[2], 1);
+#endif
+
+    // DON'T clear and initialise
+
+    sc_mpz_set_str(&a, 16, "100000002000000030000000400000005");
+    limbs = sc_mpz_get_limbs(&a);
+    ck_assert_ptr_ne(limbs, NULL);
+#if 64 == SC_LIMB_BITS
+    ck_assert_uint_eq(limbs[0], 0x400000005);
+    ck_assert_uint_eq(limbs[1], 0x200000003);
+    ck_assert_uint_eq(limbs[2], 1);
+#else
+    ck_assert_uint_eq(limbs[0], 5);
+    ck_assert_uint_eq(limbs[1], 4);
+    ck_assert_uint_eq(limbs[2], 3);
+    ck_assert_uint_eq(limbs[3], 2);
+    ck_assert_uint_eq(limbs[4], 1);
+#endif
+
+    // DON'T clear and initialise
+
+    sc_mpz_set_str(&a, 10, "18446744073709551617"); // 2^64 + 1
+    limbs = sc_mpz_get_limbs(&a);
+    ck_assert_ptr_ne(limbs, NULL);
+#if 64 == SC_LIMB_BITS
+    ck_assert_uint_eq(limbs[0], 1);
+    ck_assert_uint_eq(limbs[1], 1);
+#else
+    ck_assert_uint_eq(limbs[0], 1);
+    ck_assert_uint_eq(limbs[1], 0);
+    ck_assert_uint_eq(limbs[2], 1);
+#endif
+
+    sc_mpz_clear(&a);
+}
+END_TEST
+
+START_TEST(test_mpz_set_limbs)
+{
+    SINT32 result;
+    sc_mpz_t a;
+    sc_ulimb_t *out_limbs;
+#if 64 == SC_LIMB_BITS
+    sc_ulimb_t limbs[2];
+    limbs[1] = 1;
+    limbs[0] = 2;
+#else
+    sc_ulimb_t limbs[3];
+    limbs[2] = 1;
+    limbs[1] = 2;
+    limbs[0] = 3;
+#endif
+
+    sc_mpz_init(&a);
+    sc_mpz_set_limbs(&a, limbs, sizeof(limbs));
+    out_limbs = sc_mpz_get_limbs(&a);
+    ck_assert_ptr_ne(out_limbs, NULL);
+#if 64 == SC_LIMB_BITS
+    ck_assert_uint_eq(out_limbs[0], 2);
+    ck_assert_uint_eq(out_limbs[1], 1);
+#else
+    ck_assert_uint_eq(out_limbs[0], 3);
+    ck_assert_uint_eq(out_limbs[1], 2);
+    ck_assert_uint_eq(out_limbs[2], 1);
+#endif
+    sc_mpz_clear(&a);
+}
+END_TEST
+
+START_TEST(test_mpz_set_bytes)
+{
+    size_t i;
+    SINT32 result;
+    sc_mpz_t a;
+    sc_ulimb_t *out_limbs;
+    UINT8 bytes[17];
+    for (i=0; i<17; i++) {
+        bytes[i] = i;
+    }
+
+    sc_mpz_init(&a);
+    sc_mpz_set_bytes(&a, bytes, 17);
+    out_limbs = sc_mpz_get_limbs(&a);
+    ck_assert_ptr_ne(out_limbs, NULL);
+#if 64 == SC_LIMB_BITS
+    ck_assert_uint_eq(out_limbs[0], 0x0706050403020100);
+    ck_assert_uint_eq(out_limbs[1], 0x0F0E0D0C0B0A0908);
+    ck_assert_uint_eq(out_limbs[2], 0x0000000000000010);
+#else
+    ck_assert_uint_eq(out_limbs[0], 0x03020100);
+    ck_assert_uint_eq(out_limbs[1], 0x07060504);
+    ck_assert_uint_eq(out_limbs[2], 0x0B0A0908);
+    ck_assert_uint_eq(out_limbs[3], 0x0F0E0D0C);
+    ck_assert_uint_eq(out_limbs[4], 0x00000010);
+#endif
+    sc_mpz_clear(&a);
+}
+END_TEST
+
 Suite *mpi_suite(void)
 {
     Suite *s;
@@ -1033,6 +1162,9 @@ Suite *mpi_suite(void)
     tcase_add_test(tc_core, test_mpi_cmpabs_d);
     tcase_add_test(tc_core, test_mpi_cmpabs_ui);
     tcase_add_test(tc_core, test_mpi_invert);
+    tcase_add_test(tc_core, test_mpz_set_str);
+    tcase_add_test(tc_core, test_mpz_set_limbs);
+    tcase_add_test(tc_core, test_mpz_set_bytes);
     suite_add_tcase(s, tc_core);
 
     return s;

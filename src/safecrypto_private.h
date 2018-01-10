@@ -68,6 +68,7 @@
 extern void * sc_malloc(size_t size);
 extern void * sc_realloc(void *ptr, size_t size);
 extern void sc_free(void *ptr, size_t size);
+extern SINT32 sc_mem_is_zero(volatile const UINT8 *a, size_t n);
 extern void sc_explicit_memzero(void * const ptr, const size_t size);
 extern void * sc_memcpy(void *dest, const void *src, size_t size);
 extern char * sc_strcpy(char *dest, const char *src, size_t dest_size);
@@ -75,11 +76,12 @@ extern void sc_free_stats(safecrypto_t *sc);
 extern SINT32 sc_init_stats(safecrypto_t *sc, size_t pub_key, size_t priv_key,
     size_t signature, size_t extract, size_t encrypt, size_t encapsulate);
 
-#define SC_MALLOC(s)      sc_malloc(s)
-#define SC_REALLOC(s,l)   sc_realloc(s,l)
-#define SC_FREE(s,l)      sc_free((s), (l)); (s) = NULL;
-#define SC_MEMZERO(s,l)   sc_explicit_memzero((s), (l))
-#define SC_MEMCOPY(d,s,l) sc_memcpy((d), (s), (l))
+#define SC_MALLOC(s)        sc_malloc(s)
+#define SC_REALLOC(s,l)     sc_realloc(s,l)
+#define SC_FREE(s,l)        sc_free((s), (l)); (s) = NULL;
+#define SC_MEMZERO(s,l)     sc_explicit_memzero((s), (l))
+#define SC_MEMCOPY(d,s,l)   sc_memcpy((d), (s), (l))
+#define SC_MEM_IS_ZERO(s,l) sc_mem_is_zero((d), (l))
 /**@}*/
 
 
@@ -372,6 +374,13 @@ typedef SINT32 (*sign_recovery)(safecrypto_t *, UINT8 **, size_t *,
 typedef SINT32 (*verify_recovery)(safecrypto_t *, UINT8 **, size_t *,
     const UINT8 *, size_t);
 
+/// A function pointer for DH public key generation
+typedef SINT32 (*dh_public_init)(safecrypto_t *, size_t *, UINT8 **);
+
+/// A function pointer for DH shared secret generation using an input public key
+typedef SINT32 (*dh_secret_final)(safecrypto_t *, size_t, const UINT8 *,
+    size_t *, UINT8 **);
+
 /// A function pointer to obtain cumulative processing statistics
 typedef char * (*stats)(safecrypto_t *);
 
@@ -399,6 +408,8 @@ typedef struct _safecrypto_alg {
     verify             verification;
     sign_recovery      signing_recovery;
     verify_recovery    verification_recovery;
+    dh_public_init     dh_init;
+    dh_secret_final    dh_final;
     stats              processing_stats;
 } SC_STRUCT_PACKED safecrypto_alg_t;
 SC_STRUCT_PACK_END

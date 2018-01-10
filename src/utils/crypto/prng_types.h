@@ -57,29 +57,6 @@ extern "C" {
 #endif
 
 
-/// An enum defining the various types of CSPRNG
-typedef enum safecrypto_prng {
-    SC_PRNG_SYSTEM = 0,
-    SC_PRNG_AES_CTR_DRBG,
-    SC_PRNG_AES_CTR,
-    SC_PRNG_CHACHA,
-    SC_PRNG_SALSA,
-    SC_PRNG_ISAAC,
-    SC_PRNG_KISS,
-    SC_PRNG_HASH_DRBG_SHA2_256,
-    SC_PRNG_HASH_DRBG_SHA2_512,
-    SC_PRNG_HASH_DRBG_SHA3_256,
-    SC_PRNG_HASH_DRBG_SHA3_512,
-    SC_PRNG_HASH_DRBG_BLAKE2_256,
-    SC_PRNG_HASH_DRBG_BLAKE2_512,
-    SC_PRNG_HASH_DRBG_WHIRLPOOL_512,
-    SC_PRNG_FILE,
-    SC_PRNG_HIGH_ENTROPY,
-} safecrypto_prng_e;
-
-/// An enum defining the various types of CSPRNG
-extern const char *safecrypto_prng_names [16];
-
 /// An enum defining the random seeding type
 typedef enum safecrypto_entropy {
     SC_ENTROPY_RANDOM = 0,

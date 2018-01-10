@@ -378,6 +378,7 @@ Suite *prng_suite(void)
 
 #ifdef ENABLE_ISAAC
     tc_isaac = tcase_create("ISAAC");
+    tcase_set_timeout(tc_isaac, 10.0f);
     tcase_add_test(tc_isaac, test_prng_bit_isaac);
     tcase_add_test(tc_isaac, test_prng_var_isaac);
     tcase_add_test(tc_isaac, test_prng_u32_isaac);
@@ -389,6 +390,7 @@ Suite *prng_suite(void)
 
 #ifdef ENABLE_KISS
     tc_kiss = tcase_create("KISS");
+    tcase_set_timeout(tc_kiss, 10.0f);
     tcase_add_test(tc_kiss, test_prng_bit_kiss);
     tcase_add_test(tc_kiss, test_prng_var_kiss);
     tcase_add_test(tc_kiss, test_prng_u32_kiss);
