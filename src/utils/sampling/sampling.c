@@ -218,7 +218,6 @@ static SINT32 sample_vector_32(const utils_sampling_t *sampling, SINT32 *v, size
         UINT32 discard;
         v[i] = sampling->sample(gauss) + centre;
         discard = discard_sample(ctx, thresh);
-        fprintf(stderr, "v = %d, discard = %d\n", v[i], discard);
         skip += discard;
         i   -= discard;
     }
