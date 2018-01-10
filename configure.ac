@@ -1159,6 +1159,7 @@ AC_CONFIG_FILES([Makefile docs/Doxygen/Makefile \
     src/utils/Makefile \
     src/utils/arith/Makefile \
     src/utils/crypto/Makefile \
+    src/utils/ecc/Makefile \
     src/utils/sampling/Makefile \
     src/utils/entropy/Makefile \
     src/utils/third_party/Makefile \
@@ -1184,6 +1185,7 @@ fi
 if test "x${enable_kem}" = "xyes"; then
     AC_CONFIG_FILES([src/schemes/kem/Makefile])
 fi
+AC_CONFIG_FILES([src/schemes/dh/Makefile])
 AC_MSG_NOTICE(enable_kem_kyber = ${enable_kem_kyber})
 if test "x${enable_multithreading}" = "xyes"; then
     AC_CONFIG_FILES([src/utils/threading/Makefile])
@@ -1215,6 +1217,7 @@ fi
 if test "x${enable_kem_ens}" = "xyes"; then
     AC_CONFIG_FILES([src/schemes/kem/ens/Makefile])
 fi
+AC_CONFIG_FILES([src/schemes/dh/ecdh/Makefile])
 
 #AC_CONFIG_SUBDIRS([src/utils/crypto])
 #AX_SUBDIRS_CONFIGURE([src/utils/crypto])

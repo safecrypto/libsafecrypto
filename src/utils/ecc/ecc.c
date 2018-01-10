@@ -9,6 +9,9 @@
 
 #include "ecc.h"
 
+#include "utils/arith/sc_mpz.h"
+#include "utils/crypto/prng.h"
+
 
 #define ECC_K_IS_HIGH        0
 #define ECC_K_IS_SCA_DUMMY   1
@@ -20,7 +23,7 @@ typedef enum ecc_direction {
 } ecc_direction_e;
 
 typedef struct point_secret {
-	sc_ulimb_t *secret;
+	const sc_ulimb_t *secret;
 	size_t max;
 	size_t index;
 	size_t shift;
@@ -34,7 +37,7 @@ typedef struct ecc_point {
 } ecc_point_t;
 
 
-const ecdh_set_t param_ecdh_secp256r1 {
+const ecdh_set_t param_ecdh_secp256r1 = {
 	256,
 	256 >> 3,
 	256 >> SC_LIMB_BITS_SHIFT,
@@ -44,7 +47,7 @@ const ecdh_set_t param_ecdh_secp256r1 {
 	"FFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFF",
 };
 
-const ecdh_set_t param_ecdh_secp384r1 {
+const ecdh_set_t param_ecdh_secp384r1 = {
 	384,
 	384 >> 3,
 	384 >> SC_LIMB_BITS_SHIFT,
@@ -54,7 +57,7 @@ const ecdh_set_t param_ecdh_secp384r1 {
 	"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0000000000000000FFFFFFFF",
 };
 
-const ecdh_set_t param_ecdh_secp521r1 {
+const ecdh_set_t param_ecdh_secp521r1 = {
 	521,
 	521 >> 3,
 	521 >> SC_LIMB_BITS_SHIFT,
@@ -118,24 +121,24 @@ static void point_cartesian(const sc_mpz_t *m, const sc_mpz_t *lambda, ecc_point
 	// xr = lambda^2 - xa - xb
 	sc_mpz_mul(&temp, lambda, lambda);
 	sc_mpz_mod(&x, &temp, m);
-    sc_mpz_sub(&x, &x, p_a->x);
-    sc_mpz_sub(&x, &x, p_b->x);
-    sc_mpz_mod(p_a->x, &x, m);
+    sc_mpz_sub(&x, &x, &p_a->x);
+    sc_mpz_sub(&x, &x, &p_b->x);
+    sc_mpz_mod(&p_a->x, &x, m);
 
 	// yr = lambda*(xa - xr) - ya
-    sc_mpz_sub(&y, p_a->x, x);
+    sc_mpz_sub(&y, &p_a->x, &x);
     sc_mpz_mod(&y, &y, m);
 	sc_mpz_mul(&temp, lambda, &y);
 	sc_mpz_mod(&temp, &temp, m);
-    sc_mpz_sub(&y, &y, p_a->y);
-    sc_mpz_mod(p_a->y, &y, m);
+    sc_mpz_sub(&y, &y, &p_a->y);
+    sc_mpz_mod(&p_a->y, &y, m);
 
 	sc_mpz_clear(&x);
 	sc_mpz_clear(&y);
 	sc_mpz_clear(&temp);
 }
 
-static void point_double_cartesian(const sc_mpz_t *m, const sc_mpz_t *a, const sc_mpz_t *p, ecc_point_t *p)
+static void point_double_cartesian(const sc_mpz_t *m, const sc_mpz_t *a, const sc_mpz_t *p, ecc_point_t *point)
 {
 	size_t i;
 	sc_mpz_t lambda, temp, x, y;
@@ -145,19 +148,19 @@ static void point_double_cartesian(const sc_mpz_t *m, const sc_mpz_t *a, const s
 	sc_mpz_init2(&temp, 2*MAX_ECC_BITS);
 
 	// lambda = (3*x^2 + a)/(2*y)
-	sc_mpz_mul(&temp, p->x, p->x);
+	sc_mpz_mul(&temp, &point->x, &point->x);
 	sc_mpz_mod(&lambda, &temp, m);
 	sc_mpz_sub(&lambda, &lambda, a);
 	sc_mpz_mul_ui(&temp, &lambda, 3);
 	sc_mpz_mod(&lambda, &temp, m);
-	sc_mpz_add(&temp, p->y, p->y);
+	sc_mpz_add(&temp, &point->y, &point->y);
 	sc_mpz_mod(&x, &temp, m);
 	sc_mpz_invmod(&y, &x, m);
 	sc_mpz_mul(&temp, &lambda, &y);
 	sc_mpz_mod(&lambda, &temp, m);
 
     // Given lambda, calculate the resulting point p
-	point_cartesian(m, &lambda, p, p);
+	point_cartesian(m, &lambda, point, point);
 
 	sc_mpz_clear(&lambda);
 	sc_mpz_clear(&x);
@@ -175,16 +178,16 @@ static void point_add_cartesian(const sc_mpz_t *m, const sc_mpz_t *p, ecc_point_
 	sc_mpz_init2(&temp, 2*MAX_ECC_BITS);
 
 	// lambda = (yb - ya) / (xb - xa)
-	sc_mpz_sub(&y, p_b->y, p_a->y);
+	sc_mpz_sub(&y, &p_b->y, &p_a->y);
 	sc_mpz_mod(&y, &y, m);
-	sc_mpz_sub(&x, p_b->x, p_a->x);
+	sc_mpz_sub(&x, &p_b->x, &p_a->x);
 	sc_mpz_mod(&x, &x, m);
 	sc_mpz_invmod(&lambda, &x, m);
 	sc_mpz_mul(&temp, &lambda, &y);
 	sc_mpz_mod(&lambda, &temp, m);
 
     // Given lambda, calculate the resulting point p
-	point_cartesian(m, &lambda, p, p);
+	point_cartesian(m, &lambda, p_a, p_b);
 
 	sc_mpz_clear(&lambda);
 	sc_mpz_clear(&x);
@@ -192,17 +195,17 @@ static void point_add_cartesian(const sc_mpz_t *m, const sc_mpz_t *p, ecc_point_
 	sc_mpz_clear(&temp);
 }
 
-static void point_double(const sc_mpz_t *m, const sc_mpz_t *a, const sc_mpz_t *p, ecc_point_t *p)
+static void point_double(const sc_mpz_t *m, const sc_mpz_t *a, const sc_mpz_t *p, ecc_point_t *point)
 {
 	// If x and y are zero the result is zero
-	if (point_is_zero(p)) {
+	if (point_is_zero(point)) {
 		return;
 	}
 
-	point_double_cartesian(m, a, p, p);
+	point_double_cartesian(m, a, p, point);
 }
 
-static void point_add(const sc_mpz_t *mod, const sc_mpz_t *p, ecc_point_t *p_a, const ecc_point_t *p_b)
+static void point_add(const sc_mpz_t *m, const sc_mpz_t *p, ecc_point_t *p_a, const ecc_point_t *p_b)
 {
 	point_add_cartesian(m, p, p_a, p_b);
 }
@@ -221,18 +224,22 @@ static void scalar_point_mult(size_t num_bits, const sc_mpz_t *a, const sc_mpz_t
 	secret_bits_init(&bit_ctx, secret, num_bits);
 
 	for (i=num_bits; i--;) {
+		UINT32 bit;
+
 		// Point doubling
 		point_double(m, a, p, p_out);
 
 		// Determine if an asserted bit requires a point addition (or a dummy point addition as an SCA countermeasure)
-		UINT32 bit = secret_bits_pull(&bit_ctx);
+		bit = secret_bits_pull(&bit_ctx);
 		if (ECC_K_IS_LOW != bit) {
-			// Create a mask of all zeros if HIGH or all ones if a dummy operation
-			ecc_point_t *mask = bit << (8*sizeof(void*) - 1);
+			// Create a mask of all zeros if ECC_K_IS_HIGH or all ones if a ECC_K_IS_SCA_DUMMY operation
+			intptr_t mask   = (intptr_t) bit - 1;
+
 			// Branch-free pointer selection in constant time
-			ecc_point_t *p = p_out ^ ((p_out ^ &p_dummy) & mask);
+			intptr_t p_temp = (intptr_t) p_out ^ (((intptr_t) p_out ^ (intptr_t) &p_dummy) & mask);
+
 			// Point addition
-			point_add(m, p, p, p_in);
+			point_add(m, p, (ecc_point_t *) p_temp, p_in);
 		}
 	}
 }
@@ -250,16 +257,16 @@ SINT32 ecc_diffie_hellman(safecrypto_t *sc, const ecc_point_t *p_base, const sc_
 	}
 
 	// Obtain common array lengths
-	num_bits  = sc->params->num_bits;
-	num_bytes = sc->params->num_bytes;
-	num_limbs = sc->params->num_limbs;
+	num_bits  = sc->ecdh->params->num_bits;
+	num_bytes = sc->ecdh->params->num_bytes;
+	num_limbs = sc->ecdh->params->num_limbs;
 
 	// Initialise the MP variables
 	sc_mpz_init2(&a, MAX_ECC_BITS);
 	sc_mpz_init2(&m, MAX_ECC_BITS);
 	sc_mpz_init2(&p, MAX_ECC_BITS+1);
-	sc_mpz_set_str(&a, 16, sc->params->a);
-	sc_mpz_set_str(&p, 16, sc->params->p);
+	sc_mpz_set_str(&a, 16, sc->ecdh->params->a);
+	sc_mpz_set_str(&p, 16, sc->ecdh->params->p);
 
 	// Perform a scalar point multiplication from the base point using the random secret
 	scalar_point_mult(num_bits, &a, &m, &p, p_base, secret, &p_result);
@@ -278,19 +285,16 @@ SINT32 ecc_diffie_hellman(safecrypto_t *sc, const ecc_point_t *p_base, const sc_
 	return SC_FUNC_SUCCESS;
 }
 
-SINT32 ecc_diffie_hellman_encapsulate(safecrypto_t *sc, size_t *tlen, UINT8 **to)
+SINT32 ecc_diffie_hellman_encapsulate(safecrypto_t *sc, const sc_ulimb_t *secret, size_t *tlen, UINT8 **to)
 {
-	size_t num_bits = sc->params->num_bits;
-	sc_ulimb_t secret[MAX_ECC_LIMBS];
+	size_t num_bits  = sc->ecdh->params->num_bits;
+	size_t num_bytes = sc->ecdh->params->num_bytes;
 
 	// Obtain the base point from the ECC parameters
 	ecc_point_t p_base;
-	p_base.n = sc->params->num_limbs;
-	sc_mpz_set_str(&p_base.x, 16, secp256r1_point_x);
-	sc_mpz_set_str(&p_base.y, 16, secp256r1_point_y);
-
-	// Generate a random secret
-	prng_mem(sc->prng_ctx[0], (UINT8*)secret, num_bytes)
+	p_base.n = sc->ecdh->params->num_limbs;
+	sc_mpz_set_str(&p_base.x, 16, sc->ecdh->params->g_x);
+	sc_mpz_set_str(&p_base.y, 16, sc->ecdh->params->g_y);
 
 	// Use an ECC scalar point multiplication to geometrically transform the base point
 	// to the intermediate point (i.e. the public key)
@@ -299,10 +303,11 @@ SINT32 ecc_diffie_hellman_encapsulate(safecrypto_t *sc, size_t *tlen, UINT8 **to
 	return SC_FUNC_SUCCESS;
 }
 
-SINT32 ecc_diffie_hellman_decapsulate(safecrypto_t *sc, size_t flen, const UINT8 *from, size_t *tlen, UINT8 **to)
+SINT32 ecc_diffie_hellman_decapsulate(safecrypto_t *sc, const sc_ulimb_t *secret, size_t flen, const UINT8 *from, size_t *tlen, UINT8 **to)
 {
-	size_t num_bits  = sc->params->num_bits;
-	size_t num_bytes = sc->params->num_bytes;
+	size_t num_bits  = sc->ecdh->params->num_bits;
+	size_t num_bytes = sc->ecdh->params->num_bytes;
+	size_t num_limbs = sc->ecdh->params->num_limbs;
 
 	// Convert the input byte stream (public key) to the intermediate coordinate
 	ecc_point_t p_base;
@@ -312,7 +317,7 @@ SINT32 ecc_diffie_hellman_decapsulate(safecrypto_t *sc, size_t flen, const UINT8
 
 	// Use an ECC scalar point multiplication to geometrically transform the intermediate point
 	// to the final point (shared secret)
-	ecc_diffie_hellman(sc, p_base, tlen, to);
+	ecc_diffie_hellman(sc, &p_base, secret, tlen, to);
 
 	return SC_FUNC_SUCCESS;
 }
@@ -323,50 +328,52 @@ SINT32 ecc_sign(safecrypto_t *sc, const UINT8 *m, size_t mlen,
 	size_t i, num_bits, num_bytes, num_limbs;
 	ecc_point_t p_base, p_result;
 	sc_ulimb_t secret[MAX_ECC_LIMBS];
-	sc_mpz_t m, d, e, k, temp1, temp2, p, a;
+	sc_mpz_t mod, d, e, k, temp1, temp2, p, a;
+	SINT32 mem_is_zero;
 
 	// Obtain common array lengths
-	num_bits  = sc->params->num_bits;
-	num_bytes = sc->params->num_bytes;
-	num_limbs = sc->params->num_limbs;
+	num_bits  = sc->ecdh->params->num_bits;
+	num_bytes = sc->ecdh->params->num_bytes;
+	num_limbs = sc->ecdh->params->num_limbs;
 
 	p_base.n = (num_bits + SC_LIMB_BITS - 1) >> SC_LIMB_BITS_SHIFT;
-	sc_mpz_set_str(&p_base.x, 16, secp256r1_point_x);
-	sc_mpz_set_str(&p_base.y, 16, secp256r1_point_y);
+	sc_mpz_set_str(&p_base.x, 16, sc->ecdh->params->g_x);
+	sc_mpz_set_str(&p_base.y, 16, sc->ecdh->params->g_y);
 
 	sc_mpz_init2(&a, MAX_ECC_BITS);
-	sc_mpz_init2(&m, MAX_ECC_BITS);
+	sc_mpz_init2(&mod, MAX_ECC_BITS);
 	sc_mpz_init2(&d, MAX_ECC_BITS);
 	sc_mpz_init2(&e, MAX_ECC_BITS);
 	sc_mpz_init2(&k, MAX_ECC_BITS);
 	sc_mpz_init2(&temp1, 2*MAX_ECC_BITS);
 	sc_mpz_init2(&temp2, MAX_ECC_BITS);
 	sc_mpz_init2(&p, MAX_ECC_BITS+1);
-	sc_mpz_set_str(&a, 16, sc->params->a);
-	sc_mpz_set_str(&p, 16, sc->params->p);
+	sc_mpz_set_str(&a, 16, sc->ecdh->params->a);
+	sc_mpz_set_str(&p, 16, sc->ecdh->params->p);
 
 restart:
 	// Generate a random secret k and ensure it is not zero
 	prng_mem(sc->prng_ctx[0], (UINT8*)secret, num_bytes);
-	if (SC_MEM_IS_ZERO(secret, num_bytes)) {
+	mem_is_zero = sc_mem_is_zero((void*) secret, num_bytes);
+	if (mem_is_zero) {
 		goto restart;
 	}
 
 	// Perform a scalar point multiplication from the base point using the random secret
-	scalar_point_mult(num_bits, sc->params->a, &m, &p, &p_base, secret, &p_result);
-	sc_mpz_mod(&p_result.x, &p_result.x, m);
+	scalar_point_mult(num_bits, &a, &mod, &p, &p_base, secret, &p_result);
+	sc_mpz_mod(&p_result.x, &p_result.x, &mod);
 	if (sc_mpz_is_zero(&p_result.x)) {
 		goto restart;
 	}
 
 	// s = k^(-1)*(z + r*d) mod n
 	sc_mpz_mul(&temp1, &p_result.x, &d);
-	sc_mpz_mod(&temp2, &temp1, &m);
+	sc_mpz_mod(&temp2, &temp1, &mod);
 	sc_mpz_add(&temp1, &temp2, &e);
-	sc_mpz_mod(&temp1, &temp1, &m);
-	sc_mpz_invmod(&temp2, &k, &m);
+	sc_mpz_mod(&temp1, &temp1, &mod);
+	sc_mpz_invmod(&temp2, &k, &mod);
 	sc_mpz_mul(&temp1, &temp2, &temp1);
-	sc_mpz_mod(&temp2, &temp1, &m);
+	sc_mpz_mod(&temp2, &temp1, &mod);
 	if (sc_mpz_is_zero(&temp2)) {
 		goto restart;
 	}
@@ -375,7 +382,7 @@ restart:
 	SINT32 r_len = (sc_mpz_get_size(&p_result.x) + 7) >> 3;
 	SINT32 s_len = (sc_mpz_get_size(&temp2) + 7) >> 3;
 	sc_ulimb_t *r = sc_mpz_get_limbs(&p_result.x);
-	sc_ulimb_t *s = sc_mpz_get_limbs(&temp2x);
+	sc_ulimb_t *s = sc_mpz_get_limbs(&temp2);
 	*siglen = r_len + s_len;
 	*sigret = SC_MALLOC(*siglen);
 #if SC_LIMB_BITS == 64
@@ -387,7 +394,7 @@ restart:
 #endif
 
 	sc_mpz_clear(&a);
-	sc_mpz_clear(&m);
+	sc_mpz_clear(&mod);
 	sc_mpz_clear(&d);
 	sc_mpz_clear(&e);
 	sc_mpz_clear(&k);
@@ -399,36 +406,46 @@ restart:
 SINT32 ecc_verify(safecrypto_t *sc, const UINT8 *m, size_t mlen,
     const UINT8 *sigbuf, size_t siglen)
 {
-	sc_mpz_t p, mod, a, r, s;
+	size_t i, num_bits, num_bytes, num_limbs;
+	sc_mpz_t p, mod, a, r, s, w, temp, z;
 	sc_ulimb_t *secret;
+	ecc_point_t p_base, p_public, p_u1, p_u2;
 
+	// Obtain common array lengths
+	num_bits  = sc->ecdh->params->num_bits;
+	num_bytes = sc->ecdh->params->num_bytes;
+	num_limbs = sc->ecdh->params->num_limbs;
+
+	sc_mpz_init2(&temp, 2*MAX_ECC_BITS);
 	sc_mpz_init2(&a, MAX_ECC_BITS);
 	sc_mpz_init2(&mod, MAX_ECC_BITS);
 	sc_mpz_init2(&p, MAX_ECC_BITS+1);
-	sc_mpz_set_str(&p, 16, sc->params->p);
-	sc_mpz_set_str(&a, 16, sc->params->a);
+	sc_mpz_init2(&w, MAX_ECC_BITS);
+	sc_mpz_set_str(&p, 16, sc->ecdh->params->p);
+	sc_mpz_set_str(&a, 16, sc->ecdh->params->a);
 
-	sc_mpz_invmod(&w, s, &mod);
+	sc_mpz_invmod(&w, &s, &mod);
 
-	p_base.n = sc->params->num_limbs;
-	sc_mpz_set_str(&p_base.x, 16, sc->params->g_x);
-	sc_mpz_set_str(&p_base.y, 16, sc->params->g_y);
+	p_base.n = sc->ecdh->params->num_limbs;
+	sc_mpz_set_str(&p_base.x, 16, sc->ecdh->params->g_x);
+	sc_mpz_set_str(&p_base.y, 16, sc->ecdh->params->g_y);
 
-	sc_mpz_mul(&temp2, &w, &z);
-	sc_mpz_mod(&temp2, &temp2, &mod);
-	secret = sc_mpz_get_limbs(&temp2);
-	scalar_point_mult(num_bits, sc->params->a, &mod, &p, &p_base, secret, &p_u1);
+	sc_mpz_mul(&temp, &w, &z);
+	sc_mpz_mod(&temp, &temp, &mod);
+	secret = sc_mpz_get_limbs(&temp);
+	scalar_point_mult(num_bits, sc->ecdh->params->a, &mod, &p, &p_base, secret, &p_u1);
 
-	sc_mpz_mul(&temp2, &w, &r);
-	sc_mpz_mod(&temp2, &temp2, m);
-	secret = sc_mpz_get_limbs(&temp2);
-	scalar_point_mult(num_bits, sc->params->a, &mod, &p, &p_public, secret, &p_u2);
+	sc_mpz_mul(&temp, &w, &r);
+	sc_mpz_mod(&temp, &temp, m);
+	secret = sc_mpz_get_limbs(&temp);
+	scalar_point_mult(num_bits, sc->ecdh->params->a, &mod, &p, &p_public, secret, &p_u2);
 
 	point_add(&m, &p, &p_u1, &p_u2);
 
 	sc_mpz_clear(&a);
 	sc_mpz_clear(&mod);
 	sc_mpz_clear(&p);
+	sc_mpz_clear(&temp);
 
 	if (0 == sc_mpz_cmp(&p_u1.x, &r)) {
 		return SC_FUNC_SUCCESS;

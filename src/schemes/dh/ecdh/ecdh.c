@@ -16,7 +16,7 @@
  */
 
 #include "ecdh.h"
-#include "ecc.h"
+#include "utils/ecc/ecc.h"
 
 
 SINT32 ecdh_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
@@ -68,6 +68,10 @@ SINT32 ecdh_destroy(safecrypto_t *sc)
         SC_FREE(sc->ecdh, sizeof(ecdh_cfg_t));
     }
 
+    if (sc->privkey->key) {
+        SC_FREE(sc->privkey->key, MAX_ECC_LIMBS * sizeof(sc_ulimb_t));
+    }
+
     SC_PRINT_DEBUG(sc, "ECDH algorithm - destroyed");
 
     return SC_FUNC_SUCCESS;
@@ -75,7 +79,22 @@ SINT32 ecdh_destroy(safecrypto_t *sc)
 
 SINT32 ecc_diffie_hellman_init(safecrypto_t *sc, size_t *tlen, UINT8 **to)
 {
-	return ecc_diffie_hellman_encapsulate(sc, tlen, to);
+    sc_ulimb_t *secret;
+
+    // Allocate key pair memory
+    if (NULL == sc->privkey->key) {
+        sc->privkey->key = SC_MALLOC(MAX_ECC_LIMBS * sizeof(sc_ulimb_t));
+        if (NULL == sc->privkey->key) {
+            SC_LOG_ERROR(sc, SC_NULL_POINTER);
+            return SC_FUNC_FAILURE;
+        }
+    }
+
+    // Generate a random secret and store it as the private key
+    secret = (sc_ulimb_t*) sc->privkey->key;
+    prng_mem(sc->prng_ctx[0], (UINT8*) secret, num_bytes);
+
+	return ecc_diffie_hellman_encapsulate(sc, secret, tlen, to);
 }
 
 SINT32 ecc_diffie_hellman_final(safecrypto_t *sc, size_t flen, const UINT8 *from, size_t *tlen, UINT8 **to)

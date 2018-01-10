@@ -9,7 +9,8 @@
 
 #pragma once
 
-#include "sc_mp.h"
+#include "safecrypto_private.h"
+#include "utils/arith/sc_mp.h"
 
 #define MAX_ECC_BITS      521
 #define MAX_ECC_LIMBS     ((MAX_ECC_BITS + SC_LIMB_BITS - 1) / SC_LIMB_BITS)
@@ -26,9 +27,19 @@ typedef struct _ecdh_set_t {
 	const char *p;
 } ecdh_set_t;
 
+SC_STRUCT_PACK_START
+typedef struct _ecdh_cfg_t {
+    ecdh_set_t *params;
+} SC_STRUCT_PACKED ecdh_cfg_t;
+SC_STRUCT_PACK_END
+
+typedef struct ecc_point ecc_point_t;
+
+
 extern const ecdh_set_t param_ecdh_secp256r1;
 
-extern SINT32 ecc_diffie_hellman(safecrypto_t *sc, size_t *tlen, UINT8 **to);
+extern SINT32 ecc_diffie_hellman(safecrypto_t *sc, const ecc_point_t *p_base,
+	const sc_ulimb_t *secret, size_t *tlen, UINT8 **to);
 
 extern SINT32 ecc_sign(safecrypto_t *sc, const UINT8 *m, size_t mlen,
     UINT8 **sigret, size_t *siglen);

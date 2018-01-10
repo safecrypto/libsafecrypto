@@ -54,6 +54,9 @@
 #ifndef DISABLE_IBE_DLP
 #include "schemes/ibe/dlp/dlp_ibe.h"
 #endif
+#if 1
+#include "schemes/dh/ecdh/ecdh.h"
+#endif
 
 #include <string.h>
 
@@ -199,6 +202,16 @@ static safecrypto_alg_t safecrypto_algorithms[] = {
       dlp_ibe_set_key_coding, dlp_ibe_get_key_coding,
       dlp_ibe_pubkey_load, dlp_ibe_privkey_load, dlp_ibe_pubkey_encode, dlp_ibe_privkey_encode,
       NULL, NULL, dlp_ibe_secret_key, dlp_ibe_extract, dlp_ibe_encrypt, NULL, dlp_ibe_decrypt, NULL, NULL, NULL, NULL, NULL, NULL, dlp_ibe_stats },
+#endif
+#if defined(DISABLE_IBE) || defined(DISABLE_IBE_DLP)
+    { SC_SCHEME_IBE_DLP, NULL, NULL, NULL, NULL, NULL,
+      NULL, NULL, NULL, NULL,
+      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
+#else
+    { SC_SCHEME_DH_ECDH, ecdh_create, ecdh_destroy, ecdh_keygen,
+      ecdh_set_key_coding, ecdh_get_key_coding,
+      ecdh_pubkey_load, ecdh_privkey_load, ecdh_pubkey_encode, ecdh_privkey_encode,
+      NULL, NULL, NULL, NULL, NULL, NULL, NULL, ecc_diffie_hellman_init, ecc_diffie_hellman_final, NULL, NULL, NULL, NULL, ecdh_stats },
 #endif
 };
 

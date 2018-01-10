@@ -93,6 +93,8 @@ if WITH_DLP_IBE
 OPTIONAL_LIBS           += schemes/ibe/dlp/libibe.la
 endif WITH_DLP_IBE
 
+OPTIONAL_LIBS           += schemes/dh/ecdh/libecdh.la
+
 # Add references to algorithm libraries here
 __top_builddir__libs_libsafecrypto_la_LIBADD  = $(DEFAULT_LIBS) $(OPTIONAL_LIBS)
 

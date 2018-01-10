@@ -23,12 +23,8 @@
 
 
 typedef struct _ecdh_set_t ecdh_set_t;
+typedef struct _ecdh_cfg_t ecdh_cfg_t;
 
-SC_STRUCT_PACK_START
-typedef struct _ecdh_cfg_t {
-    ecdh_set_t *params;
-} SC_STRUCT_PACKED ecdh_cfg_t;
-SC_STRUCT_PACK_END
 
 /// Scheme creation
 SINT32 ecdh_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags);
