@@ -91,6 +91,8 @@ TESTS                   += func_alg_dilithium \
                            func_alg_dilithium_g_huffman
 endif BUILD_DILITHIUM
 
+TESTS                   += func_alg_ecdh
+
 noinst_PROGRAMS          = $(TESTS)
 
 
@@ -341,7 +343,12 @@ endif WITH_ENS_KEM
 
 func_signatures_schemes_SOURCES      = func_signatures_schemes.c \
                                        $(top_srcdir)/include/safecrypto.h
-func_signatures_schemes_LDADD        =  $(top_builddir)/libs/libsafecrypto.la -lm
+func_signatures_schemes_LDADD        = $(top_builddir)/libs/libsafecrypto.la -lm
 func_signatures_schemes_LDFLAGS      = -static
+
+func_alg_ecdh_SOURCES                = func_alg_ecdh.c \
+                                       $(top_srcdir)/include/safecrypto.h
+func_alg_ecdh_LDADD                  = $(top_builddir)/libs/libsafecrypto.la -lm
+func_alg_ecdh_LDFLAGS                = -static
 
 endif

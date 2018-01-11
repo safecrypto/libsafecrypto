@@ -29,7 +29,7 @@
 
 #define USE_FIXED_BUFFERS     0
 #if USE_FIXED_BUFFERS == 1
-#define FIXED_BUFFER_SIZE     4096
+#define FIXED_BUFFER_SIZE     8192
 #else
 #define FIXED_BUFFER_SIZE     0
 #endif
@@ -70,7 +70,7 @@ SINT32 compare_messages(UINT8 *a, UINT8 *b, size_t length)
 
 int main(void)
 {
-    safecrypto_t *sc = NULL;
+    safecrypto_t *sc_a = NULL, *sc_b = NULL;
 
 #ifdef DISABLE_SIGNATURES
     UINT32 flags[1] = {SC_FLAG_NONE};
@@ -83,32 +83,31 @@ int main(void)
     return EXIT_SUCCESS;
 #else
     int32_t i, j;
-    uint8_t message[8192];
-    size_t length = 128;
 #if USE_FIXED_BUFFERS
     UINT8 *fixed_buffer = malloc(FIXED_BUFFER_SIZE);
-    UINT8 *sig = fixed_buffer;
+    UINT8 *msg   = fixed_buffer;
+    UINT8 *msg_b = fixed_buffer + 2048;
+    UINT8 *res_a = fixed_buffer + 4096;
+    UINT8 *res_b = fixed_buffer + 6144;
 #else
-    UINT8 *sig = NULL;
+    UINT8 *msg   = NULL;
+    UINT8 *msg_b = NULL;
+    UINT8 *res_a = NULL;
+    UINT8 *res_b = NULL;
 #endif
-    UINT8 *pubkey, *privkey;
-    size_t siglen = 0, pubkeylen = 0, privkeylen = 0;
+    size_t msglen = 0, msglen_b = 0, reslen_a = 0, reslen_b = 0;
     prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM,
         SC_PRNG_THREADING_NONE, 0x00100000);
     prng_init(prng_ctx, NULL, 0);
 
-    printf("THE WHOLE IS ... - Signature Scheme\n");
+    printf("Elliptic Curve Diffie-Hellman\n");
 
-    SC_TIMER_INSTANCE(keygen_timer);
-    SC_TIMER_INSTANCE(sig_timer);
-    SC_TIMER_INSTANCE(ver_timer);
-    SC_TIMER_CREATE(keygen_timer);
-    SC_TIMER_CREATE(sig_timer);
-    SC_TIMER_CREATE(ver_timer);
+    SC_TIMER_INSTANCE(init_timer);
+    SC_TIMER_INSTANCE(final_timer);
+    SC_TIMER_CREATE(init_timer);
+    SC_TIMER_CREATE(final_timer);
 
-    for (i=0; i<2; i++) {
-        SC_TIMER_RESET(keygen_timer);
-
+    for (i=0; i<1; i++) {
         printf("Parameter Set: %d\n", i);
 
 #ifdef USE_HUFFMAN_STATIC_ENTROPY
@@ -127,93 +126,57 @@ int main(void)
         flags[1] |= SC_FLAG_1_CSPRNG_AES_CTR_DRBG;
 
         // Create a SAFEcrypto object
-        sc = safecrypto_create(SC_SCHEME_SIG_ENS, i, flags);
-
-        // Create a key pair
-        SC_TIMER_START(keygen_timer);
-        if (SC_FUNC_SUCCESS != safecrypto_keygen(sc)) {
-            fprintf(stderr, "ERROR! Key generation failed\n");
-            goto error_return;
-        }
-        SC_TIMER_STOP(keygen_timer);
-
-        safecrypto_set_key_coding(sc, coding, coding);
-        pubkeylen = FIXED_BUFFER_SIZE;
-        if (SC_FUNC_SUCCESS != safecrypto_public_key_encode(sc, &pubkey, &pubkeylen)) {
-            fprintf(stderr, "ERROR! safecrypto_public_key_encode() failed\n");
-            goto error_return;
-        }
-        privkeylen = FIXED_BUFFER_SIZE;
-#if USE_FIXED_BUFFERS
-#else
-        free(pubkey);
-#endif
-        if (SC_FUNC_SUCCESS != safecrypto_private_key_encode(sc, &privkey, &privkeylen)) {
-            fprintf(stderr, "ERROR! safecrypto_private_key_encode() failed\n");
-            goto error_return;
-        }
-#if USE_FIXED_BUFFERS
-#else
-        free(privkey);
-#endif
+        sc_a = safecrypto_create(SC_SCHEME_DH_ECDH, i, flags);
+        sc_b = safecrypto_create(SC_SCHEME_DH_ECDH, i, flags);
 
         for (j=0; j<MAX_ITER; j++) {
 
-            // Generate a random message
-            prng_mem(prng_ctx, message, length);
-
-            // Generate a signature for that message
-            SC_TIMER_START(sig_timer);
-            siglen = FIXED_BUFFER_SIZE;
-            if (SC_FUNC_SUCCESS != safecrypto_sign(sc, message, length, &sig, &siglen)) {
-                fprintf(stderr, "ERROR! safecrypto_sign() failed\n");
+            // Generate Alice's message
+            SC_TIMER_START(init_timer);
+            msglen = FIXED_BUFFER_SIZE;
+            if (SC_FUNC_SUCCESS != safecrypto_diffie_hellman_init(sc_a, &msglen, &msg)) {
+                fprintf(stderr, "ERROR! safecrypto_diffie_hellman_init() failed\n");
                 goto error_return;
             }
-            SC_TIMER_STOP(sig_timer);
+            SC_TIMER_STOP(init_timer);
 
-            // Verify the signature
-            SC_TIMER_START(ver_timer);
-            if ((j & 0x3) == 3) {
-                // Ensure that the last byte (which is potentially partially used) is not corrupted
-                size_t idx = j % siglen;
-                if (idx == (siglen - 1)) {
-                    idx--;
-                }
-                sig[idx] ^= 1 << (j % 8);
+            // Generate Bob's message
+            SC_TIMER_START(init_timer);
+            msglen_b = FIXED_BUFFER_SIZE;
+            if (SC_FUNC_SUCCESS != safecrypto_diffie_hellman_init(sc_b, &msglen_b, &msg_b)) {
+                fprintf(stderr, "ERROR! safecrypto_diffie_hellman_init() failed\n");
+                goto error_return;
+            }
+            SC_TIMER_STOP(init_timer);
 
-                // Verify the signature using the public key
-                if (SC_FUNC_SUCCESS == safecrypto_verify(sc, message, length, sig, siglen)) {
-                    fprintf(stderr, "ERROR! Signature verified even though it was corrupt (j=%d)\n", j);
-                    for (i=0; i<siglen; i++) {
-                        if ((i&0x0F) == 0) fprintf(stderr, "\n  ");
-                        fprintf(stderr, "%4d ", sig[i]);
-                    }
-                    fprintf(stderr, "\n");
-                    goto error_return;
-                }
+            // Generate Alice's shared secret
+            SC_TIMER_START(init_timer);
+            msglen = FIXED_BUFFER_SIZE;
+            if (SC_FUNC_SUCCESS != safecrypto_diffie_hellman_final(sc_a, msglen_b, msg_b, &reslen_a, &res_a)) {
+                fprintf(stderr, "ERROR! safecrypto_diffie_hellman_final() failed\n");
+                goto error_return;
             }
-            else if ((j & 0x3) == 2) {
-                message[j%length] ^= 1 << (j % 8);
+            SC_TIMER_STOP(init_timer);
 
-                // Verify the signature using the public key
-                if (SC_FUNC_SUCCESS == safecrypto_verify(sc, message, length, sig, siglen)) {
-                    fprintf(stderr, "ERROR! Signature verified even though the message was corrupt\n");
-                    goto error_return;
-                }
+            // Generate Bob's shared secret
+            SC_TIMER_START(init_timer);
+            msglen = FIXED_BUFFER_SIZE;
+            if (SC_FUNC_SUCCESS != safecrypto_diffie_hellman_final(sc_b, msglen, msg, &reslen_b, &res_b)) {
+                fprintf(stderr, "ERROR! safecrypto_diffie_hellman_final() failed\n");
+                goto error_return;
             }
-            else {
-                // Verify the signature using the public key
-                if (SC_FUNC_SUCCESS != safecrypto_verify(sc, message, length, sig, siglen)) {
-                    fprintf(stderr, "ERROR! Signature NOT verified\n");
-                    goto error_return;
-                }
-            }
-            SC_TIMER_STOP(ver_timer);
+            SC_TIMER_STOP(init_timer);
 
 #if USE_FIXED_BUFFERS
 #else
-            free(sig);
-            sig = NULL;
+            free(msg);
+            msg = NULL;
+            free(msg_b);
+            msg_b = NULL;
+            free(res_a);
+            res_a = NULL;
+            free(res_b);
+            res_b = NULL;
 #endif
 
             if ((j & 0x1F) == 0x1F) show_progress(j, MAX_ITER);
@@ -221,55 +184,53 @@ int main(void)
 
         show_progress(MAX_ITER, MAX_ITER);
 
-        const char *stats = safecrypto_processing_stats(sc);
+        const char *stats = safecrypto_processing_stats(sc_a);
         printf("%s", stats);
 
         // Free all resources for the given SAFEcrypto object
-        if (SC_FUNC_SUCCESS != safecrypto_destroy(sc)) {
+        if (SC_FUNC_SUCCESS != safecrypto_destroy(sc_a)) {
+            return EXIT_FAILURE;
+        }
+        if (SC_FUNC_SUCCESS != safecrypto_destroy(sc_b)) {
             return EXIT_FAILURE;
         }
 
-        double elapsed = SC_TIMER_GET_ELAPSED(keygen_timer);
-        printf("KeyGen time:        %f (%f per sec)\n", elapsed, 1.0 / elapsed);
-        elapsed = SC_TIMER_GET_ELAPSED(sig_timer);
-        printf("Signature time:     %f (%f per sec)\n", elapsed, (double)MAX_ITER / elapsed);
-        elapsed = SC_TIMER_GET_ELAPSED(ver_timer);
-        printf("Verification time:  %f (%f per sec)\n\n", elapsed, (double)MAX_ITER / elapsed);
-
-        //length <<= 1;
+        double elapsed = SC_TIMER_GET_ELAPSED(init_timer);
+        printf("Init time:   %f (%f per sec)\n", elapsed, (double)MAX_ITER / elapsed);
+        elapsed = SC_TIMER_GET_ELAPSED(final_timer);
+        printf("Final time:  %f (%f per sec)\n\n", elapsed, (double)MAX_ITER / elapsed);
     }
 
 #if USE_FIXED_BUFFERS
     if (fixed_buffer) free(fixed_buffer);
 #else
-    if (sig) free(sig);
+    if (msg) free(msg);
 #endif
 
-    SC_TIMER_DESTROY(keygen_timer);
-    SC_TIMER_DESTROY(sig_timer);
-    SC_TIMER_DESTROY(ver_timer);
+    SC_TIMER_DESTROY(init_timer);
+    SC_TIMER_DESTROY(final_timer);
     prng_destroy(prng_ctx);
     return EXIT_SUCCESS;
 
 error_return:
-    if (sc) {
+    if (sc_a) {
         UINT32 error;
         const char *file;
         SINT32 line;
-        while (SC_OK != (error = safecrypto_err_get_error_line(sc, &file, &line))) {
+        while (SC_OK != (error = safecrypto_err_get_error_line(sc_a, &file, &line))) {
             printf("ERROR: %08X, %s, line %d\n", error, file, line);
         }
     }
 #if USE_FIXED_BUFFERS
     if (fixed_buffer) free(fixed_buffer);
 #else
-    if (sig) free(sig);
+    if (msg) free(msg);
 #endif
-    SC_TIMER_DESTROY(keygen_timer);
-    SC_TIMER_DESTROY(sig_timer);
-    SC_TIMER_DESTROY(ver_timer);
+    SC_TIMER_DESTROY(init_timer);
+    SC_TIMER_DESTROY(final_timer);
     prng_destroy(prng_ctx);
-    safecrypto_destroy(sc);
+    safecrypto_destroy(sc_a);
+    safecrypto_destroy(sc_b);
     return EXIT_FAILURE;
 #endif
 }

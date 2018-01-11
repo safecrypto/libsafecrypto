@@ -208,10 +208,10 @@ static safecrypto_alg_t safecrypto_algorithms[] = {
       NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
 #else
-    { SC_SCHEME_DH_ECDH, ecdh_create, ecdh_destroy, ecdh_keygen,
-      ecdh_set_key_coding, ecdh_get_key_coding,
-      ecdh_pubkey_load, ecdh_privkey_load, ecdh_pubkey_encode, ecdh_privkey_encode,
-      NULL, NULL, NULL, NULL, NULL, NULL, NULL, ecc_diffie_hellman_init, ecc_diffie_hellman_final, NULL, NULL, NULL, NULL, ecdh_stats },
+    { SC_SCHEME_DH_ECDH, ecdh_create, ecdh_destroy, NULL,
+      NULL, NULL,
+      NULL, NULL, NULL, NULL,
+      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, ecdh_diffie_hellman_init, ecdh_diffie_hellman_final, ecdh_stats },
 #endif
 };
 

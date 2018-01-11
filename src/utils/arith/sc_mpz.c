@@ -83,9 +83,9 @@ SINT32 sc_mpz_get_bytes(UINT8 *out, const sc_mpz_t *in)
 
     limbs = sc_mpz_get_limbs(in);
 #if SC_LIMB_BITS == 64
-    SC_BIG_ENDIAN_64_COPY(out, 0, limbs, num_limbs * 8);
+    SC_LITTLE_ENDIAN_64_COPY(out, 0, limbs, num_limbs * 8);
 #else
-    SC_BIG_ENDIAN_32_COPY(out, 0, limbs, num_limbs * 4);
+    SC_LITTLE_ENDIAN_32_COPY(out, 0, limbs, num_limbs * 4);
 #endif
 
     return SC_FUNC_SUCCESS;

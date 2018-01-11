@@ -46,6 +46,7 @@ __top_builddir__libs_libsafecrypto_la_SOURCES = \
 DEFAULT_LIBS             = schemes/helloworld/libhelloworld.la \
                            utils/arith/libarith.la \
                            utils/crypto/libcrypto.la \
+                           utils/ecc/libecc.la \
                            utils/sampling/libsampling.la \
                            utils/entropy/libentropy.la \
                            utils/third_party/lib_3rd_party.la

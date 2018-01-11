@@ -17,6 +17,9 @@
 
 #include "ecdh.h"
 #include "utils/ecc/ecc.h"
+#include "utils/crypto/prng.h"
+#include "safecrypto_debug.h"
+#include "safecrypto_error.h"
 
 
 SINT32 ecdh_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
@@ -64,7 +67,6 @@ SINT32 ecdh_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
 SINT32 ecdh_destroy(safecrypto_t *sc)
 {
     if (sc->ecdh) {
-        utils_crypto_hash_destroy(sc->ecdh);
         SC_FREE(sc->ecdh, sizeof(ecdh_cfg_t));
     }
 
@@ -77,13 +79,17 @@ SINT32 ecdh_destroy(safecrypto_t *sc)
     return SC_FUNC_SUCCESS;
 }
 
-SINT32 ecc_diffie_hellman_init(safecrypto_t *sc, size_t *tlen, UINT8 **to)
+SINT32 ecdh_diffie_hellman_init(safecrypto_t *sc, size_t *tlen, UINT8 **to)
 {
+    size_t num_bytes, num_limbs;
     sc_ulimb_t *secret;
+
+    num_bytes = sc->ecdh->params->num_bytes;
+    num_limbs = sc->ecdh->params->num_limbs;
 
     // Allocate key pair memory
     if (NULL == sc->privkey->key) {
-        sc->privkey->key = SC_MALLOC(MAX_ECC_LIMBS * sizeof(sc_ulimb_t));
+        sc->privkey->key = SC_MALLOC(num_limbs * sizeof(sc_ulimb_t));
         if (NULL == sc->privkey->key) {
             SC_LOG_ERROR(sc, SC_NULL_POINTER);
             return SC_FUNC_FAILURE;
@@ -92,14 +98,27 @@ SINT32 ecc_diffie_hellman_init(safecrypto_t *sc, size_t *tlen, UINT8 **to)
 
     // Generate a random secret and store it as the private key
     secret = (sc_ulimb_t*) sc->privkey->key;
+#if 1
+    for (size_t i=0; i<num_limbs; i++) {
+        secret[i] = 0;
+    }
+    static sc_ulimb_t val = 0;
+    val ^= 1;
+    secret[0] = val? 0 : 1;
+    secret[1] = val? 0x800000000 : 2;//0xFFFFFFFFFFFFFFFFULL;
+    //secret[1] = val;
+#else
     prng_mem(sc->prng_ctx[0], (UINT8*) secret, num_bytes);
+#endif
 
 	return ecc_diffie_hellman_encapsulate(sc, secret, tlen, to);
 }
 
-SINT32 ecc_diffie_hellman_final(safecrypto_t *sc, size_t flen, const UINT8 *from, size_t *tlen, UINT8 **to)
+SINT32 ecdh_diffie_hellman_final(safecrypto_t *sc, size_t flen, const UINT8 *from, size_t *tlen, UINT8 **to)
 {
-	return ecc_diffie_hellman_decapsulate(sc, flen, from, tlen, to);
+    sc_ulimb_t *secret;
+    secret = (sc_ulimb_t*) sc->privkey->key;
+	return ecc_diffie_hellman_decapsulate(sc, secret, flen, from, tlen, to);
 }
 
 char * ecdh_stats(safecrypto_t *sc)
