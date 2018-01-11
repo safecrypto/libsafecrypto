@@ -72,6 +72,8 @@ if WITH_ARITH_GPV
 TESTS                       += unit_gpv
 endif WITH_ARITH_GPV
 
+TESTS                       += unit_ecc
+
 else
 TESTS =
 endif
@@ -143,6 +145,12 @@ if WITH_GMP
 unit_ntt_LDFLAGS              += -lgmp
 endif
 unit_ntt_LDADD                 = $(top_builddir)/libs/libsafecrypto.la @CHECK_LIBS@
+
+
+unit_ecc_SOURCES               = unit_ecc.c \
+                                 $(top_srcdir)/src/safecrypto_debug.h
+unit_ecc_CFLAGS                = -I$(top_srcdir)/src -I$(top_srcdir)/include @CFLAGS_AVX2@ -I$(top_srcdir)/src/utils/crypto @CHECK_CFLAGS@
+unit_ecc_LDADD                 = $(top_builddir)/libs/libsafecrypto.la @CHECK_LIBS@
 
 
 if WITH_ARITH_GPV
