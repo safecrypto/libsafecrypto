@@ -250,7 +250,6 @@ START_TEST(test_xgcd_0)
     sc_poly_mpz_copy_si32(&b, 4, b_data);
 
     SINT32 result = sc_poly_mpz_xgcd(&a, &b, &gcd, &x, &y);
-    fprintf(stderr, "Result = %d\n", result);
     ck_assert_int_eq(result, SC_FUNC_SUCCESS);
     sc_poly_mpz_mul(&prod, &a, &x);
     sc_poly_mpz_mul(&temp, &b, &y);
@@ -492,10 +491,6 @@ START_TEST(test_resultant)
     retval = sc_poly_mpz_resultant(&a, &b, &gcd);
     ck_assert_int_eq(retval, SC_FUNC_SUCCESS);
     mpz_out_str(stdout, 16, &gcd);
-    fprintf(stderr, "length = %zu\n", strlen(tv));
-    fprintf(stderr, "resultant length = %zu\n", strlen(resultant));
-    fprintf(stderr, "tv        = %s\n", tv);
-    fprintf(stderr, "resultant = %s\n", resultant);
     ck_assert_int_eq(strncmp(tv, resultant, strlen(tv)), 0);
     sc_mpz_clear(&gcd);
     sc_poly_mpz_clear(&a);
@@ -821,6 +816,7 @@ Suite *poly_mpi_suite(void)
 
     /* Test cases */
     tc_core = tcase_create("CORE");
+    tcase_set_timeout(tc_core, 10.0f);
     tcase_add_test(tc_core, test_degree);
     tcase_add_test(tc_core, test_div_0);
     tcase_add_test(tc_core, test_div_1);
