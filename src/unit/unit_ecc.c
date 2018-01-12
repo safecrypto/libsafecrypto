@@ -16,17 +16,29 @@
 
 START_TEST(test_ecc_zero_double)
 {
+    ecc_metadata_t metadata;
     sc_mpz_t a, p;
     ecc_point_t p_base;
-    sc_mpz_init2(&a, MAX_ECC_BITS);
-    sc_mpz_init2(&p, MAX_ECC_BITS);
-    sc_mpz_set_str(&a, 16, param_ecdh_secp256r1.a);
-    sc_mpz_set_str(&p, 16, param_ecdh_secp256r1.p);
+    sc_mpz_init2(&metadata.a, MAX_ECC_BITS);
+    sc_mpz_init2(&metadata.m, MAX_ECC_BITS);
+    sc_mpz_init2(&metadata.lambda, MAX_ECC_BITS);
+    sc_mpz_init2(&metadata.x, MAX_ECC_BITS);
+    sc_mpz_init2(&metadata.y, MAX_ECC_BITS);
+    sc_mpz_init2(&metadata.temp, 2*MAX_ECC_BITS);
+    sc_mpz_set_str(&metadata.a, 16, param_ecdh_secp256r1.a);
+    sc_mpz_set_str(&metadata.m, 16, param_ecdh_secp256r1.p);
 
     point_init(&p_base);
 
-    point_double(&p, &a, &p_base);
+    point_double(&metadata, &p_base);
     ck_assert_int_eq(1, point_is_zero(&p_base));
+
+    sc_mpz_clear(&metadata.lambda);
+    sc_mpz_clear(&metadata.x);
+    sc_mpz_clear(&metadata.y);
+    sc_mpz_clear(&metadata.temp);
+    sc_mpz_clear(&metadata.a);
+    sc_mpz_clear(&metadata.m);
 }
 END_TEST
 
@@ -38,12 +50,17 @@ START_TEST(test_ecc_mul_basic)
     const char *tv_m_2_y = "7775510db8ed040293d9ac69f7430dbba7dade63ce982299e04b79d227873d1";
 
     sc_mpz_t a, p;
+    ecc_metadata_t metadata;
     ecc_point_t point, p_base;
     sc_ulimb_t secret[MAX_ECC_LIMBS] = {0};
-    sc_mpz_init2(&a, MAX_ECC_BITS);
-    sc_mpz_init2(&p, MAX_ECC_BITS);
-    sc_mpz_set_str(&a, 16, param_ecdh_secp256r1.a);
-    sc_mpz_set_str(&p, 16, param_ecdh_secp256r1.p);
+    sc_mpz_init2(&metadata.a, MAX_ECC_BITS);
+    sc_mpz_init2(&metadata.m, MAX_ECC_BITS);
+    sc_mpz_init2(&metadata.lambda, MAX_ECC_BITS);
+    sc_mpz_init2(&metadata.x, MAX_ECC_BITS);
+    sc_mpz_init2(&metadata.y, MAX_ECC_BITS);
+    sc_mpz_init2(&metadata.temp, 2*MAX_ECC_BITS);
+    sc_mpz_set_str(&metadata.a, 16, param_ecdh_secp256r1.a);
+    sc_mpz_set_str(&metadata.m, 16, param_ecdh_secp256r1.p);
 
     point_init(&point);
     point_init(&p_base);
@@ -51,18 +68,25 @@ START_TEST(test_ecc_mul_basic)
     sc_mpz_set_str(&p_base.y, 16, param_ecdh_secp256r1.g_y);
 
     secret[0] = 1;
-    scalar_point_mult(param_ecdh_secp256r1.num_bits, &a, &p, &p_base, secret, &point);
+    scalar_point_mult(param_ecdh_secp256r1.num_bits, &metadata, &p_base, secret, &point);
     //ck_assert_str_eq(tv_m_1_x, );
     fprintf(stderr, "mul 1 x: "); sc_mpz_out_str(stderr, 16, &p_base.x); fprintf(stderr, "\n");
     fprintf(stderr, "      y: "); sc_mpz_out_str(stderr, 16, &p_base.y); fprintf(stderr, "\n");
 
     secret[0] = 2;
-    scalar_point_mult(param_ecdh_secp256r1.num_bits, &a, &p, &p_base, secret, &point);
+    scalar_point_mult(param_ecdh_secp256r1.num_bits, &metadata, &p_base, secret, &point);
     //ck_assert_str_eq(tv_m_1_x, );
     fprintf(stderr, "mul 2 x: "); sc_mpz_out_str(stderr, 16, &p_base.x); fprintf(stderr, "\n");
     fprintf(stderr, "      y: "); sc_mpz_out_str(stderr, 16, &p_base.y); fprintf(stderr, "\n");
     fprintf(stderr, "res 2 x: "); sc_mpz_out_str(stderr, 16, &point.x); fprintf(stderr, "\n");
     fprintf(stderr, "      y: "); sc_mpz_out_str(stderr, 16, &point.y); fprintf(stderr, "\n");
+
+    sc_mpz_clear(&metadata.lambda);
+    sc_mpz_clear(&metadata.x);
+    sc_mpz_clear(&metadata.y);
+    sc_mpz_clear(&metadata.temp);
+    sc_mpz_clear(&metadata.a);
+    sc_mpz_clear(&metadata.m);
 }
 END_TEST
 
@@ -83,10 +107,15 @@ START_TEST(test_ecc_double_basic)
     // Set the curve parameters a and prime (modulus)
     sc_mpz_t a, p;
     ecc_point_t p_a;
-    sc_mpz_init2(&a, MAX_ECC_BITS);
-    sc_mpz_init2(&p, MAX_ECC_BITS);
-    sc_mpz_set_str(&a, 16, param_ecdh_secp256r1.a);
-    sc_mpz_set_str(&p, 16, param_ecdh_secp256r1.p);
+    ecc_metadata_t metadata;
+    sc_mpz_init2(&metadata.a, MAX_ECC_BITS);
+    sc_mpz_init2(&metadata.m, MAX_ECC_BITS);
+    sc_mpz_init2(&metadata.lambda, MAX_ECC_BITS);
+    sc_mpz_init2(&metadata.x, MAX_ECC_BITS);
+    sc_mpz_init2(&metadata.y, MAX_ECC_BITS);
+    sc_mpz_init2(&metadata.temp, 2*MAX_ECC_BITS);
+    sc_mpz_set_str(&metadata.a, 16, param_ecdh_secp256r1.a);
+    sc_mpz_set_str(&metadata.m, 16, param_ecdh_secp256r1.p);
 
     // Set the point to the above test vector
     point_init(&p_a);
@@ -94,7 +123,7 @@ START_TEST(test_ecc_double_basic)
     sc_mpz_set_str(&p_a.y, 16, tv_m_1_y);
 
     // Double the point and overwrite p_a
-    point_double(&p, &a, &p_a);
+    point_double(&metadata, &p_a);
 
     // Compare the result to the known result
     sc_mpz_out_str(stream, 16, &p_a.x);
@@ -103,6 +132,13 @@ START_TEST(test_ecc_double_basic)
     memset(result, 0, 8192);
     sc_mpz_out_str(stream, 16, &p_a.y);
     ck_assert_str_eq(result, tv_m_2_y);
+
+    sc_mpz_clear(&metadata.lambda);
+    sc_mpz_clear(&metadata.x);
+    sc_mpz_clear(&metadata.y);
+    sc_mpz_clear(&metadata.temp);
+    sc_mpz_clear(&metadata.a);
+    sc_mpz_clear(&metadata.m);
 }
 END_TEST
 
@@ -117,6 +153,7 @@ START_TEST(test_ecc_add_basic)
 
     sc_mpz_t a, p;
     ecc_point_t p_a, p_b;
+    ecc_metadata_t metadata;
 
     // Manipulate stdout to redirect to a char array for testing
     char result[8192];
@@ -126,10 +163,14 @@ START_TEST(test_ecc_add_basic)
     setbuf(stream, result);
 
     // Set the curve parameters a and prime (modulus)
-    sc_mpz_init2(&a, MAX_ECC_BITS);
-    sc_mpz_init2(&p, MAX_ECC_BITS);
-    sc_mpz_set_str(&a, 16, param_ecdh_secp256r1.a);
-    sc_mpz_set_str(&p, 16, param_ecdh_secp256r1.p);
+    sc_mpz_init2(&metadata.a, MAX_ECC_BITS);
+    sc_mpz_init2(&metadata.m, MAX_ECC_BITS);
+    sc_mpz_init2(&metadata.lambda, MAX_ECC_BITS);
+    sc_mpz_init2(&metadata.x, MAX_ECC_BITS);
+    sc_mpz_init2(&metadata.y, MAX_ECC_BITS);
+    sc_mpz_init2(&metadata.temp, 2*MAX_ECC_BITS);
+    sc_mpz_set_str(&metadata.a, 16, param_ecdh_secp256r1.a);
+    sc_mpz_set_str(&metadata.m, 16, param_ecdh_secp256r1.p);
 
     // Set the two points to the above test vectors
     point_init(&p_a);
@@ -140,7 +181,7 @@ START_TEST(test_ecc_add_basic)
     sc_mpz_set_str(&p_b.y, 16, tv_m_2_y);
 
     // Add the two points and overwrite p_a
-    point_add(&p, &a, &p_a, &p_b);
+    point_add(&metadata, &p_a, &p_b);
 
     // Compare the result to the known result
     sc_mpz_out_str(stream, 16, &p_a.x);
@@ -148,6 +189,13 @@ START_TEST(test_ecc_add_basic)
     fflush(stream);
     sc_mpz_out_str(stream, 16, &p_a.y);
     ck_assert_str_eq(result, tv_m_3_y);
+
+    sc_mpz_clear(&metadata.lambda);
+    sc_mpz_clear(&metadata.x);
+    sc_mpz_clear(&metadata.y);
+    sc_mpz_clear(&metadata.temp);
+    sc_mpz_clear(&metadata.a);
+    sc_mpz_clear(&metadata.m);
 }
 END_TEST
 

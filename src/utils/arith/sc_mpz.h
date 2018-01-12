@@ -111,6 +111,7 @@ void sc_mpz_subsqr(sc_mpz_t *inout, const sc_mpz_t *in);
 void sc_mpz_div(sc_mpz_t *q, sc_mpz_t *r, const sc_mpz_t *n, const sc_mpz_t *d);
 void sc_mpz_divrem(sc_mpz_t *r, const sc_mpz_t *n, const sc_mpz_t *d);
 void sc_mpz_divquo(sc_mpz_t *q, const sc_mpz_t *n, const sc_mpz_t *d);
+void sc_mpz_divquo_2exp(sc_mpz_t *q, const sc_mpz_t *n, size_t exp);
 /// @}
 
 /// Compute the square root
@@ -118,6 +119,13 @@ void sc_mpz_sqrt(sc_mpz_t *out, const sc_mpz_t *in);
 
 /// Compute 'in' to the power of the unsigned limb exp
 void sc_mpz_pow_ui(sc_mpz_t *out, const sc_mpz_t *in, sc_ulimb_t exp);
+
+/// Truncate the 
+void sc_mpz_trunc_limbs(sc_mpz_t *out, const sc_mpz_t *in, size_t n);
+
+/// Compute 'in' modulo m using Barrett Reduction
+void sc_mpz_mod_barrett(sc_mpz_t *out, const sc_mpz_t *in, const sc_mpz_t *m,
+	size_t k, const sc_mpz_t *mu);
 
 /// Compute 'in' modulo m
 void sc_mpz_mod(sc_mpz_t *out, const sc_mpz_t *in, const sc_mpz_t *m);

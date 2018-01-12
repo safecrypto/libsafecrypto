@@ -20,6 +20,7 @@
 #include "utils/crypto/prng.h"
 #include "safecrypto_debug.h"
 #include "safecrypto_error.h"
+#include "utils/arith/sc_mpz.h"
 
 
 SINT32 ecdh_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
@@ -59,6 +60,12 @@ SINT32 ecdh_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
                  return SC_FUNC_FAILURE;
     }
 
+    sc->ecdh->base.n = sc->ecdh->params->num_limbs;
+    sc_mpz_init2(&sc->ecdh->base.x, MAX_ECC_BITS);
+    sc_mpz_init2(&sc->ecdh->base.y, MAX_ECC_BITS);
+    sc_mpz_set_str(&sc->ecdh->base.x, 16, sc->ecdh->params->g_x);
+    sc_mpz_set_str(&sc->ecdh->base.y, 16, sc->ecdh->params->g_y);
+
     SC_PRINT_DEBUG(sc, "ECDH algorithm - created");
 
     return SC_FUNC_SUCCESS;
@@ -66,6 +73,9 @@ SINT32 ecdh_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
 
 SINT32 ecdh_destroy(safecrypto_t *sc)
 {
+    sc_mpz_clear(&sc->ecdh->base.x);
+    sc_mpz_clear(&sc->ecdh->base.y);
+
     if (sc->ecdh) {
         SC_FREE(sc->ecdh, sizeof(ecdh_cfg_t));
     }
@@ -124,9 +134,7 @@ SINT32 ecdh_diffie_hellman_final(safecrypto_t *sc, size_t flen, const UINT8 *fro
 char * ecdh_stats(safecrypto_t *sc)
 {
     static char stats[2048];
-    snprintf(stats, 2047, "\nECDH (%s):\n\
-    	",
-    	"Curve");
+    snprintf(stats, 2047, "\nECDH (%s):\n", "Curve");
     return stats;
 }
 

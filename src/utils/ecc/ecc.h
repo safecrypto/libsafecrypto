@@ -17,6 +17,12 @@
 #define MAX_ECC_BYTES     ((MAX_ECC_BITS + 7) >> 3)
 
 
+typedef struct ecc_point {
+	sc_mpz_t x;
+	sc_mpz_t y;
+	size_t   n;
+} ecc_point_t;
+
 typedef struct _ecdh_set_t {
 	size_t      num_bits;
 	size_t      num_bytes;
@@ -26,15 +32,15 @@ typedef struct _ecdh_set_t {
 	const char *g_x;
 	const char *g_y;
 	const char *p;
+	const char *order;
 } ecdh_set_t;
 
 SC_STRUCT_PACK_START
 typedef struct _ecdh_cfg_t {
     const ecdh_set_t *params;
+	ecc_point_t       base;
 } SC_STRUCT_PACKED ecdh_cfg_t;
 SC_STRUCT_PACK_END
-
-typedef struct ecc_point ecc_point_t;
 
 
 extern const ecdh_set_t param_ecdh_secp256r1;

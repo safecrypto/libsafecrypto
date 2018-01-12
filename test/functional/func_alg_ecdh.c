@@ -150,22 +150,22 @@ int main(void)
             SC_TIMER_STOP(init_timer);
 
             // Generate Alice's shared secret
-            SC_TIMER_START(init_timer);
+            SC_TIMER_START(final_timer);
             msglen = FIXED_BUFFER_SIZE;
             if (SC_FUNC_SUCCESS != safecrypto_diffie_hellman_final(sc_a, msglen_b, msg_b, &reslen_a, &res_a)) {
                 fprintf(stderr, "ERROR! safecrypto_diffie_hellman_final() failed\n");
                 goto error_return;
             }
-            SC_TIMER_STOP(init_timer);
+            SC_TIMER_STOP(final_timer);
 
             // Generate Bob's shared secret
-            SC_TIMER_START(init_timer);
+            SC_TIMER_START(final_timer);
             msglen = FIXED_BUFFER_SIZE;
             if (SC_FUNC_SUCCESS != safecrypto_diffie_hellman_final(sc_b, msglen, msg, &reslen_b, &res_b)) {
                 fprintf(stderr, "ERROR! safecrypto_diffie_hellman_final() failed\n");
                 goto error_return;
             }
-            SC_TIMER_STOP(init_timer);
+            SC_TIMER_STOP(final_timer);
 
             // Verify that Alice and Boc have the same shared secret
             if (reslen_a != reslen_b) {

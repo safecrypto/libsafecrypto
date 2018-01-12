@@ -388,6 +388,10 @@ void sc_mpz_divquo(sc_mpz_t *q, const sc_mpz_t *n, const sc_mpz_t *d)
     mpz_fdiv_q(q, n, d);
 }
 
+void sc_mpz_divquo_2exp(sc_mpz_t *q, const sc_mpz_t *n, size_t exp)
+{
+}
+
 void sc_mpz_sqrt(sc_mpz_t *out, const sc_mpz_t *in)
 {
     mpz_sqrt(out, in);
@@ -401,6 +405,42 @@ void sc_mpz_pow_ui(sc_mpz_t *out, const sc_mpz_t *in, sc_ulimb_t exp)
     }
 
     mpz_pow_ui(out, in, exp);
+}
+
+void sc_mpz_trunc_limbs(sc_mpz_t *out, const sc_mpz_t *in, size_t n)
+{
+}
+
+void sc_mpz_mod_barrett(sc_mpz_t *out, const sc_mpz_t *in, const sc_mpz_t *m, size_t k, const sc_mpz_t *mu)
+{
+    // q1 = floor(in / b^(k-1))    i.e. right shift (k-1) words
+    // q2 = q1 * mu
+    // q3 = floor(q2 / b^(k+1))    i.e. right shift (k+1) words, or truncate the (k+1) least significant words of q2
+    // r1 = in mod b^(k+1)          i.e. mask of the least significant (k+1) words
+    // r2 = (q3 * m) mod b^(k+1)   i.e. mask of the least significant (k+1) words
+    // r  = r1 - r2
+    // if (r < 0)
+    //   r += b^(k-1)
+    // while (r >= m)
+    //   r -= m
+
+    sc_mpz_t temp, q1_q3;
+    mpz_init2(&temp, SC_LIMB_BITS*2*k);
+    mpz_init2(&q1_q3, SC_LIMB_BITS*k);
+
+    sc_mpz_divquo_2exp(&q1_q3, in, SC_LIMB_BITS*(k-1));
+    mpz_mul(&temp, &q1_q3, mu);
+    sc_mpz_divquo_2exp(&q1_q3, &temp, SC_LIMB_BITS*(k+1));
+    mpz_mul(&temp, &q1_q3, m);
+    sc_mpz_trunc_limbs(&q1_q3, in, k+1);     // r1
+    sc_mpz_trunc_limbs(&temp, &temp, k+1);   // r2
+    mpz_sub(&temp, &q1_q3, &temp);           // r = r1 - r2
+    while (sc_mpz_cmp(&temp, m) >= 0) {
+        mpz_sub(&temp, &temp, m);
+    }
+
+    mpz_clear(&temp);
+    mpz_clear(&q1_q3);
 }
 
 void sc_mpz_mod(sc_mpz_t *out, const sc_mpz_t *in, const sc_mpz_t *m)
