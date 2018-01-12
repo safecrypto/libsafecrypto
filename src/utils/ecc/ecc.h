@@ -22,6 +22,7 @@ typedef struct _ecdh_set_t {
 	size_t      num_bytes;
 	size_t      num_limbs;
 	const char *a;
+	const char *b;
 	const char *g_x;
 	const char *g_y;
 	const char *p;

@@ -41,7 +41,8 @@ const ecdh_set_t param_ecdh_secp256r1 = {
 	256,
 	32,
 	256 >> SC_LIMB_BITS_SHIFT,
-	"-3", // "FFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFC",
+	"-3",//"FFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFC",
+	"5AC635D8AA3A93E7B3EBBD55769886BC651D06B0CC53B0F63BCE3C3E27D2604B",
 	"6B17D1F2E12C4247F8BCE6E563A440F277037D812DEB33A0F4A13945D898C296",
 	"4FE342E2FE1A7F9B8EE7EB4A7C0F9E162BCE33576B315ECECBB6406837BF51F5",
 	"FFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFF",
@@ -52,9 +53,10 @@ const ecdh_set_t param_ecdh_secp384r1 = {
 	48,
 	384 >> SC_LIMB_BITS_SHIFT,
 	"-3", // "FFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFC",
+	"B3312FA7E23EE7E4988E056BE3F82D19181D9C6EFE8141120314088F5013875AC656398D8A2ED19D2A85C8EDD3EC2AEF"
 	"AA87CA22BE8B05378EB1C71EF320AD746E1D3B628BA79B9859F741E082542A385502F25DBF55296C3A545E3872760AB7",
 	"3617DE4A96262C6F5D9E98BF9292DC29F8F41DBD289A147CE9DA3113B5F0B8C00A60B1CE1D7E819D7A431D7C90EA0E5F",
-	"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0000000000000000FFFFFFFF",
+	"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFFFF0000000000000000FFFFFFFF",
 };
 
 const ecdh_set_t param_ecdh_secp521r1 = {
@@ -62,6 +64,7 @@ const ecdh_set_t param_ecdh_secp521r1 = {
 	66,
 	(521 + SC_LIMB_BITS - 1) >> SC_LIMB_BITS_SHIFT,
 	"-3", // "01FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFC",
+	"0051953EB9618E1C9A1F929A21A0B68540EEA2DA725B99B315F3B8B489918EF109E156193951EC7E937B1652C0BD3BB1BF073573DF883D2C34F1EF451FD46B503F00",
 	"00C6858E06B70404E9CD9E3ECB662395B4429C648139053FB521F828AF606B4D3DBAA14B5E77EFE75928FE1DC127A2FFA8DE3348B3C1856A429BF97E7E31C2E5BD66",
 	"011839296A789A3BC0045C8A5FB42C7D1BD998F54449579B446817AFBD17273E662C97EE72995EF42640C550B9013FAD0761353C7086A272C24088BE94769FD16650",
 	"01FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",
@@ -143,36 +146,37 @@ static SINT32 point_is_zero(const ecc_point_t *p)
 	return sc_mpz_is_zero(&p->x) && sc_mpz_is_zero(&p->y);
 }
 
-static void point_cartesian(const sc_mpz_t *m, const sc_mpz_t *lambda, ecc_point_t *p_a, const ecc_point_t *p_b)
+static void point_double_extra(const sc_mpz_t *m, const sc_mpz_t *a, const sc_mpz_t *lambda, ecc_point_t *p_p)
 {
 	sc_mpz_t x, y, temp;
 	sc_mpz_init2(&x, MAX_ECC_BITS);
 	sc_mpz_init2(&y, MAX_ECC_BITS);
 	sc_mpz_init2(&temp, 2*MAX_ECC_BITS);
 
-	// xr = lambda^2 - xa - xb
+	// xr = lambda^2 - 2*xp
 	sc_mpz_mul(&temp, lambda, lambda);
 	sc_mpz_mod(&x, &temp, m);
-    sc_mpz_sub(&x, &x, &p_a->x);
-    sc_mpz_sub(&x, &x, &p_b->x);
-    sc_mpz_mod(&x, &x, m);
+	sc_mpz_sub(&temp, &x, &p_p->x);
+    sc_mpz_sub(&temp, &temp, &p_p->x);
+    sc_mpz_mod(&x, &temp, m);
 
-	// yr = lambda*(xa - xr) - ya
-    sc_mpz_sub(&y, &p_a->x, &x);
+	// yr = lambda*(xp - xr) - yp
+    sc_mpz_sub(&y, &x, &p_p->x);
     sc_mpz_mod(&y, &y, m);
 	sc_mpz_mul(&temp, lambda, &y);
-	sc_mpz_mod(&temp, &temp, m);
-    sc_mpz_sub(&y, &y, &p_a->y);
-    sc_mpz_mod(&p_a->y, &y, m);
+	sc_mpz_mod(&y, &temp, m);
+    sc_mpz_add(&y, &y, &p_p->y);
+    sc_mpz_negate(&y, &y);
+    sc_mpz_mod(&p_p->y, &y, m);
 
-    sc_mpz_mod(&p_a->x, &x, m);
+    sc_mpz_copy(&p_p->x, &x);
 
 	sc_mpz_clear(&x);
 	sc_mpz_clear(&y);
 	sc_mpz_clear(&temp);
 }
 
-static void point_double_cartesian(const sc_mpz_t *m, const sc_mpz_t *a, ecc_point_t *point)
+static void point_double_affine(const sc_mpz_t *m, const sc_mpz_t *a, ecc_point_t *point)
 {
 	sc_mpz_t lambda, temp, x, y;
 	sc_mpz_init2(&lambda, MAX_ECC_BITS);
@@ -183,8 +187,9 @@ static void point_double_cartesian(const sc_mpz_t *m, const sc_mpz_t *a, ecc_poi
 	// lambda = (3*x^2 + a)/(2*y)
 	sc_mpz_mul(&temp, &point->x, &point->x);
 	sc_mpz_mod(&lambda, &temp, m);
-	sc_mpz_sub(&lambda, &lambda, a);
 	sc_mpz_mul_ui(&temp, &lambda, 3);
+	sc_mpz_mod(&lambda, &temp, m);
+	sc_mpz_add(&temp, &lambda, a);
 	sc_mpz_mod(&lambda, &temp, m);
 	sc_mpz_add(&temp, &point->y, &point->y);
 	sc_mpz_mod(&x, &temp, m);
@@ -193,7 +198,7 @@ static void point_double_cartesian(const sc_mpz_t *m, const sc_mpz_t *a, ecc_poi
 	sc_mpz_mod(&lambda, &temp, m);
 
     // Given lambda, calculate the resulting point p
-	point_cartesian(m, &lambda, point, point);
+	point_double_extra(m, a, &lambda, point);
 
 	sc_mpz_clear(&lambda);
 	sc_mpz_clear(&x);
@@ -201,7 +206,35 @@ static void point_double_cartesian(const sc_mpz_t *m, const sc_mpz_t *a, ecc_poi
 	sc_mpz_clear(&temp);
 }
 
-static void point_add_cartesian(const sc_mpz_t *m, ecc_point_t *p_a, const ecc_point_t *p_b)
+static void point_add_extra(const sc_mpz_t *m, const sc_mpz_t *a, const sc_mpz_t *lambda, ecc_point_t *p_p, const ecc_point_t *p_q)
+{
+	sc_mpz_t x, y, temp;
+	sc_mpz_init2(&x, MAX_ECC_BITS);
+	sc_mpz_init2(&y, MAX_ECC_BITS);
+	sc_mpz_init2(&temp, 2*MAX_ECC_BITS);
+
+	// xr = lambda^2 - xp - xq
+	sc_mpz_mul(&temp, lambda, lambda);
+	sc_mpz_mod(&x, &temp, m);
+    sc_mpz_sub(&x, &x, &p_p->x);
+    sc_mpz_sub(&x, &x, &p_q->x);
+    sc_mpz_mod(&p_p->x, &x, m);
+
+	// yr = lambda*(xp - xq) - a
+    sc_mpz_sub(&y, &p_p->x, &p_q->x);
+    sc_mpz_mod(&y, &y, m);
+	sc_mpz_mul(&temp, lambda, &y);
+	sc_mpz_mod(&y, &temp, m);
+    sc_mpz_add(&y, &y, &p_q->y);
+    sc_mpz_negate(&y, &y);
+    sc_mpz_mod(&p_p->y, &y, m);
+
+	sc_mpz_clear(&x);
+	sc_mpz_clear(&y);
+	sc_mpz_clear(&temp);
+}
+
+static void point_add_affine(const sc_mpz_t *m, const sc_mpz_t *a, ecc_point_t *p_a, const ecc_point_t *p_b)
 {
 	sc_mpz_t lambda, temp, x, y;
 	sc_mpz_init2(&lambda, MAX_ECC_BITS);
@@ -219,7 +252,7 @@ static void point_add_cartesian(const sc_mpz_t *m, ecc_point_t *p_a, const ecc_p
 	sc_mpz_mod(&lambda, &temp, m);
 
     // Given lambda, calculate the resulting point p
-	point_cartesian(m, &lambda, p_a, p_b);
+	point_add_extra(m, a, &lambda, p_a, p_b);
 
 	sc_mpz_clear(&lambda);
 	sc_mpz_clear(&x);
@@ -234,12 +267,12 @@ static void point_double(const sc_mpz_t *m, const sc_mpz_t *a, ecc_point_t *poin
 		return;
 	}
 
-	point_double_cartesian(m, a, point);
+	point_double_affine(m, a, point);
 }
 
-static void point_add(const sc_mpz_t *m, ecc_point_t *p_a, const ecc_point_t *p_b)
+static void point_add(const sc_mpz_t *m, const sc_mpz_t *a, ecc_point_t *p_a, const ecc_point_t *p_b)
 {
-	point_add_cartesian(m, p_a, p_b);
+	point_add_affine(m, a, p_a, p_b);
 }
 
 
@@ -255,11 +288,11 @@ static void scalar_point_mult(size_t num_bits, const sc_mpz_t *a, const sc_mpz_t
 	point_reset(p_out);
 	point_copy(p_out, p_in);
 
-	fprintf(stderr, "in   x: "); sc_mpz_out_str(stderr, 16, &p_in->x); fprintf(stderr, "\n");
+	/*fprintf(stderr, "in   x: "); sc_mpz_out_str(stderr, 16, &p_in->x); fprintf(stderr, "\n");
 	fprintf(stderr, "     y: "); sc_mpz_out_str(stderr, 16, &p_in->y); fprintf(stderr, "\n");
 	fprintf(stderr, "out  x: "); sc_mpz_out_str(stderr, 16, &p_out->x); fprintf(stderr, "\n");
 	fprintf(stderr, "     y: "); sc_mpz_out_str(stderr, 16, &p_out->y); fprintf(stderr, "\n");
-	fprintf(stderr, "secret: %016llX %016llX %016llX %016llX\n", secret[3], secret[2], secret[1], secret[0]);
+	fprintf(stderr, "secret: %016llX %016llX %016llX %016llX\n", secret[3], secret[2], secret[1], secret[0]);*/
 
 	num_bits = secret_bits_init(&bit_ctx, secret, num_bits);
 
@@ -271,7 +304,7 @@ static void scalar_point_mult(size_t num_bits, const sc_mpz_t *a, const sc_mpz_t
 
 		// Determine if an asserted bit requires a point addition (or a dummy point addition as an SCA countermeasure)
 		bit = secret_bits_pull(&bit_ctx);
-		fprintf(stderr, "index = %zu, bit = %d\n", i, bit);
+		//fprintf(stderr, "index = %zu, bit = %d\n", i, bit);
 		if (ECC_K_IS_LOW != bit) {
 			// Create a mask of all zeros if ECC_K_IS_HIGH or all ones if an ECC_K_IS_SCA_DUMMY operation
 			intptr_t temp   = (intptr_t) (bit << (SC_LIMB_BITS - 1));
@@ -279,17 +312,17 @@ static void scalar_point_mult(size_t num_bits, const sc_mpz_t *a, const sc_mpz_t
 
 			// Branch-free pointer selection in constant time
 			intptr_t p_temp = (intptr_t) p_out ^ (((intptr_t) p_out ^ (intptr_t) &p_dummy) & mask);
-			fprintf(stderr, "%zu %zu %zu\n", p_temp, (intptr_t) p_out, (intptr_t) &p_dummy);
+			//fprintf(stderr, "%zu %zu %zu\n", p_temp, (intptr_t) p_out, (intptr_t) &p_dummy);
 
 			// Point addition
-			point_add(m, (ecc_point_t *) p_temp, p_in);
+			point_add(m, a, (ecc_point_t *) p_temp, p_in);
 		}
 	}
 
 	point_clear(&p_dummy);
 
-	fprintf(stderr, "result x: "); sc_mpz_out_str(stderr, 16, &p_out->x); fprintf(stderr, "\n");
-	fprintf(stderr, "       y: "); sc_mpz_out_str(stderr, 16, &p_out->y); fprintf(stderr, "\n");
+	//fprintf(stderr, "result x: "); sc_mpz_out_str(stderr, 16, &p_out->x); fprintf(stderr, "\n");
+	//fprintf(stderr, "       y: "); sc_mpz_out_str(stderr, 16, &p_out->y); fprintf(stderr, "\n");
 }
 
 SINT32 ecc_diffie_hellman(safecrypto_t *sc, const ecc_point_t *p_base, const sc_ulimb_t *secret, size_t *tlen, UINT8 **to)
@@ -356,10 +389,10 @@ SINT32 ecc_diffie_hellman_encapsulate(safecrypto_t *sc, const sc_ulimb_t *secret
 	sc_mpz_clear(&p_base.x);
 	sc_mpz_clear(&p_base.y);
 
-	for (size_t i=0; i<*tlen; i++) {
+	/*for (size_t i=0; i<*tlen; i++) {
 		fprintf(stderr, "%02X ", (*to)[i]);
 	}
-	fprintf(stderr, "\n");
+	fprintf(stderr, "\n");*/
 
 	return SC_FUNC_SUCCESS;
 }
@@ -504,7 +537,7 @@ SINT32 ecc_verify(safecrypto_t *sc, const UINT8 *m, size_t mlen,
 	secret = sc_mpz_get_limbs(&temp);
 	scalar_point_mult(num_bits, sc->ecdh->params->a, &p, &p_public, secret, &p_u2);
 
-	point_add(&p, &p_u1, &p_u2);
+	point_add(&p, &p/*a*/, &p_u1, &p_u2);
 
 	sc_mpz_clear(&a);
 	sc_mpz_clear(&p);

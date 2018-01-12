@@ -53,13 +53,13 @@ void show_progress(int32_t count, int32_t max)
     fflush(stdout);
 }
 
-SINT32 compare_messages(UINT8 *a, UINT8 *b, size_t length)
+SINT32 compare_secrets(UINT8 *a, UINT8 *b, size_t length)
 {
     size_t i;
 
     for (i=0; i<length; i++) {
         if (a[i] != b[i]) {
-            fprintf(stderr, "ERROR! Messages do NOT match at index %d: %08X vs %08X\n",
+            fprintf(stderr, "ERROR! Secrets do NOT match at index %d: %08X vs %08X\n",
                 (SINT32)i, a[i], b[i]);
             return EXIT_FAILURE;
         }
@@ -166,6 +166,15 @@ int main(void)
                 goto error_return;
             }
             SC_TIMER_STOP(init_timer);
+
+            // Verify that Alice and Boc have the same shared secret
+            if (reslen_a != reslen_b) {
+                fprintf(stderr, "ERROR! ECDH secret's are not of same length\n");
+                goto error_return;
+            }
+            if (SC_FUNC_SUCCESS != compare_secrets(res_a, res_b, reslen_a)) {
+                goto error_return;
+            }
 
 #if USE_FIXED_BUFFERS
 #else
