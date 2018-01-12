@@ -40,7 +40,7 @@
 
 /// A struct used to store BLISS parameters
 SC_STRUCT_PACK_START
-typedef struct bliss_set_t {
+typedef struct _bliss_set_t {
     const UINT16      set;
     const UINT16      q;
     const UINT16      q_bits;

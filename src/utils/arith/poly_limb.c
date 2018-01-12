@@ -215,6 +215,15 @@ SINT32 poly_limb_degree(const sc_ulimb_t *h, size_t n)
     return deg;
 }
 
+SINT32 poly_limb_is_zero(const sc_ulimb_t *h, size_t n)
+{
+    SINT32 degree = poly_limb_degree(h, n);
+    if (0 == degree && 0 == h[0]) {
+        return 0;
+    }
+    return 1;
+}
+
 void poly_limb_reset(sc_ulimb_t *inout, size_t n)
 {
     size_t i;

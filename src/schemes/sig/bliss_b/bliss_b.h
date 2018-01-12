@@ -38,7 +38,7 @@
 #define BLISS_ENABLE_NTT_TRANSMISSION
 #endif
 
-typedef struct bliss_set_t bliss_set_t;
+typedef struct _bliss_set_t bliss_set_t;
 
 SC_STRUCT_PACK_START
 typedef struct bliss_cfg_t {
