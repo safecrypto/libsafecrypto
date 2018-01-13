@@ -1714,7 +1714,7 @@ typedef struct mpz_base_coding {
     size_t log2_base;
 } mpz_base_coding_t;
 
-static const base_coding[] = {
+static const mpz_base_coding_t base_coding[] = {
 #if (64 == SC_LIMB_BITS)
     {64, 0x1},
     {21, 0x3},
