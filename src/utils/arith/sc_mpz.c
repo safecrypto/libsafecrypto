@@ -390,6 +390,7 @@ void sc_mpz_divquo(sc_mpz_t *q, const sc_mpz_t *n, const sc_mpz_t *d)
 
 void sc_mpz_divquo_2exp(sc_mpz_t *q, const sc_mpz_t *n, size_t exp)
 {
+    mpz_fdiv_q_2exp(q, n, exp);
 }
 
 void sc_mpz_sqrt(sc_mpz_t *out, const sc_mpz_t *in)
@@ -407,10 +408,6 @@ void sc_mpz_pow_ui(sc_mpz_t *out, const sc_mpz_t *in, sc_ulimb_t exp)
     mpz_pow_ui(out, in, exp);
 }
 
-void sc_mpz_trunc_limbs(sc_mpz_t *out, const sc_mpz_t *in, size_t n)
-{
-}
-
 void sc_mpz_mod_barrett(sc_mpz_t *out, const sc_mpz_t *in, const sc_mpz_t *m, size_t k, const sc_mpz_t *mu)
 {
     // q1 = floor(in / b^(k-1))    i.e. right shift (k-1) words
@@ -420,23 +417,33 @@ void sc_mpz_mod_barrett(sc_mpz_t *out, const sc_mpz_t *in, const sc_mpz_t *m, si
     // r2 = (q3 * m) mod b^(k+1)   i.e. mask of the least significant (k+1) words
     // r  = r1 - r2
     // if (r < 0)
-    //   r += b^(k-1)
+    //   r += b^(k+1)
     // while (r >= m)
     //   r -= m
 
     sc_mpz_t temp, q1_q3;
-    mpz_init2(&temp, SC_LIMB_BITS*2*k);
-    mpz_init2(&q1_q3, SC_LIMB_BITS*k);
+    mpz_init2(&temp, SC_LIMB_BITS*2*(k+1));
+    mpz_init2(&q1_q3, SC_LIMB_BITS*(k+1));
 
     sc_mpz_divquo_2exp(&q1_q3, in, SC_LIMB_BITS*(k-1));
     mpz_mul(&temp, &q1_q3, mu);
     sc_mpz_divquo_2exp(&q1_q3, &temp, SC_LIMB_BITS*(k+1));
     mpz_mul(&temp, &q1_q3, m);
-    sc_mpz_trunc_limbs(&q1_q3, in, k+1);     // r1
-    sc_mpz_trunc_limbs(&temp, &temp, k+1);   // r2
-    mpz_sub(&temp, &q1_q3, &temp);           // r = r1 - r2
-    while (sc_mpz_cmp(&temp, m) >= 0) {
-        mpz_sub(&temp, &temp, m);
+    sc_mpz_copy(&q1_q3, in);
+    if (sc_mpz_get_size(&q1_q3) > (k+1)) {
+        sc_mpz_set_size(&q1_q3, k+1);            // r1
+    }
+    if (sc_mpz_get_size(&temp) > (k+1)) {
+        sc_mpz_set_size(&temp, k+1);             // r2
+    }
+    mpz_sub(out, &q1_q3, &temp);           // r = r1 - r2
+    /*if (sc_mpz_is_neg(out)) {
+        sc_mpz_set_ui(&temp, 2);
+        sc_mpz_pow_ui(&temp, &temp, SC_LIMB_BITS*(k+1));
+        sc_mpz_add(out, out, &temp);
+    }*/
+    while (sc_mpz_cmp(out, m) >= 0) {
+        mpz_sub(out, out, m);
     }
 
     mpz_clear(&temp);

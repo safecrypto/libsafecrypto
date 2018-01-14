@@ -1374,6 +1374,11 @@ sc_ulimb_t mpz_tdiv_q_2exp(sc_mpz_t *q, const sc_mpz_t *n, sc_ulimb_t b)
     mpz_div_q_2exp(q, n, b, SC_ROUND_TRUNC);   // TRUNC(n/(2^b))
 }
 
+sc_ulimb_t mpz_fdiv_q_2exp(sc_mpz_t *q, const sc_mpz_t *n, sc_ulimb_t b)
+{
+    mpz_div_q_2exp(q, n, b, SC_ROUND_FLOOR);   // FLOOR(n/(2^b))
+}
+
 sc_ulimb_t mpz_cdiv_ui(const sc_mpz_t *n, sc_ulimb_t d)
 {
     return mpz_div_qr_ui(NULL, NULL, n, d, SC_ROUND_CEIL);
@@ -1714,7 +1719,7 @@ typedef struct mpz_base_coding {
     size_t log2_base;
 } mpz_base_coding_t;
 
-static const base_coding[] = {
+static const mpz_base_coding_t base_coding[] = {
 #if (64 == SC_LIMB_BITS)
     {64, 0x1},
     {21, 0x3},

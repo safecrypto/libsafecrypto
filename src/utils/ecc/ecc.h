@@ -17,22 +17,45 @@
 #define MAX_ECC_BYTES     ((MAX_ECC_BITS + 7) >> 3)
 
 
+#define USE_OPT_ECC
+
+#ifdef USE_OPT_ECC
+typedef struct ecc_point {
+	sc_ulimb_t x[MAX_ECC_LIMBS];
+	sc_ulimb_t y[MAX_ECC_LIMBS];
+	size_t     n;
+	size_t     x_len;
+	size_t     y_len;
+} ecc_point_t;
+#else
 typedef struct ecc_point {
 	sc_mpz_t x;
 	sc_mpz_t y;
 	size_t   n;
 } ecc_point_t;
+#endif
 
 typedef struct _ecdh_set_t {
 	size_t      num_bits;
 	size_t      num_bytes;
 	size_t      num_limbs;
+#ifdef USE_OPT_ECC
+	const sc_ulimb_t a[MAX_ECC_LIMBS];
+	const sc_ulimb_t b[MAX_ECC_LIMBS];
+	const sc_ulimb_t g_x[MAX_ECC_LIMBS];
+	const sc_ulimb_t g_y[MAX_ECC_LIMBS];
+	const sc_ulimb_t p[MAX_ECC_LIMBS];
+	const sc_ulimb_t mu[MAX_ECC_LIMBS+1];
+	const sc_ulimb_t order[MAX_ECC_LIMBS];
+#else
 	const char *a;
 	const char *b;
 	const char *g_x;
 	const char *g_y;
 	const char *p;
+	const char *mu;
 	const char *order;
+#endif
 } ecdh_set_t;
 
 SC_STRUCT_PACK_START

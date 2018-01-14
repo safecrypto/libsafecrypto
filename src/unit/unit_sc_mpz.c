@@ -989,6 +989,65 @@ START_TEST(test_mpi_invert)
 }
 END_TEST
 
+START_TEST(test_mpz_mod)
+{
+    sc_mpz_t a, b, mod;
+    sc_mpz_init(&a);
+    sc_mpz_init(&b);
+    sc_mpz_init(&mod);
+
+    sc_mpz_set_ui(&a, 0);
+    sc_mpz_set_ui(&mod, 256);
+    sc_mpz_mod(&b, &a, &mod);
+    ck_assert_int_eq(sc_mpz_is_zero(&b), 1);
+
+    sc_mpz_set_ui(&a, 29);
+    sc_mpz_pow_ui(&a, &a, SC_LIMB_BITS);
+    sc_mpz_add_ui(&a, &a, 28);
+    sc_mpz_set_ui(&mod, 29);
+    sc_mpz_mod(&b, &a, &mod);
+    ck_assert_uint_eq(sc_mpz_get_ui(&b), 28);
+
+    sc_mpz_clear(&a);
+    sc_mpz_clear(&b);
+    sc_mpz_clear(&mod);
+}
+END_TEST
+
+START_TEST(test_mpz_mod_barrett)
+{
+    static const char m[] = "ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551";
+    static const char mu[] = "100000000fffffffffffffffeffffffff43190552df1a6c21012ffd85eedf9bfe";
+    sc_mpz_t a, b, mod, reducer;
+    sc_mpz_init(&a);
+    sc_mpz_init(&b);
+    sc_mpz_init(&mod);
+    sc_mpz_init(&reducer);
+    sc_mpz_set_str(&mod, 16, m);
+    sc_mpz_set_str(&reducer, 16, mu);
+
+    sc_mpz_set_ui(&a, 1);
+    sc_mpz_mod_barrett(&b, &a, &mod, 256 >> SC_LIMB_BITS_SHIFT, &reducer);
+    sc_mpz_mod_barrett(&a, &b, &mod, 256 >> SC_LIMB_BITS_SHIFT, &reducer);
+    ck_assert_int_eq(sc_mpz_is_one(&a), 1);
+
+    sc_mpz_set_ui(&a, 2);
+    sc_mpz_mod_barrett(&b, &a, &mod, 256 >> SC_LIMB_BITS_SHIFT, &reducer);
+    sc_mpz_mod_barrett(&a, &b, &mod, 256 >> SC_LIMB_BITS_SHIFT, &reducer);
+    ck_assert_int_eq(sc_mpz_get_ui(&a), 2);
+
+    sc_mpz_set_ui(&a, SC_LIMB_MASK);
+    sc_mpz_mod_barrett(&b, &a, &mod, 256 >> SC_LIMB_BITS_SHIFT, &reducer);
+    sc_mpz_mod_barrett(&a, &b, &mod, 256 >> SC_LIMB_BITS_SHIFT, &reducer);
+    ck_assert_int_eq(sc_mpz_get_ui(&a), SC_LIMB_MASK);
+
+    sc_mpz_clear(&a);
+    sc_mpz_clear(&b);
+    sc_mpz_clear(&mod);
+    sc_mpz_clear(&reducer);
+}
+END_TEST
+
 START_TEST(test_mpz_set_str)
 {
     SINT32 result;
@@ -1040,7 +1099,7 @@ START_TEST(test_mpz_set_str)
 
     // DON'T clear and initialise
 
-    sc_mpz_set_str(&a, 10, "18446744073709551617"); // 2^64 + 1
+    sc_mpz_set_str(&a, 16, "10000000000000001"); // 2^64 + 1
     limbs = sc_mpz_get_limbs(&a);
     ck_assert_ptr_ne(limbs, NULL);
 #if 64 == SC_LIMB_BITS
@@ -1162,6 +1221,8 @@ Suite *mpi_suite(void)
     tcase_add_test(tc_core, test_mpi_cmpabs_d);
     tcase_add_test(tc_core, test_mpi_cmpabs_ui);
     tcase_add_test(tc_core, test_mpi_invert);
+    tcase_add_test(tc_core, test_mpz_mod);
+    tcase_add_test(tc_core, test_mpz_mod_barrett);
     tcase_add_test(tc_core, test_mpz_set_str);
     tcase_add_test(tc_core, test_mpz_set_limbs);
     tcase_add_test(tc_core, test_mpz_set_bytes);

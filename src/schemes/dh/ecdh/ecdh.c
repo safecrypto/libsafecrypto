@@ -21,6 +21,7 @@
 #include "safecrypto_debug.h"
 #include "safecrypto_error.h"
 #include "utils/arith/sc_mpz.h"
+#include "utils/arith/sc_mpn.h"
 
 
 SINT32 ecdh_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
@@ -52,19 +53,26 @@ SINT32 ecdh_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
     {
         case 0:  sc->ecdh->params = &param_ecdh_secp256r1;
                  break;
+#ifndef USE_OPT_ECC
         case 1:  sc->ecdh->params = &param_ecdh_secp384r1;
                  break;
         case 2:  sc->ecdh->params = &param_ecdh_secp521r1;
                  break;
+#endif
         default: SC_FREE(sc->ecdh, sizeof(ecdh_cfg_t));
                  return SC_FUNC_FAILURE;
     }
 
     sc->ecdh->base.n = sc->ecdh->params->num_limbs;
+#ifdef USE_OPT_ECC
+    mpn_copy(sc->ecdh->base.x, sc->ecdh->params->g_x, sc->ecdh->base.n);
+    mpn_copy(sc->ecdh->base.y, sc->ecdh->params->g_y, sc->ecdh->base.n);
+#else
     sc_mpz_init2(&sc->ecdh->base.x, MAX_ECC_BITS);
     sc_mpz_init2(&sc->ecdh->base.y, MAX_ECC_BITS);
     sc_mpz_set_str(&sc->ecdh->base.x, 16, sc->ecdh->params->g_x);
     sc_mpz_set_str(&sc->ecdh->base.y, 16, sc->ecdh->params->g_y);
+#endif
 
     SC_PRINT_DEBUG(sc, "ECDH algorithm - created");
 
@@ -73,8 +81,10 @@ SINT32 ecdh_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
 
 SINT32 ecdh_destroy(safecrypto_t *sc)
 {
+#ifndef USE_OPT_ECC
     sc_mpz_clear(&sc->ecdh->base.x);
     sc_mpz_clear(&sc->ecdh->base.y);
+#endif
 
     if (sc->ecdh) {
         SC_FREE(sc->ecdh, sizeof(ecdh_cfg_t));

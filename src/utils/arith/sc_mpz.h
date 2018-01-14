@@ -120,9 +120,6 @@ void sc_mpz_sqrt(sc_mpz_t *out, const sc_mpz_t *in);
 /// Compute 'in' to the power of the unsigned limb exp
 void sc_mpz_pow_ui(sc_mpz_t *out, const sc_mpz_t *in, sc_ulimb_t exp);
 
-/// Truncate the 
-void sc_mpz_trunc_limbs(sc_mpz_t *out, const sc_mpz_t *in, size_t n);
-
 /// Compute 'in' modulo m using Barrett Reduction
 void sc_mpz_mod_barrett(sc_mpz_t *out, const sc_mpz_t *in, const sc_mpz_t *m,
 	size_t k, const sc_mpz_t *mu);
