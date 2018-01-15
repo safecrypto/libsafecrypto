@@ -17,7 +17,7 @@
 #define MAX_ECC_BYTES     ((MAX_ECC_BITS + 7) >> 3)
 
 
-#define USE_OPT_ECC
+//#define USE_OPT_ECC
 
 #ifdef USE_OPT_ECC
 typedef struct ecc_point {
@@ -45,8 +45,9 @@ typedef struct _ecdh_set_t {
 	const sc_ulimb_t g_x[MAX_ECC_LIMBS];
 	const sc_ulimb_t g_y[MAX_ECC_LIMBS];
 	const sc_ulimb_t p[MAX_ECC_LIMBS];
-	const sc_ulimb_t mu[MAX_ECC_LIMBS+1];
+	const sc_ulimb_t p_mu[MAX_ECC_LIMBS];
 	const sc_ulimb_t order[MAX_ECC_LIMBS];
+	const sc_ulimb_t mu[MAX_ECC_LIMBS+1];
 #else
 	const char *a;
 	const char *b;

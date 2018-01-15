@@ -118,7 +118,7 @@ SINT32 ecdh_diffie_hellman_init(safecrypto_t *sc, size_t *tlen, UINT8 **to)
 
     // Generate a random secret and store it as the private key
     secret = (sc_ulimb_t*) sc->privkey->key;
-#if 1
+#if 0
     for (size_t i=0; i<num_limbs; i++) {
         secret[i] = 0;
     }

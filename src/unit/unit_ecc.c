@@ -33,7 +33,7 @@ START_TEST(test_ecc_zero_double)
     sc_mpz_set_str(&metadata.m, 16, param_ecdh_secp256r1.p);
 #endif
 
-    point_init(&p_base);
+    point_init(&p_base, 4);
 
     point_double(&metadata, &p_base);
     ck_assert_int_eq(1, point_is_zero(&p_base));
@@ -80,11 +80,11 @@ START_TEST(test_ecc_mul_basic)
     sc_mpz_set_str(&metadata.m, 16, param_ecdh_secp256r1.p);
 #endif
 
-    point_init(&point);
-    point_init(&p_base);
+    point_init(&point, 4);
+    point_init(&p_base, 4);
 #ifdef USE_OPT_ECC
-    mpn_copy(p_base.x, tv_m_1_x, 16);
-    mpn_copy(p_base.y, tv_m_2_y, 16);
+    mpn_copy(p_base.x, tv_m_1_x, 4);
+    mpn_copy(p_base.y, tv_m_2_y, 4);
 #else
     sc_mpz_set_str(&p_base.x, 16, tv_m_1_x);
     sc_mpz_set_str(&p_base.y, 16, tv_m_1_y);
@@ -134,7 +134,13 @@ START_TEST(test_ecc_double_basic)
     ecc_point_t p_a;
     ecc_metadata_t metadata;
     metadata.k = 4;
-#ifndef USE_OPT_ECC
+#ifdef USE_OPT_ECC
+    metadata.n = 4;
+    metadata.a = param_ecdh_secp256r1.a;
+    metadata.m = param_ecdh_secp256r1.p;
+    metadata.mu = param_ecdh_secp256r1.p_mu;
+    metadata.order = param_ecdh_secp256r1.order;
+#else
     sc_mpz_init2(&metadata.a, MAX_ECC_BITS);
     sc_mpz_init2(&metadata.m, MAX_ECC_BITS);
     sc_mpz_init2(&metadata.mu, MAX_ECC_BITS+1);
@@ -150,10 +156,10 @@ START_TEST(test_ecc_double_basic)
 #endif
 
     // Set the point to the above test vector
-    point_init(&p_a);
+    point_init(&p_a, 4);
 #ifdef USE_OPT_ECC
-    mpn_copy(p_a.x, tv_m_1_x, 16);
-    mpn_copy(p_a.y, tv_m_2_y, 16);
+    mpn_copy(p_a.x, tv_m_1_x, 4);
+    mpn_copy(p_a.y, tv_m_1_y, 4);
 #else
     sc_mpz_set_str(&p_a.x, 16, tv_m_1_x);
     sc_mpz_set_str(&p_a.y, 16, tv_m_1_y);
@@ -218,6 +224,11 @@ START_TEST(test_ecc_add_basic)
     setbuf(stream, result);
 
 #ifdef USE_OPT_ECC
+    metadata.n = 4;
+    metadata.a = param_ecdh_secp256r1.a;
+    metadata.m = param_ecdh_secp256r1.p;
+    metadata.mu = param_ecdh_secp256r1.p_mu;
+    metadata.order = param_ecdh_secp256r1.order;
 #else
     // Set the curve parameters a and prime (modulus)
     sc_mpz_init2(&metadata.a, MAX_ECC_BITS);
@@ -231,13 +242,13 @@ START_TEST(test_ecc_add_basic)
 #endif
 
     // Set the two points to the above test vectors
-    point_init(&p_a);
-    point_init(&p_b);
+    point_init(&p_a, 4);
+    point_init(&p_b, 4);
 #ifdef USE_OPT_ECC
-    mpn_copy(p_a.x, tv_m_1_x, 16);
-    mpn_copy(p_a.y, tv_m_2_y, 16);
-    mpn_copy(p_b.x, tv_m_1_x, 16);
-    mpn_copy(p_b.y, tv_m_2_y, 16);
+    mpn_copy(p_a.x, tv_m_1_x, 4);
+    mpn_copy(p_a.y, tv_m_1_y, 4);
+    mpn_copy(p_b.x, tv_m_2_x, 4);
+    mpn_copy(p_b.y, tv_m_2_y, 4);
 #else
     sc_mpz_set_str(&p_a.x, 16, tv_m_1_x);
     sc_mpz_set_str(&p_a.y, 16, tv_m_1_y);

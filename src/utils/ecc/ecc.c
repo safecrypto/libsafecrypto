@@ -68,7 +68,7 @@ static UINT32 secret_bits_pull(point_secret_t *bit_ctx)
 	bit_ctx->shift = shift & SC_LIMB_BITS_MASK;
 
 	//fprintf(stderr, "bit = %d, max = %d, index = %d, shift = %d\n", bit, bit_ctx->max, bit_ctx->index, bit_ctx->shift);
-	bit += 2;
+	//bit += 2;
 
 	return code[bit];
 }
@@ -95,13 +95,25 @@ const ecdh_set_t param_ecdh_secp256r1 = {
 	256,
 	32,
 	256 >> SC_LIMB_BITS_SHIFT,
+#if 64 == SC_LIMB_BITS
+	{0xFFFFFFFFFFFFFFFC, 0x00000000FFFFFFFF, 0x0000000000000000, 0xFFFFFFFF00000001},
+	{0x3BCE3C3E27D2604B, 0x651D06B0CC53B0F6, 0xB3EBBD55769886BC, 0x5AC635D8AA3A93E7},
+	{0xF4A13945D898C296, 0x77037D812DEB33A0, 0xF8BCE6E563A440F2, 0x6B17D1F2E12C4247},
+	{0xCBB6406837BF51F5, 0x2BCE33576B315ECE, 0x8EE7EB4A7C0F9E16, 0x4FE342E2FE1A7F9B},
+	{0xFFFFFFFFFFFFFFFF, 0x00000000FFFFFFFF, 0x0000000000000000, 0xFFFFFFFF00000001},
+	{0x0000000000000001, 0xffffffff00000000, 0xffffffffffffffff, 0x00000000fffffffe},
+	{0xF3B9CAC2FC632551, 0xBCE6FAADA7179E84, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFF00000000},
+	{0x0000000000000001, 0xFFFFFFFEFFFFFFFF, 0xFFFFFFFEFFFFFFFE, 0x00000000FFFFFFFF, 0x00000003},
+#else
 	{0xFFFFFFFC, 0xFFFFFFFF, 0xFFFFFFFF, 0x00000000, 0x00000000, 0x00000000, 0x00000001, 0xFFFFFFFF},
 	{0x27D2604B, 0x3BCE3C3E, 0xCC53B0F6, 0x651D06B0, 0x769886BC, 0xB3EBBD55, 0xAA3A93E7, 0x5AC635D8},
 	{0xD898C296, 0xF4A13945, 0x2DEB33A0, 0x77037D81, 0x63A440F2, 0xF8BCE6E5, 0xE12C4247, 0x6B17D1F2},
 	{0x37BF51F5, 0xCBB64068, 0x6B315ECE, 0x2BCE3357, 0x7C0F9E16, 0x8EE7EB4A, 0xFE1A7F9B, 0x4FE342E2},
 	{0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0x00000000, 0x00000000, 0x00000000, 0x00000001, 0xFFFFFFFF},
-	{0x00000001, 0x00000000, 0xFFFFFFFF, 0xFFFFFFFE, 0xFFFFFFFE, 0xFFFFFFFE, 0xFFFFFFFF, 0x00000000, 0x00000003},
+	{0x00000001, 0x00000000, 0x00000000, 0xffffffff, 0xffffffff, 0xffffffff, 0xfffffffe, 0x00000000},
 	{0xFC632551, 0xF3B9CAC2, 0xA7179E84, 0xBCE6FAAD, 0xFFFFFFFF, 0xFFFFFFFF, 0x00000000, 0xFFFFFFFF},
+	{0x00000001, 0x00000000, 0xFFFFFFFF, 0xFFFFFFFE, 0xFFFFFFFE, 0xFFFFFFFE, 0xFFFFFFFF, 0x00000000, 0x00000003},
+#endif
 };
 
 
@@ -112,12 +124,13 @@ static void point_reset(ecc_point_t *p)
 		p->x[i] = 0;
 		p->y[i] = 0;
 	}
-	p->x_len = 0;
-	p->y_len = 0;
+	p->x_len = p->n;
+	p->y_len = p->n;
 }
 
-static void point_init(ecc_point_t *p)
+static void point_init(ecc_point_t *p, size_t n)
 {
+	p->n = n;
 	point_reset(p);
 }
 
@@ -128,10 +141,8 @@ static void point_clear(ecc_point_t *p)
 static void point_copy(ecc_point_t *p_out, const ecc_point_t *p_in)
 {
 	size_t i;
-	for (i=0; i<p_in->x_len; i++) {
+	for (i=0; i<p_in->n; i++) {
 		p_out->x[i] = p_in->x[i];
-	}
-	for (i=0; i<p_in->y_len; i++) {
 		p_out->y[i] = p_in->y[i];
 	}
 	p_out->n = p_in->n;
@@ -143,43 +154,246 @@ static SINT32 point_is_zero(const ecc_point_t *p)
 {
 	volatile SINT32 flag = 0;
 	size_t i;
-	for (i=0; i<p->x_len; i++) {
+	for (i=0; i<p->n; i++) {
 		flag |= p->x[i] | p->y[i];
 	}
 	return 0 == flag;
 }
 
+void ec_zero(sc_ulimb_t* inout, size_t n)
+{
+    while (n--) {
+        inout[n] = 0;
+    }
+}
+
+void ec_copy(sc_ulimb_t* out, const sc_ulimb_t* in, size_t n)
+{
+    while (n--) {
+        out[n] = in[n];
+    }
+}
+
+static sc_ulimb_t add(sc_ulimb_t *out, const sc_ulimb_t *x, const sc_ulimb_t *y, size_t n){
+	sc_ulimb_big_t d = 0; //carry
+	size_t v;
+	for (v=0; v<n; v++) {
+		d += (sc_ulimb_big_t) x[v] + (sc_ulimb_big_t) y[v];
+		out[v] = d;
+		d = d >> SC_LIMB_BITS; //save carry
+	}
+	
+	return (sc_ulimb_t) d;
+}
+
+static sc_ulimb_t sub(sc_ulimb_t *out, const sc_ulimb_t *x, const sc_ulimb_t *y, size_t n){
+	sc_ulimb_big_t d = 0;
+	size_t v;
+	for(v=0; v<n; v++){
+		d = (sc_ulimb_big_t) x[v] - (sc_ulimb_big_t) y[v] - d;
+		out[v] = d & SC_LIMB_MASK;
+		d = d >> SC_LIMB_BITS;
+		d &= 0x1;
+	}	
+	return (sc_ulimb_t) d;
+}
+
 static void ec_field_add(sc_ulimb_t *out, const sc_ulimb_t *in1, const sc_ulimb_t *in2, size_t n, const sc_ulimb_t *mu)
 {
-	if (mpn_add_n(out, in1, in2, n)) {
+	if (add(out, in1, in2, n)) {
 		sc_ulimb_t temp[MAX_ECC_LIMBS] = {0};
-		mpn_add_n(temp, out, mu, n);
-		mpn_copy(out, temp, n);
+		add(temp, out, mu, n);
+		ec_copy(out, temp, n);
 	}
 }
 
 static void ec_field_sub(sc_ulimb_t *out, const sc_ulimb_t *in1, const sc_ulimb_t *in2, size_t n, const sc_ulimb_t *mu)
 {
-	if (mpn_sub_n(out, in1, in2, n)) {
+	if (sub(out, in1, in2, n)) {
 		sc_ulimb_t temp[MAX_ECC_LIMBS] = {0};
-		mpn_add_n(temp, out, mu, n);
-		mpn_copy(out, temp, n);
+		add(temp, out, mu, n);
+		ec_copy(out, temp, n);
 	}
 }
 
+static SINT32 is_one(const sc_ulimb_t *in, size_t n)
+{
+	size_t i;
+	volatile sc_ulimb_t flag = 0;
+	for (i=1; i<n; i++) {
+		flag |= in[i];
+	}
+	flag ^= in[0] ^ 1;
+	return 0 == flag;
+}
+
+SINT32 ec_cmp(const sc_ulimb_t *in1, const sc_ulimb_t *in2, size_t n)
+{
+    while (n--) {
+        if (in1[n] != in2[n]) {
+            return (in1[n] > in2[n])? 1 : -1;
+        }
+    }
+    return 0;
+}
+
+static sc_ulimb_t ec_rshift(sc_ulimb_t *inout, size_t n)
+{
+    size_t i;
+	sc_ulimb_t c, old = 0;
+	for (i=2*n; i--;) {
+		c = inout[i] & 0x1;
+		inout[i] = (inout[i] >> 1) | (old << (SC_LIMB_BITS - 1));
+		old = c;
+	}
+}
+
+static void ec_field_add_div(sc_ulimb_t* out, const sc_ulimb_t *in, size_t n, const sc_ulimb_t *m, const sc_ulimb_t *mu){
+	sc_ulimb_t c = add(out, in, m, n);
+	ec_rshift(out, n);
+	if (c) { //add prime if carry is still set!
+#if 64 == SC_LIMB_BITS
+		out[3] |= SC_LIMB_HIGHBIT; // add the carry
+#else
+		out[7] |= SC_LIMB_HIGHBIT; // add the carry
+#endif
+		if (ec_cmp(out, m, n) > 0) {
+			sc_ulimb_t tempas[2*MAX_ECC_LIMBS] = {0};
+			add(tempas, out, mu, 2*n);
+			ec_copy(out, tempas, n);
+		}
+		
+	}
+}
+
+
 static void ec_field_inv(sc_ulimb_t *out, const sc_ulimb_t *in, size_t n, const sc_ulimb_t *m, const sc_ulimb_t *mu)
 {
+	sc_ulimb_t u[MAX_ECC_LIMBS] = {0}, v[MAX_ECC_LIMBS] = {0}, x1[MAX_ECC_LIMBS] = {0}, x2[MAX_ECC_LIMBS] = {0};
+	sc_ulimb_t tempm[MAX_ECC_LIMBS] = {0};
+	sc_ulimb_t tempm2[MAX_ECC_LIMBS] = {0};
+
+	sc_ulimb_t t;
+	ec_copy(u, in, n); 
+	ec_copy(v, m, n); 
+	x1[0] = 1; 
+	// While u !=1 and v !=1
+	while (0 == (is_one(u, 2*n) || is_one(v, 2*n))) {
+		while(!(u[0]&1)) { 					/* While u is even */
+			ec_rshift(u, n); 				/* divide by 2 */
+			if (!(x1[0]&1)) {				/*if x1 is even*/
+				ec_rshift(x1, n);				/* Divide by 2 */
+			}
+			else {
+				ec_field_add_div(tempm, x1, n, m, mu);	/* tempm = x1 + p */
+				ec_copy(x1, tempm, n);					/* x1 = tempm */
+			}
+		} 
+		while(!(v[0]&1)) {					/* While v is even */
+			ec_rshift(v, n);				/* divide by 2 */ 
+			if (!(x2[0]&1)) {				/*if x2 is even*/
+				ec_rshift(x2, n);	 			/* Divide by 2 */
+			}
+			else {
+				ec_field_add_div(tempm, x2, n, m, mu);	/* tempm = x2 + p */
+				ec_copy(x2, tempm, n); 				/* x2 = tempm */ 
+			}
+		}
+		t = sub(tempm, u, v, n); 			/* tempm=u-v */
+		if (0 == t) {							/* If u > 0 */
+			ec_copy(u, tempm, n); 					/* u=u-v */
+			ec_field_sub(tempm, x1, x2, n, m);		/* tempm=x1-x2 */
+			ec_copy(x1, tempm, n);					/* x1=x1-x2 */
+		}
+		else {
+			sub(tempm, v, u, n); 				/* tempm=v-u */
+			ec_copy(v, tempm, n); 					/* v=v-u */
+			ec_field_sub(tempm, x2, x1, n, m); 		/* tempm=x2-x1 */
+			ec_copy(x2, tempm, n);					/* x2=x2-x1 */
+		}
+	} 
+	if (is_one(u, n)) {
+		ec_copy(out, x1, n); 
+	}
+	else {
+		ec_copy(out, x2, n);
+	}
 }
 
 static void ec_field_mod(sc_ulimb_t *a, const sc_ulimb_t *b, size_t n, const sc_ulimb_t *m, const sc_ulimb_t *mu)
 {
-	sc_ulimb_t tempm[MAX_ECC_LIMBS] = {0};
-	sc_ulimb_t tempm2[MAX_ECC_LIMBS] = {0};
+}
+
+static void ec_field_mod_secp256r1(sc_ulimb_t *a, const sc_ulimb_t *b, size_t n, const sc_ulimb_t *m, const sc_ulimb_t *mu)
+{
 	size_t i;
+	sc_ulimb_t tempm[4] = {0};
+	sc_ulimb_t tempm2[4] = {0};
 
 	/* A = T */ 
-	mpn_copy(a, b, n);
+	ec_copy(a, b, 4);
 
+#if 64 == SC_LIMB_BITS
+	/* Form S1 */ 
+	tempm[0] = 0;
+	tempm[1] = b[5] & 0xFFFFFFFF00000000ULL;
+	tempm[2] = b[6];
+	tempm[3] = b[7];
+
+	/* tempm2=T+S1 */
+	ec_field_add(tempm2, a, tempm, 4, mu);
+	/* A=T+S1+S1 */ 
+	ec_field_add(a, tempm2, tempm, 4, mu);
+	/* Form S2 */
+	tempm[0] = 0;
+	tempm[1] = b[6] << 32;
+	tempm[2] = (b[6] >> 32) | (b[7] << 32);
+	tempm[3] = b[7] >> 32;
+	/* tempm2=T+S1+S1+S2 */ 
+	ec_field_add(tempm2, a, tempm, 4, mu);
+	/* A=T+S1+S1+S2+S2 */ 
+	ec_field_add(a, tempm2, tempm, 4, mu);
+	/* Form S3 */ 
+	tempm[0] = b[4];
+	tempm[1] = b[5] & 0xFFFFFFFF;
+	tempm[2] = 0;
+	tempm[3] = b[7];
+	/* tempm2=T+S1+S1+S2+S2+S3 */ 
+	ec_field_add(tempm2, a, tempm, 4, mu);
+	/* Form S4 */ 
+	tempm[0] = (b[5] << 32) | (b[4] >> 32);
+	tempm[1] = (b[6] & 0xFFFFFFFF00000000ULL) | (b[5] >> 32);;
+	tempm[2] = b[7];
+	tempm[3] = (b[6] >> 32) | (b[4] << 32);
+	/* A=T+S1+S1+S2+S2+S3+S4 */ 
+	ec_field_add(a, tempm2, tempm, 4, mu);
+	/* Form D1 */ 
+	tempm[0] = (b[6] << 32) | (b[5] >> 32);
+	tempm[1] = b[6] >> 32;
+	tempm[2] = 0;
+	tempm[3] = (b[5] << 32) | (b[4] & 0xFFFFFFFF);
+	/* tempm2=T+S1+S1+S2+S2+S3+S4-D1 */ 
+	ec_field_sub(tempm2, a, tempm, 4, m);
+	/* Form D2 */ 
+	tempm[0] = b[6];
+	tempm[1] = b[7];
+	tempm[2] = 0;
+	tempm[3] = (b[5] & 0xFFFFFFFF00000000ULL) | (b[4] >> 32);
+	/* A=T+S1+S1+S2+S2+S3+S4-D1-D2 */ 
+	ec_field_sub(a, tempm2, tempm, 4, m);
+	/* Form D3 */ 
+	tempm[0] = (b[7] << 32) | (b[6] >> 32);
+	tempm[1] = (b[7] >> 32) | (b[4] << 32);
+	tempm[2] = (b[5] << 32) | (b[4] >> 32);
+	tempm[3] = b[6] << 32;
+	/* tempm2=T+S1+S1+S2+S2+S3+S4-D1-D2-D3 */ 
+	ec_field_sub(tempm2, a, tempm, 4, m);
+	/* Form D4 */ 
+	tempm[0] = b[7];
+	tempm[1] = b[4] & 0xFFFFFFFF00000000ULL;
+	tempm[2] = b[5];
+	tempm[3] = b[6] & 0xFFFFFFFF00000000ULL;
+#else
 	/* Form S1 */ 
 	for (i=0; i<3; i++) tempm[i] = 0; 
 	for (i=3; i<8; i++) tempm[i] = b[i+8];
@@ -236,17 +450,36 @@ static void ec_field_mod(sc_ulimb_t *a, const sc_ulimb_t *b, size_t n, const sc_
 	for (i=3; i<6; i++) tempm[i] = b[i+6]; 
 	for (i=6; i<7; i++) tempm[i] = 0; 
 	for (i=7; i<8; i++) tempm[i] = b[i+6];
+#endif
 	/* A=T+S1+S1+S2+S2+S3+S4-D1-D2-D3-D4 */ 
-	ec_field_sub(tempm2, tempm2, tempm, n, m);
-	if(mpn_cmp(a, m, n) >= 0){
+	ec_field_sub(a, tempm2, tempm, n, m);
+	if(ec_cmp(a, m, n) >= 0){
 		ec_field_sub(tempm, a, m, n, m);
-		mpn_copy(a, tempm, n);
+		ec_copy(a, tempm, n);
 	}
 }
 
 static void ec_mul(sc_ulimb_t *out, const sc_ulimb_t *in1, const sc_ulimb_t *in2, size_t n)
 {
+#if 0
 	mpn_mul_n(out, in1, in2, n);
+#else
+	sc_ulimb_t temp[n * 2];
+	ec_zero(temp, n * 2);
+	ec_zero(out, n * 2);
+	size_t k, i;
+	for (k = 0; k < n; k++) {
+		for (i = 0; i < n; i++) { 
+			sc_ulimb_big_t l;
+			l = (sc_ulimb_big_t) in1[i] * (sc_ulimb_big_t) in2[k];
+			temp[i+k] = l & SC_LIMB_MASK;
+			temp[i+k+1] = l >> SC_LIMB_BITS;
+			add(&out[i+k], &temp[i+k], &out[i+k], (n * 2) - (i + k));
+
+			ec_zero(temp, n * 2);
+		}
+	}
+#endif
 }
 
 static void point_double_affine(ecc_metadata_t *metadata, ecc_point_t *point)
@@ -266,31 +499,31 @@ static void point_double_affine(ecc_metadata_t *metadata, ecc_point_t *point)
 
 	// lambda = (3*x^2 + a)/(2*y)
 	ec_mul(temp, point->x, point->x, n);
-	ec_field_mod(lambda, temp, n, m, mu);
-	mpn_zero(x, n);
+	ec_field_mod_secp256r1(lambda, temp, n, m, mu);
+	ec_zero(x, n);
 	x[0] = 3;
 	ec_mul(temp, lambda, x, n);
-	ec_field_mod(lambda, temp, n, m, mu);
-	ec_field_add(temp, lambda, a, n, mu);
+	ec_field_mod_secp256r1(lambda, temp, n, m, mu);
+	ec_field_add(lambda, lambda, a, n, mu);
 	ec_field_add(temp, point->y, point->y, n, mu);
-	ec_field_inv(y, x, n, m, mu);
+	ec_field_inv(y, temp, n, m, mu);
 	ec_mul(temp, lambda, y, n);
-	ec_field_mod(lambda, temp, n, m, mu);
+	ec_field_mod_secp256r1(lambda, temp, n, m, mu);
 
 	// xr = lambda^2 - 2*xp
 	ec_mul(temp, lambda, lambda, n);
-	ec_field_mod(x, temp, n, m, mu);
-	ec_field_sub(temp, x, point->x, n, mu);
-	ec_field_sub(point->x, temp, point->x, n, mu);
+	ec_field_mod_secp256r1(x, temp, n, m, mu);
+	ec_field_sub(temp, x, point->x, n, m);
+	ec_field_sub(x, temp, point->x, n, m);
 
 	// yr = lambda*(xp - xr) - yp
-	ec_field_sub(y, x, point->x, n, mu);
+	ec_field_sub(y, point->x, x, n, m);
 	ec_mul(temp, lambda, y, n);
-    ec_field_mod(y, temp, n, m, mu);
-	ec_field_sub(point->y, y, point->y, n, mu);
+    ec_field_mod_secp256r1(y, temp, n, m, mu);
+	ec_field_sub(point->y, y, point->y, n, m);
 
     // Overwrite the input point X coordinate with it's new value
-    mpn_copy(point->x, x, n);
+    ec_copy(point->x, x, n);
 }
 
 static void point_add_affine(ecc_metadata_t *metadata, ecc_point_t *p_a, const ecc_point_t *p_b)
@@ -307,23 +540,23 @@ static void point_add_affine(ecc_metadata_t *metadata, ecc_point_t *p_a, const e
 	n      = metadata->n;
 
 	// lambda = (yb - ya) / (xb - xa)
-	ec_field_sub(y, p_b->y, p_a->y, n, mu);
-	ec_field_sub(x, p_b->x, p_a->x, n, mu);
+	ec_field_sub(y, p_b->y, p_a->y, n, m);
+	ec_field_sub(x, p_b->x, p_a->x, n, m);
 	ec_field_inv(lambda, x, n, m, mu);
 	ec_mul(temp, lambda, y, n);
-	ec_field_mod(lambda, temp, n, m, mu);
+	ec_field_mod_secp256r1(lambda, temp, n, m, mu);
 
 	// xr = lambda^2 - xp - xq
 	ec_mul(temp, lambda, lambda, n);
-	ec_field_mod(x, temp, n, m, mu);
-    ec_field_sub(x, x, p_a->x, n, mu);
-    ec_field_sub(p_a->x, x, p_b->x, n, mu);
+	ec_field_mod_secp256r1(x, temp, n, m, mu);
+    ec_field_sub(x, x, p_a->x, n, m);
+    ec_field_sub(p_a->x, x, p_b->x, n, m);
 
 	// yr = lambda*(xp - xq) - a
-    ec_field_sub(y, p_a->x, p_b->x, n, mu);
+    ec_field_sub(y, p_b->x, p_a->x, n, m);
 	ec_mul(temp, lambda, y, n);
-	ec_field_mod(y, temp, n, m, mu);
-    ec_field_sub(p_a->y, y, p_b->y, n, mu);
+	ec_field_mod_secp256r1(y, temp, n, m, mu);
+    ec_field_sub(p_a->y, y, p_b->y, n, m);
 }
 
 static void point_double(ecc_metadata_t *metadata, ecc_point_t *point)
@@ -349,7 +582,7 @@ static void scalar_point_mult(size_t num_bits, ecc_metadata_t *metadata,
 	point_secret_t bit_ctx;
 	ecc_point_t p_dummy;
 
-	point_init(&p_dummy);
+	point_init(&p_dummy, metadata->k);
 	point_reset(&p_dummy);
 	point_reset(p_out);
 	point_copy(p_out, p_in);
@@ -410,10 +643,12 @@ SINT32 ecc_diffie_hellman(safecrypto_t *sc, const ecc_point_t *p_base, const sc_
 
 	// Initialise the MP variables
 	metadata.k = num_limbs;
+	metadata.n = num_limbs;
 	metadata.a = sc->ecdh->params->a;
 	metadata.m = sc->ecdh->params->p;
-	metadata.mu = sc->ecdh->params->mu;
+	metadata.mu = sc->ecdh->params->p_mu;
 	metadata.order = sc->ecdh->params->order;
+	point_init(&p_result, num_limbs);
 
 	// Perform a scalar point multiplication from the base point using the random secret
 	scalar_point_mult(num_bits, &metadata, p_base, secret, &p_result);
@@ -545,7 +780,7 @@ static void point_reset(ecc_point_t *p)
 	sc_mpz_set_ui(&p->y, 0);
 }
 
-static void point_init(ecc_point_t *p)
+static void point_init(ecc_point_t *p, size_t n)
 {
 	sc_mpz_init2(&p->x, MAX_ECC_BITS);
 	sc_mpz_init2(&p->y, MAX_ECC_BITS);
@@ -672,7 +907,7 @@ static void scalar_point_mult(size_t num_bits, ecc_metadata_t *metadata,
 	point_secret_t bit_ctx;
 	ecc_point_t p_dummy;
 
-	point_init(&p_dummy);
+	point_init(&p_dummy, MAX_ECC_LIMBS);
 	point_reset(&p_dummy);
 	point_reset(p_out);
 	point_copy(p_out, p_in);
@@ -682,6 +917,17 @@ static void scalar_point_mult(size_t num_bits, ecc_metadata_t *metadata,
 	fprintf(stderr, "out  x: "); sc_mpz_out_str(stderr, 16, &p_out->x); fprintf(stderr, "\n");
 	fprintf(stderr, "     y: "); sc_mpz_out_str(stderr, 16, &p_out->y); fprintf(stderr, "\n");
 	fprintf(stderr, "secret: %016llX %016llX %016llX %016llX\n", secret[3], secret[2], secret[1], secret[0]);*/
+
+	// Windowing
+	size_t w = 4;
+	ecc_point_t *p_window = SC_MALLOC(sizeof(ecc_point_t) * (1 << w));
+	point_init(&p_window[0], MAX_ECC_LIMBS);
+	point_copy(&p_window[0], p_in);
+	for (i=1; i<(1 << w); i++) {
+		point_init(&p_window[i], MAX_ECC_LIMBS);
+		point_copy(&p_window[i], &p_window[i-1]);
+		point_add(metadata, &p_window[i], p_in);
+	}
 
 	num_bits = secret_bits_init(&bit_ctx, secret, num_bits);
 
@@ -709,6 +955,11 @@ static void scalar_point_mult(size_t num_bits, ecc_metadata_t *metadata,
 	}
 
 	point_clear(&p_dummy);
+
+	for (i=0; i<(1 << w); i++) {
+		point_clear(&p_window[i]);
+	}
+	SC_FREE(p_window, sizeof(ecc_point_t) * (1 << w));
 
 	//fprintf(stderr, "result x: "); sc_mpz_out_str(stderr, 16, &p_out->x); fprintf(stderr, "\n");
 	//fprintf(stderr, "       y: "); sc_mpz_out_str(stderr, 16, &p_out->y); fprintf(stderr, "\n");
