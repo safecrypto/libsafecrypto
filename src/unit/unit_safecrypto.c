@@ -397,6 +397,7 @@ START_TEST(test_safecrypto_keys_load)
     size_t len;
     safecrypto_t *sc;
     UINT32 flags[1] = {0};
+    UINT8 *dummy = (UINT8*) flags;
 
     sc = safecrypto_create(SC_SCHEME_SIG_HELLO_WORLD, 0, flags);
     ck_assert_ptr_ne(sc, NULL);
@@ -414,9 +415,174 @@ START_TEST(test_safecrypto_keys_load)
     retcode = safecrypto_public_key_encode(sc, NULL, &len);
     ck_assert_int_eq(retcode, SC_FUNC_FAILURE);
     errcode = safecrypto_err_get_error(sc);
-    ck_assert_uint_eq(errcode, SC_INVALID_FUNCTION_CALL);
+    ck_assert_uint_eq(errcode, SC_NULL_POINTER);
+
+    retcode = safecrypto_public_key_encode(sc, &dummy, NULL);
+    ck_assert_int_eq(retcode, SC_FUNC_FAILURE);
+    errcode = safecrypto_err_get_error(sc);
+    ck_assert_uint_eq(errcode, SC_NULL_POINTER);
 
     retcode = safecrypto_private_key_encode(sc, NULL, &len);
+    ck_assert_int_eq(retcode, SC_FUNC_FAILURE);
+    errcode = safecrypto_err_get_error(sc);
+    ck_assert_uint_eq(errcode, SC_NULL_POINTER);
+
+    retcode = safecrypto_private_key_encode(sc, &dummy, NULL);
+    ck_assert_int_eq(retcode, SC_FUNC_FAILURE);
+    errcode = safecrypto_err_get_error(sc);
+    ck_assert_uint_eq(errcode, SC_NULL_POINTER);
+
+    retcode = safecrypto_private_key_encode(sc, &dummy, &len);
+    ck_assert_int_eq(retcode, SC_FUNC_FAILURE);
+    errcode = safecrypto_err_get_error(sc);
+    ck_assert_uint_eq(errcode, SC_INVALID_FUNCTION_CALL);
+
+    retcode = safecrypto_destroy(sc);
+    ck_assert_int_eq(retcode, SC_FUNC_SUCCESS);
+}
+END_TEST
+
+START_TEST(test_safecrypto_encapsulation)
+{
+    SINT32 retcode;
+    UINT32 errcode;
+    size_t len_1, len_2;
+    safecrypto_t *sc;
+    UINT32 flags[1] = {0};
+    UINT8 *dummy_1 = (UINT8*) flags, *dummy_2 = (UINT8*) flags;
+
+    sc = safecrypto_create(SC_SCHEME_SIG_HELLO_WORLD, 0, flags);
+    ck_assert_ptr_ne(sc, NULL);
+
+    retcode = safecrypto_encapsulation(NULL, &dummy_1, &len_1, &dummy_2, &len_2);
+    ck_assert_int_eq(retcode, SC_FUNC_FAILURE);
+
+    retcode = safecrypto_encapsulation(sc, NULL, &len_1, &dummy_2, &len_2);
+    ck_assert_int_eq(retcode, SC_FUNC_FAILURE);
+    errcode = safecrypto_err_get_error(sc);
+    ck_assert_uint_eq(errcode, SC_NULL_POINTER);
+
+    retcode = safecrypto_encapsulation(sc, &dummy_1, NULL, &dummy_2, &len_2);
+    ck_assert_int_eq(retcode, SC_FUNC_FAILURE);
+    errcode = safecrypto_err_get_error(sc);
+    ck_assert_uint_eq(errcode, SC_NULL_POINTER);
+
+    retcode = safecrypto_encapsulation(sc, &dummy_1, &len_1, NULL, &len_2);
+    ck_assert_int_eq(retcode, SC_FUNC_FAILURE);
+    errcode = safecrypto_err_get_error(sc);
+    ck_assert_uint_eq(errcode, SC_NULL_POINTER);
+
+    retcode = safecrypto_encapsulation(sc, &dummy_1, &len_1, &dummy_2, NULL);
+    ck_assert_int_eq(retcode, SC_FUNC_FAILURE);
+    errcode = safecrypto_err_get_error(sc);
+    ck_assert_uint_eq(errcode, SC_NULL_POINTER);
+
+    retcode = safecrypto_encapsulation(sc, &dummy_1, &len_1, &dummy_2, &len_2);
+    ck_assert_int_eq(retcode, SC_FUNC_FAILURE);
+    errcode = safecrypto_err_get_error(sc);
+    ck_assert_uint_eq(errcode, SC_INVALID_FUNCTION_CALL);
+
+    retcode = safecrypto_destroy(sc);
+    ck_assert_int_eq(retcode, SC_FUNC_SUCCESS);
+}
+END_TEST
+
+START_TEST(test_safecrypto_decapsulation)
+{
+    SINT32 retcode;
+    UINT32 errcode;
+    size_t len_1, len_2;
+    safecrypto_t *sc;
+    UINT32 flags[1] = {0};
+    UINT8 *dummy_1 = (UINT8*) flags, *dummy_2 = (UINT8*) flags;
+
+    sc = safecrypto_create(SC_SCHEME_SIG_HELLO_WORLD, 0, flags);
+    ck_assert_ptr_ne(sc, NULL);
+
+    retcode = safecrypto_decapsulation(NULL, dummy_1, len_1, &dummy_2, &len_2);
+    ck_assert_int_eq(retcode, SC_FUNC_FAILURE);
+
+    retcode = safecrypto_decapsulation(sc, dummy_1, len_1, NULL, &len_2);
+    ck_assert_int_eq(retcode, SC_FUNC_FAILURE);
+    errcode = safecrypto_err_get_error(sc);
+    ck_assert_uint_eq(errcode, SC_NULL_POINTER);
+
+    retcode = safecrypto_decapsulation(sc, dummy_1, len_1, &dummy_2, NULL);
+    ck_assert_int_eq(retcode, SC_FUNC_FAILURE);
+    errcode = safecrypto_err_get_error(sc);
+    ck_assert_uint_eq(errcode, SC_NULL_POINTER);
+
+    retcode = safecrypto_decapsulation(sc, dummy_1, len_1, &dummy_2, &len_2);
+    ck_assert_int_eq(retcode, SC_FUNC_FAILURE);
+    errcode = safecrypto_err_get_error(sc);
+    ck_assert_uint_eq(errcode, SC_INVALID_FUNCTION_CALL);
+
+    retcode = safecrypto_destroy(sc);
+    ck_assert_int_eq(retcode, SC_FUNC_SUCCESS);
+}
+END_TEST
+
+START_TEST(test_safecrypto_ibe_extract)
+{
+    SINT32 retcode;
+    UINT32 errcode;
+    size_t len_1, len_2;
+    safecrypto_t *sc;
+    UINT32 flags[1] = {0};
+    UINT8 *dummy_1 = (UINT8*) flags, *dummy_2 = (UINT8*) flags;
+
+    sc = safecrypto_create(SC_SCHEME_SIG_HELLO_WORLD, 0, flags);
+    ck_assert_ptr_ne(sc, NULL);
+
+    retcode = safecrypto_ibe_extract(NULL, len_1, dummy_1, &len_2, &dummy_2);
+    ck_assert_int_eq(retcode, SC_FUNC_FAILURE);
+
+    retcode = safecrypto_ibe_extract(sc, len_1, dummy_1, &len_2, NULL);
+    ck_assert_int_eq(retcode, SC_FUNC_FAILURE);
+    errcode = safecrypto_err_get_error(sc);
+    ck_assert_uint_eq(errcode, SC_NULL_POINTER);
+
+    retcode = safecrypto_ibe_extract(sc, len_1, dummy_1, NULL, &dummy_2);
+    ck_assert_int_eq(retcode, SC_FUNC_FAILURE);
+    errcode = safecrypto_err_get_error(sc);
+    ck_assert_uint_eq(errcode, SC_NULL_POINTER);
+
+    retcode = safecrypto_ibe_extract(sc, len_1, dummy_1, &len_2, &dummy_2);
+    ck_assert_int_eq(retcode, SC_FUNC_FAILURE);
+    errcode = safecrypto_err_get_error(sc);
+    ck_assert_uint_eq(errcode, SC_INVALID_FUNCTION_CALL);
+
+    retcode = safecrypto_destroy(sc);
+    ck_assert_int_eq(retcode, SC_FUNC_SUCCESS);
+}
+END_TEST
+
+START_TEST(test_safecrypto_ibe_public_encrypt)
+{
+    SINT32 retcode;
+    UINT32 errcode;
+    size_t len;
+    safecrypto_t *sc;
+    UINT32 flags[1] = {0};
+    UINT8 *dummy = (UINT8*) flags;
+
+    sc = safecrypto_create(SC_SCHEME_SIG_HELLO_WORLD, 0, flags);
+    ck_assert_ptr_ne(sc, NULL);
+
+    retcode = safecrypto_ibe_public_encrypt(NULL, len, dummy, len, dummy, &len, &dummy);
+    ck_assert_int_eq(retcode, SC_FUNC_FAILURE);
+
+    retcode = safecrypto_ibe_public_encrypt(sc, len, dummy, len, dummy, NULL, &dummy);
+    ck_assert_int_eq(retcode, SC_FUNC_FAILURE);
+    errcode = safecrypto_err_get_error(sc);
+    ck_assert_uint_eq(errcode, SC_NULL_POINTER);
+
+    retcode = safecrypto_ibe_public_encrypt(sc, len, dummy, len, dummy, &len, NULL);
+    ck_assert_int_eq(retcode, SC_FUNC_FAILURE);
+    errcode = safecrypto_err_get_error(sc);
+    ck_assert_uint_eq(errcode, SC_NULL_POINTER);
+
+    retcode = safecrypto_ibe_public_encrypt(sc, len, dummy, len, dummy, &len, &dummy);
     ck_assert_int_eq(retcode, SC_FUNC_FAILURE);
     errcode = safecrypto_err_get_error(sc);
     ck_assert_uint_eq(errcode, SC_INVALID_FUNCTION_CALL);
@@ -458,6 +624,10 @@ Suite *safecrypto_suite(void)
     suite_add_tcase(s, tc_basic);
 
     tc_limits = tcase_create("LIMITS");
+    tcase_add_test(tc_limits, test_safecrypto_encapsulation);
+    tcase_add_test(tc_limits, test_safecrypto_decapsulation);
+    tcase_add_test(tc_limits, test_safecrypto_ibe_extract);
+    tcase_add_test(tc_limits, test_safecrypto_ibe_public_encrypt);
     suite_add_tcase(s, tc_limits);
 
     tc_keys = tcase_create("KEYS");
