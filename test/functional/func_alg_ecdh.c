@@ -25,7 +25,7 @@
 #include <string.h>
 
 
-#define MAX_ITER    1024
+#define MAX_ITER    1
 
 #define USE_FIXED_BUFFERS     0
 #if USE_FIXED_BUFFERS == 1

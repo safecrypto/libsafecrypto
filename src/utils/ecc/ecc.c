@@ -9,69 +9,7 @@
 
 #include "ecc.h"
 
-#define ECC_K_IS_HIGH        0
-#define ECC_K_IS_SCA_DUMMY   1
-#define ECC_K_IS_LOW         2
-
-typedef enum ecc_direction {
-	ECC_DIR_LEFT = 0,
-	ECC_DIR_RIGHT,
-} ecc_direction_e;
-
-typedef struct point_secret {
-	const sc_ulimb_t *secret;
-	size_t max;
-	size_t index;
-	size_t shift;
-	ecc_direction_e dir;
-} point_secret_t;
-
-
-static UINT32 secret_bits_pull(point_secret_t *bit_ctx);
-
-static size_t secret_bits_init(point_secret_t *bit_ctx, const sc_ulimb_t *secret, size_t num_bits)
-{
-	bit_ctx->secret = secret;
-	bit_ctx->max    = num_bits;
-	bit_ctx->index  = (bit_ctx->max - 1) >> SC_LIMB_BITS_SHIFT;
-	bit_ctx->shift  = ((bit_ctx->max & SC_LIMB_BITS_MASK) - 1) & SC_LIMB_BITS_MASK;
-	bit_ctx->dir    = ECC_DIR_LEFT;
-
-	//fprintf(stderr, "max = %d, index = %d, shift = %d\n", bit_ctx->max, bit_ctx->index, bit_ctx->shift);
-
-	while (ECC_K_IS_LOW == secret_bits_pull(bit_ctx)) {
-		num_bits--;
-		//fprintf(stderr, "num_bits = %d\n", num_bits);
-	}
-	num_bits--;
-	return num_bits;
-}
-
-static UINT32 secret_bits_pull(point_secret_t *bit_ctx)
-{
-	static const UINT32 code[4] = {ECC_K_IS_LOW, ECC_K_IS_HIGH, ECC_K_IS_SCA_DUMMY, ECC_K_IS_HIGH};
-	UINT32 bit;
-	sc_ulimb_t word = bit_ctx->secret[bit_ctx->index];
-	sc_slimb_t shift = bit_ctx->shift;
-
-	bit = (word >> shift) & 0x1;
-
-	if (ECC_DIR_LEFT == bit_ctx->dir) {
-		bit_ctx->index -= !(((shift | (~shift + 1)) >> (SC_LIMB_BITS - 1)) & 1);
-		shift--;
-	}
-	else {
-		bit_ctx->index += (sc_ulimb_t)((((SC_LIMB_BITS - 1 - shift) ^ SC_LIMB_MASK) - SC_LIMB_MASK)) >> SC_LIMB_BITS_MASK;
-		shift++;
-	}
-
-	bit_ctx->shift = shift & SC_LIMB_BITS_MASK;
-
-	//fprintf(stderr, "bit = %d, max = %d, index = %d, shift = %d\n", bit, bit_ctx->max, bit_ctx->index, bit_ctx->shift);
-	//bit += 2;
-
-	return code[bit];
-}
+#include "utils/ecc/secret_bits.h"
 
 
 #ifdef USE_OPT_ECC
@@ -103,7 +41,7 @@ const ecdh_set_t param_ecdh_secp256r1 = {
 	{0xFFFFFFFFFFFFFFFF, 0x00000000FFFFFFFF, 0x0000000000000000, 0xFFFFFFFF00000001},
 	{0x0000000000000001, 0xffffffff00000000, 0xffffffffffffffff, 0x00000000fffffffe},
 	{0xF3B9CAC2FC632551, 0xBCE6FAADA7179E84, 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFF00000000},
-	{0x0000000000000001, 0xFFFFFFFEFFFFFFFF, 0xFFFFFFFEFFFFFFFE, 0x00000000FFFFFFFF, 0x00000003},
+	{0x0000000000000001, 0xFFFFFFFEFFFFFFFF, 0xFFFFFFFEFFFFFFFE, 0x00000000FFFFFFFF, 0x0000000000000003},
 #else
 	{0xFFFFFFFC, 0xFFFFFFFF, 0xFFFFFFFF, 0x00000000, 0x00000000, 0x00000000, 0x00000001, 0xFFFFFFFF},
 	{0x27D2604B, 0x3BCE3C3E, 0xCC53B0F6, 0x651D06B0, 0x769886BC, 0xB3EBBD55, 0xAA3A93E7, 0x5AC635D8},
@@ -593,7 +531,8 @@ static void scalar_point_mult(size_t num_bits, ecc_metadata_t *metadata,
 	fprintf(stderr, "     y: "); sc_mpz_out_str(stderr, 16, &p_out->y); fprintf(stderr, "\n");
 	fprintf(stderr, "secret: %016llX %016llX %016llX %016llX\n", secret[3], secret[2], secret[1], secret[0]);*/
 
-	num_bits = secret_bits_init(&bit_ctx, secret, num_bits);
+	num_bits = secret_bits_init(ECC_K_BINARY, &bit_ctx, secret, num_bits);
+	num_bits--;
 
 	for (i=num_bits; i--;) {
 		UINT32 bit;
@@ -900,7 +839,7 @@ static void point_add(ecc_metadata_t *metadata, ecc_point_t *p_a, const ecc_poin
 }
 
 
-static void scalar_point_mult(size_t num_bits, ecc_metadata_t *metadata,
+static void scalar_point_mult_binary(size_t num_bits, ecc_metadata_t *metadata,
 	const ecc_point_t *p_in, const sc_ulimb_t *secret, ecc_point_t *p_out)
 {
 	size_t i;
@@ -929,7 +868,8 @@ static void scalar_point_mult(size_t num_bits, ecc_metadata_t *metadata,
 		point_add(metadata, &p_window[i], p_in);
 	}
 
-	num_bits = secret_bits_init(&bit_ctx, secret, num_bits);
+	num_bits = secret_bits_init(ECC_K_BINARY, &bit_ctx, secret, num_bits);
+	num_bits--;
 
 	for (i=num_bits; i--;) {
 		UINT32 bit;
@@ -963,6 +903,79 @@ static void scalar_point_mult(size_t num_bits, ecc_metadata_t *metadata,
 
 	//fprintf(stderr, "result x: "); sc_mpz_out_str(stderr, 16, &p_out->x); fprintf(stderr, "\n");
 	//fprintf(stderr, "       y: "); sc_mpz_out_str(stderr, 16, &p_out->y); fprintf(stderr, "\n");
+}
+
+static void scalar_point_mult_naf(size_t num_bits, ecc_metadata_t *metadata,
+	const ecc_point_t *p_in, const sc_ulimb_t *secret, ecc_point_t *p_out)
+{
+	size_t i;
+	point_secret_t bit_ctx;
+	ecc_point_t p_dummy;
+
+	point_init(&p_dummy, MAX_ECC_LIMBS);
+	point_reset(&p_dummy);
+	point_reset(p_out);
+	point_copy(p_out, p_in);
+
+	/*fprintf(stderr, "in   x: "); sc_mpz_out_str(stderr, 16, &p_in->x); fprintf(stderr, "\n");
+	fprintf(stderr, "     y: "); sc_mpz_out_str(stderr, 16, &p_in->y); fprintf(stderr, "\n");
+	fprintf(stderr, "out  x: "); sc_mpz_out_str(stderr, 16, &p_out->x); fprintf(stderr, "\n");
+	fprintf(stderr, "     y: "); sc_mpz_out_str(stderr, 16, &p_out->y); fprintf(stderr, "\n");
+	fprintf(stderr, "secret: %016llX %016llX %016llX %016llX\n", secret[3], secret[2], secret[1], secret[0]);*/
+
+	// Windowing
+	size_t w = 4;
+	ecc_point_t *p_window = SC_MALLOC(sizeof(ecc_point_t) * (1 << w));
+	point_init(&p_window[0], MAX_ECC_LIMBS);
+	point_copy(&p_window[0], p_in);
+	for (i=1; i<(1 << w); i++) {
+		point_init(&p_window[i], MAX_ECC_LIMBS);
+		point_copy(&p_window[i], &p_window[i-1]);
+		point_add(metadata, &p_window[i], p_in);
+	}
+
+	num_bits = secret_bits_init(ECC_K_NAF_4, &bit_ctx, secret, num_bits);
+	num_bits--;
+
+	for (i=num_bits; i--;) {
+		UINT32 bit;
+
+		// Point doubling
+		point_double(metadata, p_out);
+
+		// Determine if an asserted bit requires a point addition (or a dummy point addition as an SCA countermeasure)
+		bit = secret_bits_pull(&bit_ctx);
+		//fprintf(stderr, "index = %zu, bit = %d\n", i, bit);
+		if (ECC_K_IS_LOW != bit) {
+			// Create a mask of all zeros if ECC_K_IS_HIGH or all ones if an ECC_K_IS_SCA_DUMMY operation
+			intptr_t temp   = (intptr_t) (bit << (SC_LIMB_BITS - 1));
+			intptr_t mask   = (bit ^ temp) - temp;
+
+			// Branch-free pointer selection in constant time
+			intptr_t p_temp = (intptr_t) p_out ^ (((intptr_t) p_out ^ (intptr_t) &p_dummy) & mask);
+			//fprintf(stderr, "%zu %zu %zu\n", p_temp, (intptr_t) p_out, (intptr_t) &p_dummy);
+
+			// Point addition
+			point_add(metadata, (ecc_point_t *) p_temp, p_in);
+		}
+	}
+
+	point_clear(&p_dummy);
+
+	for (i=0; i<(1 << w); i++) {
+		point_clear(&p_window[i]);
+	}
+	SC_FREE(p_window, sizeof(ecc_point_t) * (1 << w));
+
+	//fprintf(stderr, "result x: "); sc_mpz_out_str(stderr, 16, &p_out->x); fprintf(stderr, "\n");
+	//fprintf(stderr, "       y: "); sc_mpz_out_str(stderr, 16, &p_out->y); fprintf(stderr, "\n");
+}
+
+static void scalar_point_mult(size_t num_bits, ecc_metadata_t *metadata,
+	const ecc_point_t *p_in, const sc_ulimb_t *secret, ecc_point_t *p_out)
+{
+	//scalar_point_mult_binary(num_bits, metadata, p_in, secret, p_out);
+	scalar_point_mult_naf(num_bits, metadata, p_in, secret, p_out);
 }
 
 SINT32 ecc_diffie_hellman(safecrypto_t *sc, const ecc_point_t *p_base, const sc_ulimb_t *secret, size_t *tlen, UINT8 **to)
@@ -1003,7 +1016,7 @@ SINT32 ecc_diffie_hellman(safecrypto_t *sc, const ecc_point_t *p_base, const sc_
 	scalar_point_mult(num_bits, &metadata, p_base, secret, &p_result);
 
 	// Translate the output point (coordinates are MP variables) to the output byte stream
-	*to = SC_MALLOC(3*num_bytes);   // FIXME
+	*to = SC_MALLOC(2*num_bytes);   // FIXME
 	*tlen = 2 * num_bytes;
 	sc_mpz_get_bytes(*to, &p_result.x);
 	sc_mpz_get_bytes(*to + num_bytes, &p_result.y);
@@ -1026,9 +1039,6 @@ SINT32 ecc_diffie_hellman(safecrypto_t *sc, const ecc_point_t *p_base, const sc_
 SINT32 ecc_diffie_hellman_encapsulate(safecrypto_t *sc, const sc_ulimb_t *secret,
 	size_t *tlen, UINT8 **to)
 {
-	size_t num_bits  = sc->ecdh->params->num_bits;
-	size_t num_bytes = sc->ecdh->params->num_bytes;
-
 	// Use an ECC scalar point multiplication to geometrically transform the base point
 	// to the intermediate point (i.e. the public key)
 	ecc_diffie_hellman(sc, &sc->ecdh->base, secret, tlen, to);
@@ -1039,7 +1049,6 @@ SINT32 ecc_diffie_hellman_encapsulate(safecrypto_t *sc, const sc_ulimb_t *secret
 SINT32 ecc_diffie_hellman_decapsulate(safecrypto_t *sc, const sc_ulimb_t *secret,
 	size_t flen, const UINT8 *from, size_t *tlen, UINT8 **to)
 {
-	size_t num_bits  = sc->ecdh->params->num_bits;
 	size_t num_bytes = sc->ecdh->params->num_bytes;
 	size_t num_limbs = sc->ecdh->params->num_limbs;
 
