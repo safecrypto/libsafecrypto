@@ -12,6 +12,7 @@
 #define ECC_K_IS_HIGH        0
 #define ECC_K_IS_SCA_DUMMY   1
 #define ECC_K_IS_LOW         2
+#define ECC_K_IS_MINUS_ONE   3
 
 typedef enum ecc_direction {
 	ECC_DIR_LEFT = 0,

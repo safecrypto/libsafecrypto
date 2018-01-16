@@ -532,6 +532,7 @@ static void scalar_point_mult(size_t num_bits, ecc_metadata_t *metadata,
 	fprintf(stderr, "secret: %016llX %016llX %016llX %016llX\n", secret[3], secret[2], secret[1], secret[0]);*/
 
 	num_bits = secret_bits_init(ECC_K_BINARY, &bit_ctx, secret, num_bits);
+	secret_bits_pull(&bit_ctx);
 	num_bits--;
 
 	for (i=num_bits; i--;) {
@@ -788,7 +789,7 @@ static void point_double_affine(ecc_metadata_t *metadata, ecc_point_t *point)
     sc_mpz_copy(&point->x, x);
 }
 
-static void point_add_affine(ecc_metadata_t *metadata, ecc_point_t *p_a, const ecc_point_t *p_b)
+static void point_add_affine(ecc_metadata_t *metadata, ecc_point_t *p_a, const ecc_point_t *p_b, SINT32 sub)
 {
 	sc_mpz_t *lambda, *temp, *x, *y, *m;
 	lambda = &metadata->lambda;
@@ -796,6 +797,10 @@ static void point_add_affine(ecc_metadata_t *metadata, ecc_point_t *p_a, const e
 	x      = &metadata->x;
 	y      = &metadata->y;
 	m      = &metadata->m;
+
+	if (sub) {
+		sc_mpz_negate(&p_b->y, &p_b->y);
+	}
 
 	// lambda = (yb - ya) / (xb - xa)
 	sc_mpz_sub(y, &p_b->y, &p_a->y);
@@ -821,6 +826,10 @@ static void point_add_affine(ecc_metadata_t *metadata, ecc_point_t *p_a, const e
     sc_mpz_add(y, y, &p_b->y);
     sc_mpz_negate(y, y);
     sc_mpz_mod(&p_a->y, y, m);
+
+	if (sub) {
+		sc_mpz_negate(&p_b->y, &p_b->y);
+	}
 }
 
 static void point_double(ecc_metadata_t *metadata, ecc_point_t *point)
@@ -835,7 +844,12 @@ static void point_double(ecc_metadata_t *metadata, ecc_point_t *point)
 
 static void point_add(ecc_metadata_t *metadata, ecc_point_t *p_a, const ecc_point_t *p_b)
 {
-	point_add_affine(metadata, p_a, p_b);
+	point_add_affine(metadata, p_a, p_b, 0);
+}
+
+static void point_sub(ecc_metadata_t *metadata, ecc_point_t *p_a, const ecc_point_t *p_b)
+{
+	point_add_affine(metadata, p_a, p_b, 1);
 }
 
 
@@ -869,6 +883,7 @@ static void scalar_point_mult_binary(size_t num_bits, ecc_metadata_t *metadata,
 	}
 
 	num_bits = secret_bits_init(ECC_K_BINARY, &bit_ctx, secret, num_bits);
+	secret_bits_pull(&bit_ctx);
 	num_bits--;
 
 	for (i=num_bits; i--;) {
@@ -909,6 +924,7 @@ static void scalar_point_mult_naf(size_t num_bits, ecc_metadata_t *metadata,
 	const ecc_point_t *p_in, const sc_ulimb_t *secret, ecc_point_t *p_out)
 {
 	size_t i;
+	UINT32 bit;
 	point_secret_t bit_ctx;
 	ecc_point_t p_dummy;
 
@@ -924,7 +940,7 @@ static void scalar_point_mult_naf(size_t num_bits, ecc_metadata_t *metadata,
 	fprintf(stderr, "secret: %016llX %016llX %016llX %016llX\n", secret[3], secret[2], secret[1], secret[0]);*/
 
 	// Windowing
-	size_t w = 4;
+	/*size_t w = 4;
 	ecc_point_t *p_window = SC_MALLOC(sizeof(ecc_point_t) * (1 << w));
 	point_init(&p_window[0], MAX_ECC_LIMBS);
 	point_copy(&p_window[0], p_in);
@@ -932,14 +948,13 @@ static void scalar_point_mult_naf(size_t num_bits, ecc_metadata_t *metadata,
 		point_init(&p_window[i], MAX_ECC_LIMBS);
 		point_copy(&p_window[i], &p_window[i-1]);
 		point_add(metadata, &p_window[i], p_in);
-	}
+	}*/
 
 	num_bits = secret_bits_init(ECC_K_NAF_4, &bit_ctx, secret, num_bits);
+	bit = secret_bits_pull(&bit_ctx);
 	num_bits--;
 
 	for (i=num_bits; i--;) {
-		UINT32 bit;
-
 		// Point doubling
 		point_double(metadata, p_out);
 
@@ -956,16 +971,19 @@ static void scalar_point_mult_naf(size_t num_bits, ecc_metadata_t *metadata,
 			//fprintf(stderr, "%zu %zu %zu\n", p_temp, (intptr_t) p_out, (intptr_t) &p_dummy);
 
 			// Point addition
-			point_add(metadata, (ecc_point_t *) p_temp, p_in);
+			if (ECC_K_IS_MINUS_ONE == bit)
+				point_sub(metadata, (ecc_point_t *) p_temp, p_in);
+			else
+				point_add(metadata, (ecc_point_t *) p_temp, p_in);
 		}
 	}
 
 	point_clear(&p_dummy);
 
-	for (i=0; i<(1 << w); i++) {
+	/*for (i=0; i<(1 << w); i++) {
 		point_clear(&p_window[i]);
 	}
-	SC_FREE(p_window, sizeof(ecc_point_t) * (1 << w));
+	SC_FREE(p_window, sizeof(ecc_point_t) * (1 << w));*/
 
 	//fprintf(stderr, "result x: "); sc_mpz_out_str(stderr, 16, &p_out->x); fprintf(stderr, "\n");
 	//fprintf(stderr, "       y: "); sc_mpz_out_str(stderr, 16, &p_out->y); fprintf(stderr, "\n");

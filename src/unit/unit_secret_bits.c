@@ -113,11 +113,13 @@ START_TEST(test_secret_bits_naf)
     ck_assert_uint_eq(bits, SC_LIMB_BITS + SC_LIMB_BITS2 + 1);
 
     data = secret_bits_pull(&bit_ctx);
-    ck_assert_uint_eq(data, 1);
+    ck_assert_uint_eq(data, ECC_K_IS_HIGH);
     for (i=0; i<SC_LIMB_BITS + SC_LIMB_BITS2 - 1; i++) {
-        ck_assert_uint_eq(data, 0);
+        data = secret_bits_pull(&bit_ctx);
+        ck_assert_uint_eq(data, ECC_K_IS_LOW);
     }
-    ck_assert_uint_eq(data, 3);
+    data = secret_bits_pull(&bit_ctx);
+    ck_assert_uint_eq(data, ECC_K_IS_MINUS_ONE);
 }
 END_TEST
 

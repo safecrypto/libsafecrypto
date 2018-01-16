@@ -12,8 +12,6 @@
 #include "utils/arith/sc_mpz.h"
 
 
-static UINT32 secret_bits_pull_binary(point_secret_t *bit_ctx);
-
 static SINT32 naf(const sc_ulimb_t *secret, size_t num_bits, sc_ulimb_t *recoded)
 {
 	UINT32 bit, bits;
@@ -23,17 +21,14 @@ static SINT32 naf(const sc_ulimb_t *secret, size_t num_bits, sc_ulimb_t *recoded
 	sc_mpz_init2(&e, MAX_ECC_BITS);
 
 	size_t max_limbs = (num_bits + SC_LIMB_BITS - 1) >> SC_LIMB_BITS_SHIFT;
-	fprintf(stderr, "max_limbs = %zu, num_bits = %zu\n", max_limbs, num_bits);
 	for (i=0; i<max_limbs; i++) {
 		sc_mpz_mul_2exp(&e, &e, SC_LIMB_BITS);
 		if (0 == i) {
 			sc_ulimb_t mask = (0 == (num_bits & SC_LIMB_BITS_MASK))? SC_LIMB_MASK : (1UL << (num_bits & SC_LIMB_BITS_MASK)) - 1;
 			sc_mpz_add_ui(&e, &e, secret[max_limbs - i - 1] & mask);
-			fprintf(stderr, "secret = %016lX, mask = %016lX, B=%zu\n", secret[max_limbs - i - 1], mask, num_bits & SC_LIMB_BITS_MASK);
 		}
 		else {
 			sc_mpz_add_ui(&e, &e, secret[max_limbs - i - 1]);
-			fprintf(stderr, "secret = %016lX\n", secret[max_limbs - i - 1]);
 		}
 	}
 
@@ -43,11 +38,11 @@ static SINT32 naf(const sc_ulimb_t *secret, size_t num_bits, sc_ulimb_t *recoded
 	sc_ulimb_t  mask  = (1 << (num_bits & SC_LIMB_BITS_MASK)) - 1;
 	limbs[(num_bits - 1) >> SC_LIMB_BITS_SHIFT] &= mask;*/
 
-	fprintf(stderr, "NAF E = ");
+	/*fprintf(stderr, "NAF E = ");
 	sc_mpz_out_str(stderr, 16, &e);
 	fprintf(stderr, "\n");
 
-	fprintf(stderr, "E = %016lX %016lX %016lX %016lX\n", secret[3], secret[2], secret[1], secret[0]);
+	fprintf(stderr, "E = %016lX %016lX %016lX %016lX\n", secret[3], secret[2], secret[1], secret[0]);*/
 
 	for (i=2*MAX_ECC_LIMBS+1; i--;) {
 		recoded[i] = 0;
@@ -89,16 +84,18 @@ static SINT32 naf(const sc_ulimb_t *secret, size_t num_bits, sc_ulimb_t *recoded
 		}
 	}
 
-	fprintf(stderr, "bits=%zu, ones=%zu, hamming=%zu, recoded = ", total, num_ones, hamming);
+	/*fprintf(stderr, "bits=%zu, ones=%zu, hamming=%zu, recoded = ", total, num_ones, hamming);
 	for (i=(2*total + SC_LIMB_BITS - 1) >> SC_LIMB_BITS_SHIFT; i--;) {
 		fprintf(stderr, "%016lX ", recoded[i]);
 	}
-	fprintf(stderr, "\n");
+	fprintf(stderr, "\n");*/
 
 	sc_mpz_clear(&e);
 
 	return total > num_bits;
 }
+
+static UINT32 secret_bits_peek(point_secret_t *bit_ctx);
 
 size_t secret_bits_init(ecc_k_coding_e coding, point_secret_t *bit_ctx, const sc_ulimb_t *secret, size_t num_bits)
 {
@@ -107,12 +104,9 @@ size_t secret_bits_init(ecc_k_coding_e coding, point_secret_t *bit_ctx, const sc
 	}
 
 	// Recoding of the secret value to non-adjacent form
-	fprintf(stderr, "num_bits = %zu\n", num_bits);
 	if (ECC_K_NAF_4 == coding) {
 		num_bits += naf(secret, num_bits, bit_ctx->recoded);
 	}
-
-	fprintf(stderr, "num_bits = %zu\n", num_bits);
 
 	bit_ctx->secret = secret;
 	bit_ctx->max    = num_bits;
@@ -122,11 +116,11 @@ size_t secret_bits_init(ecc_k_coding_e coding, point_secret_t *bit_ctx, const sc
 	bit_ctx->dir    = ECC_DIR_LEFT;
 	bit_ctx->coding = coding;
 
-	fprintf(stderr, "max = %d, index = %d, shift = %d\n", bit_ctx->max, bit_ctx->index, bit_ctx->shift);
+	//fprintf(stderr, "max = %d, index = %d, shift = %d\n", bit_ctx->max, bit_ctx->index, bit_ctx->shift);
 
-	while (num_bits && bit_ctx->index >= 0 && ECC_K_IS_LOW == secret_bits_pull_binary(bit_ctx)) {
+	while (num_bits && bit_ctx->index >= 0 && 0 == secret_bits_peek(bit_ctx)) {
 		num_bits--;
-		fprintf(stderr, "num_bits = %zu\n", num_bits);
+		secret_bits_pull(bit_ctx);
 	}
 
 	return num_bits;
@@ -136,8 +130,6 @@ static UINT32 secret_bits_pull_binary(point_secret_t *bit_ctx)
 {
 	UINT32 bit;
 	sc_ulimb_t word, shift;
-
-	static const UINT32 code[4] = {ECC_K_IS_LOW, ECC_K_IS_HIGH, ECC_K_IS_SCA_DUMMY, ECC_K_IS_HIGH};
 
 	word  = bit_ctx->secret[bit_ctx->index];
 	shift = bit_ctx->shift;
@@ -154,39 +146,70 @@ static UINT32 secret_bits_pull_binary(point_secret_t *bit_ctx)
 
 	bit_ctx->shift = shift & SC_LIMB_BITS_MASK;
 
-	fprintf(stderr, "bit = %d, max = %d, index = %d, shift = %d\n", bit, bit_ctx->max, bit_ctx->index, bit_ctx->shift);
+	//fprintf(stderr, "bit = %d, max = %d, index = %d, shift = %d\n", bit, bit_ctx->max, bit_ctx->index, bit_ctx->shift);
 	//bit += 2;
 
-	return code[bit];
+	return bit;
 }
 
-UINT32 secret_bits_pull(point_secret_t *bit_ctx)
+static UINT32 secret_bits_peek(point_secret_t *bit_ctx)
 {
 	UINT32 bit;
 	sc_ulimb_t word, shift;
 
 	if (ECC_K_BINARY == bit_ctx->coding) {
-		return secret_bits_pull_binary(bit_ctx);
+		word  = bit_ctx->secret[bit_ctx->index];
 	}
 	else {
 		word  = bit_ctx->recoded[bit_ctx->index];
-		shift = bit_ctx->shift;
-		bit   = (word >> shift) & 0x3;
-
-		if (ECC_DIR_LEFT == bit_ctx->dir) {
-			bit_ctx->index -= !(((shift | (~shift + 1)) >> (SC_LIMB_BITS - 1)) & 1);
-			shift -= 2;
-		}
-		else {
-			bit_ctx->index += (sc_ulimb_t)((((SC_LIMB_BITS - 1 - shift) ^ SC_LIMB_MASK) - SC_LIMB_MASK)) >> SC_LIMB_BITS_MASK;
-			shift += 2;
-		}
-
-		bit_ctx->shift = shift & SC_LIMB_BITS_MASK;
-
-		fprintf(stderr, "bit = %d, max = %d, index = %d, shift = %d\n", bit, bit_ctx->max, bit_ctx->index, bit_ctx->shift);
-
-		return bit;
 	}
+	shift = bit_ctx->shift;
+	if (ECC_K_BINARY == bit_ctx->coding) {
+		bit   = (word >> shift) & 0x1;
+	}
+	else {
+		bit   = (word >> shift) & 0x3;
+	}
+
+	return bit;
+}
+
+static UINT32 secret_bits_pull_naf(point_secret_t *bit_ctx)
+{
+	UINT32 bit;
+	sc_ulimb_t word, shift;
+
+	word  = bit_ctx->recoded[bit_ctx->index];
+	shift = bit_ctx->shift;
+	bit   = (word >> shift) & 0x3;
+
+	if (ECC_DIR_LEFT == bit_ctx->dir) {
+		bit_ctx->index -= !(((shift | (~shift + 1)) >> (SC_LIMB_BITS - 1)) & 1);
+		shift -= 2;
+	}
+	else {
+		bit_ctx->index += (sc_ulimb_t)((((SC_LIMB_BITS - 1 - shift) ^ SC_LIMB_MASK) - SC_LIMB_MASK)) >> SC_LIMB_BITS_MASK;
+		shift += 2;
+	}
+
+	bit_ctx->shift = shift & SC_LIMB_BITS_MASK;
+
+	return bit;
+}
+
+UINT32 secret_bits_pull(point_secret_t *bit_ctx)
+{
+	static const UINT32 code[4] = {ECC_K_IS_LOW, ECC_K_IS_HIGH, ECC_K_IS_SCA_DUMMY, ECC_K_IS_MINUS_ONE};
+	UINT32 bit;
+	sc_ulimb_t word, shift;
+
+	if (ECC_K_BINARY == bit_ctx->coding) {
+		bit = secret_bits_pull_binary(bit_ctx);
+	}
+	else {
+		bit = secret_bits_pull_naf(bit_ctx);;
+	}
+
+	return code[bit];
 }
 
