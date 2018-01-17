@@ -60,7 +60,7 @@ END_TEST
 START_TEST(test_secret_bits_init_naf)
 {
     size_t bits;
-    ecc_k_coding_e coding = ECC_K_NAF_4;
+    ecc_k_coding_e coding = ECC_K_NAF_2;
     point_secret_t bit_ctx;
     sc_ulimb_t secret[3] = {0};
 
@@ -103,7 +103,7 @@ START_TEST(test_secret_bits_naf)
 {
     UINT32 data;
     size_t bits, i;
-    ecc_k_coding_e coding = ECC_K_NAF_4;
+    ecc_k_coding_e coding = ECC_K_NAF_2;
     point_secret_t bit_ctx;
     sc_ulimb_t secret[3] = {0};
 

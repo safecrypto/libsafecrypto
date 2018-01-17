@@ -739,6 +739,11 @@ static void point_copy(ecc_point_t *p_out, const ecc_point_t *p_in)
 	p_out->n = p_in->n;
 }
 
+static void point_negate(ecc_point_t *p_inout)
+{
+	sc_mpz_negate(&p_inout->y, &p_inout->y);
+}
+
 static SINT32 point_is_zero(const ecc_point_t *p)
 {
 	return sc_mpz_is_zero(&p->x) && sc_mpz_is_zero(&p->y);
@@ -789,7 +794,7 @@ static void point_double_affine(ecc_metadata_t *metadata, ecc_point_t *point)
     sc_mpz_copy(&point->x, x);
 }
 
-static void point_add_affine(ecc_metadata_t *metadata, ecc_point_t *p_a, const ecc_point_t *p_b, SINT32 sub)
+static void point_add_affine(ecc_metadata_t *metadata, ecc_point_t *p_a, const ecc_point_t *p_b)
 {
 	sc_mpz_t *lambda, *temp, *x, *y, *m;
 	lambda = &metadata->lambda;
@@ -797,10 +802,6 @@ static void point_add_affine(ecc_metadata_t *metadata, ecc_point_t *p_a, const e
 	x      = &metadata->x;
 	y      = &metadata->y;
 	m      = &metadata->m;
-
-	if (sub) {
-		sc_mpz_negate(&p_b->y, &p_b->y);
-	}
 
 	// lambda = (yb - ya) / (xb - xa)
 	sc_mpz_sub(y, &p_b->y, &p_a->y);
@@ -826,10 +827,6 @@ static void point_add_affine(ecc_metadata_t *metadata, ecc_point_t *p_a, const e
     sc_mpz_add(y, y, &p_b->y);
     sc_mpz_negate(y, y);
     sc_mpz_mod(&p_a->y, y, m);
-
-	if (sub) {
-		sc_mpz_negate(&p_b->y, &p_b->y);
-	}
 }
 
 static void point_double(ecc_metadata_t *metadata, ecc_point_t *point)
@@ -844,14 +841,8 @@ static void point_double(ecc_metadata_t *metadata, ecc_point_t *point)
 
 static void point_add(ecc_metadata_t *metadata, ecc_point_t *p_a, const ecc_point_t *p_b)
 {
-	point_add_affine(metadata, p_a, p_b, 0);
+	point_add_affine(metadata, p_a, p_b);
 }
-
-static void point_sub(ecc_metadata_t *metadata, ecc_point_t *p_a, const ecc_point_t *p_b)
-{
-	point_add_affine(metadata, p_a, p_b, 1);
-}
-
 
 static void scalar_point_mult_binary(size_t num_bits, ecc_metadata_t *metadata,
 	const ecc_point_t *p_in, const sc_ulimb_t *secret, ecc_point_t *p_out)
@@ -887,7 +878,7 @@ static void scalar_point_mult_binary(size_t num_bits, ecc_metadata_t *metadata,
 	num_bits--;
 
 	for (i=num_bits; i--;) {
-		UINT32 bit;
+		sc_ulimb_t bit;
 
 		// Point doubling
 		point_double(metadata, p_out);
@@ -926,12 +917,14 @@ static void scalar_point_mult_naf(size_t num_bits, ecc_metadata_t *metadata,
 	size_t i;
 	UINT32 bit;
 	point_secret_t bit_ctx;
-	ecc_point_t p_dummy;
+	ecc_point_t p_dummy, p_in_minus;
 
 	point_init(&p_dummy, MAX_ECC_LIMBS);
-	point_reset(&p_dummy);
 	point_reset(p_out);
 	point_copy(p_out, p_in);
+	point_init(&p_in_minus, MAX_ECC_LIMBS);
+	point_copy(&p_in_minus, p_in);
+	point_negate(&p_in_minus);
 
 	/*fprintf(stderr, "in   x: "); sc_mpz_out_str(stderr, 16, &p_in->x); fprintf(stderr, "\n");
 	fprintf(stderr, "     y: "); sc_mpz_out_str(stderr, 16, &p_in->y); fprintf(stderr, "\n");
@@ -950,7 +943,7 @@ static void scalar_point_mult_naf(size_t num_bits, ecc_metadata_t *metadata,
 		point_add(metadata, &p_window[i], p_in);
 	}*/
 
-	num_bits = secret_bits_init(ECC_K_NAF_4, &bit_ctx, secret, num_bits);
+	num_bits = secret_bits_init(ECC_K_NAF_2, &bit_ctx, secret, num_bits);
 	bit = secret_bits_pull(&bit_ctx);
 	num_bits--;
 
@@ -962,23 +955,25 @@ static void scalar_point_mult_naf(size_t num_bits, ecc_metadata_t *metadata,
 		bit = secret_bits_pull(&bit_ctx);
 		//fprintf(stderr, "index = %zu, bit = %d\n", i, bit);
 		if (ECC_K_IS_LOW != bit) {
-			// Create a mask of all zeros if ECC_K_IS_HIGH or all ones if an ECC_K_IS_SCA_DUMMY operation
-			intptr_t temp   = (intptr_t) (bit << (SC_LIMB_BITS - 1));
-			intptr_t mask   = (bit ^ temp) - temp;
-
-			// Branch-free pointer selection in constant time
-			intptr_t p_temp = (intptr_t) p_out ^ (((intptr_t) p_out ^ (intptr_t) &p_dummy) & mask);
-			//fprintf(stderr, "%zu %zu %zu\n", p_temp, (intptr_t) p_out, (intptr_t) &p_dummy);
+			// Branch-free pointer selection in constant time where we create a mask of all zeros
+			// if ECC_K_IS_HIGH or all ones if an ECC_K_IS_SCA_DUMMY operation
+			intptr_t temp, mask, p_temp, p_temp2;
+			sc_ulimb_t hide     = bit & 0x1;
+			sc_ulimb_t subtract = (bit >> 1);
+			temp   = (intptr_t) (hide << (SC_LIMB_BITS - 1));
+			mask   = (hide ^ temp) - temp;
+			p_temp = (intptr_t) p_out ^ (((intptr_t) p_out ^ (intptr_t) &p_dummy) & mask);
+			temp   = (intptr_t) (subtract << (SC_LIMB_BITS - 1));
+			mask   = (subtract ^ temp) - temp;
+			p_temp2 = (intptr_t) p_in ^ (((intptr_t) p_in ^ (intptr_t) &p_in_minus) & mask);
 
 			// Point addition
-			if (ECC_K_IS_MINUS_ONE == bit)
-				point_sub(metadata, (ecc_point_t *) p_temp, p_in);
-			else
-				point_add(metadata, (ecc_point_t *) p_temp, p_in);
+			point_add(metadata, (ecc_point_t *) p_temp, (ecc_point_t *) p_temp2);
 		}
 	}
 
 	point_clear(&p_dummy);
+	point_clear(&p_in_minus);
 
 	/*for (i=0; i<(1 << w); i++) {
 		point_clear(&p_window[i]);
@@ -992,8 +987,11 @@ static void scalar_point_mult_naf(size_t num_bits, ecc_metadata_t *metadata,
 static void scalar_point_mult(size_t num_bits, ecc_metadata_t *metadata,
 	const ecc_point_t *p_in, const sc_ulimb_t *secret, ecc_point_t *p_out)
 {
-	//scalar_point_mult_binary(num_bits, metadata, p_in, secret, p_out);
+#if 0
+	scalar_point_mult_binary(num_bits, metadata, p_in, secret, p_out);
+#else
 	scalar_point_mult_naf(num_bits, metadata, p_in, secret, p_out);
+#endif
 }
 
 SINT32 ecc_diffie_hellman(safecrypto_t *sc, const ecc_point_t *p_base, const sc_ulimb_t *secret, size_t *tlen, UINT8 **to)
@@ -1034,7 +1032,7 @@ SINT32 ecc_diffie_hellman(safecrypto_t *sc, const ecc_point_t *p_base, const sc_
 	scalar_point_mult(num_bits, &metadata, p_base, secret, &p_result);
 
 	// Translate the output point (coordinates are MP variables) to the output byte stream
-	*to = SC_MALLOC(2*num_bytes);   // FIXME
+	*to = SC_MALLOC(2*num_bytes);
 	*tlen = 2 * num_bytes;
 	sc_mpz_get_bytes(*to, &p_result.x);
 	sc_mpz_get_bytes(*to + num_bytes, &p_result.y);
