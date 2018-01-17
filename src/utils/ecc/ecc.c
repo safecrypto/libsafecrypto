@@ -1126,19 +1126,20 @@ SINT32 ecc_keygen(safecrypto_t *sc)
 	secret = sc->privkey->key;
 
 	// Generate a secret key as a random number
+#if 1
+	static const sc_ulimb_t ecdsaTestSecret[4] = {0x401455A194A949FA, 0x896A33BBAD7294CA, 0x4321435B7A80E714, 0x41C1CB6B51247A14};
+	SC_MEMCOPY(secret, ecdsaTestSecret, num_bytes);
+#else
 	prng_mem(sc->prng_ctx[0], (UINT8*)secret, num_bytes);
+#endif
 	fprintf(stderr, "private key = %016lX %016lX %016lX %016lX\n", secret[3], secret[2], secret[1], secret[0]);
 
 	// Generate the public key as the product of a scalar multiplication
 	// of the base point with k
 	point_init(&p_public, MAX_ECC_LIMBS);
 	scalar_point_mult(num_bits, &metadata, &sc->ecdsa->base, secret, &p_public);
-	fprintf(stderr, "public x = "); sc_mpz_out_str(stderr, 16, &sc->ecdsa->base.x); fprintf(stderr, "\n");
-	fprintf(stderr, "public y = "); sc_mpz_out_str(stderr, 16, &sc->ecdsa->base.y); fprintf(stderr, "\n");
-
-	// Obtain the public key parameters
-	sc_ulimb_t *x = sc_mpz_get_limbs(&p_public.x);
-	sc_ulimb_t *y = sc_mpz_get_limbs(&p_public.y);
+	fprintf(stderr, "public x = "); sc_mpz_out_str(stderr, 16, &p_public.x); fprintf(stderr, "\n");
+	fprintf(stderr, "public y = "); sc_mpz_out_str(stderr, 16, &p_public.y); fprintf(stderr, "\n");
 
 	// Allocate memory for the public key
     if (NULL == sc->pubkey->key) {
@@ -1150,13 +1151,8 @@ SINT32 ecc_keygen(safecrypto_t *sc)
     }
 
     // Copy the public key to storage
-#if SC_LIMB_BITS == 64
-	SC_BIG_ENDIAN_64_COPY(sc->pubkey->key, 0, x, num_bytes);
-	SC_BIG_ENDIAN_64_COPY(sc->pubkey->key, num_bytes, y, num_bytes);
-#else
-	SC_BIG_ENDIAN_32_COPY(sc->pubkey->key, 0, x, num_bytes);
-	SC_BIG_ENDIAN_32_COPY(sc->pubkey->key, num_bytes, y, num_bytes);
-#endif
+	sc_mpz_get_bytes(sc->pubkey->key, &p_public.x);
+	sc_mpz_get_bytes(sc->pubkey->key + num_bytes, &p_public.y);
 
 	retval = SC_FUNC_SUCCESS;
 
@@ -1184,6 +1180,12 @@ SINT32 ecc_sign(safecrypto_t *sc, const UINT8 *m, size_t mlen,
 	sc_mpz_t d, e, k, temp1, temp2;
 	SINT32 mem_is_zero;
 	ecc_metadata_t metadata;
+
+#if 1
+	static const sc_ulimb_t ecdsaTestRand1[] = { 0x191A1B1C1D1E1F20, 0x1112131415161718, 0x090A0B0C0D0E0F10, 0x0102030405060708};
+	static const sc_ulimb_t ecdsaTestMessage[] = { 0x2061207365637572, 0x2068617368206F66, 0x6869732069732061, 0x48616C6C6F2C2054};
+	SC_MEMCOPY(m, ecdsaTestMessage, mlen);
+#endif
 
 	// Obtain common array lengths
 	num_bits  = sc->ecdsa->params->num_bits;
@@ -1215,16 +1217,22 @@ SINT32 ecc_sign(safecrypto_t *sc, const UINT8 *m, size_t mlen,
 	sc_mpz_set_str(&p_base.x, 16, sc->ecdsa->params->g_x);
 	sc_mpz_set_str(&p_base.y, 16, sc->ecdsa->params->g_y);
 
-	sc_mpz_set_limbs(&d, secret, num_limbs);
+	sc_mpz_set_limbs(&d, (sc_ulimb_t*) sc->privkey->key, num_limbs);
 	sc_mpz_set_bytes(&e, m, mlen);
 
-	fprintf(stderr, "private key = %016lX %016lX %016lX %016lX\n", secret[3], secret[2], secret[1], secret[0]);
+	fprintf(stderr, "private key = %016lX %016lX %016lX %016lX\n",
+		((sc_ulimb_t*) sc->privkey->key)[3], ((sc_ulimb_t*) sc->privkey->key)[2], ((sc_ulimb_t*) sc->privkey->key)[1], ((sc_ulimb_t*) sc->privkey->key)[0]);
 	fprintf(stderr, "private MPZ = "); sc_mpz_out_str(stderr, 16, &d); fprintf(stderr, "\n");
 
 restart:
 	// Generate a random secret k
+#if 1
+	SC_MEMCOPY((UINT8*)secret, ecdsaTestRand1, mlen);
+#else
 	prng_mem(sc->prng_ctx[0], (UINT8*)secret, num_bytes);
+#endif
 	sc_mpz_set_limbs(&k, secret, num_limbs);
+	fprintf(stderr, "k = "); sc_mpz_out_str(stderr, 16, &k); fprintf(stderr, "\n");
 
 	// Perform a scalar point multiplication from the base point using the random secret k
 	scalar_point_mult(num_bits, &metadata, &p_base, secret, &p_result);
@@ -1245,18 +1253,14 @@ restart:
 		goto restart;
 	}
 
+	fprintf(stderr, "r = "); sc_mpz_out_str(stderr, 16, &p_result.x); fprintf(stderr, "\n");
+	fprintf(stderr, "s = "); sc_mpz_out_str(stderr, 16, &temp2); fprintf(stderr, "\n");
+
 	// Pack r and s into the output signature
-	sc_ulimb_t *r = sc_mpz_get_limbs(&p_result.x);
-	sc_ulimb_t *s = sc_mpz_get_limbs(&temp2);
 	*siglen = 2*num_bytes;
 	*sigret = SC_MALLOC(*siglen);
-#if SC_LIMB_BITS == 64
-	SC_BIG_ENDIAN_64_COPY(*sigret, 0, r, num_bytes);
-	SC_BIG_ENDIAN_64_COPY(*sigret, num_bytes, s, num_bytes);
-#else
-	SC_BIG_ENDIAN_32_COPY(*sigret, 0, r, num_bytes);
-	SC_BIG_ENDIAN_32_COPY(*sigret, num_bytes, s, num_bytes);
-#endif
+	sc_mpz_get_bytes(*sigret, &p_result.x);
+	sc_mpz_get_bytes(*sigret + num_bytes, &temp2);
 
 	sc_mpz_clear(&metadata.lambda);
 	sc_mpz_clear(&metadata.x);
@@ -1283,10 +1287,15 @@ SINT32 ecc_verify(safecrypto_t *sc, const UINT8 *m, size_t mlen,
 {
 	SINT32 retval;
 	size_t i, num_bits, num_bytes, num_limbs;
-	sc_mpz_t p, a, r, s, w, temp, z;
+	sc_mpz_t r, s, w, temp, z;
 	sc_ulimb_t *secret;
 	ecc_point_t p_base, p_public, p_u1, p_u2;
 	ecc_metadata_t metadata;
+
+#if 1
+	static const sc_ulimb_t ecdsaTestMessage[] = { 0x2061207365637572, 0x2068617368206F66, 0x6869732069732061, 0x48616C6C6F2C2054};
+	SC_MEMCOPY(m, ecdsaTestMessage, mlen);
+#endif
 
 	// Obtain common array lengths
 	num_bits  = sc->ecdsa->params->num_bits;
@@ -1294,30 +1303,44 @@ SINT32 ecc_verify(safecrypto_t *sc, const UINT8 *m, size_t mlen,
 	num_limbs = sc->ecdsa->params->num_limbs;
 
 	// Configure the curve parameters
+	sc_mpz_init2(&metadata.lambda, MAX_ECC_BITS);
+	sc_mpz_init2(&metadata.x, MAX_ECC_BITS);
+	sc_mpz_init2(&metadata.y, MAX_ECC_BITS);
+	sc_mpz_init2(&metadata.temp, 2*MAX_ECC_BITS);
+	sc_mpz_init2(&metadata.a, MAX_ECC_BITS);
+	sc_mpz_init2(&metadata.m, MAX_ECC_BITS);
+	sc_mpz_init2(&metadata.mu, MAX_ECC_BITS+1);
+	sc_mpz_init2(&metadata.order, MAX_ECC_BITS);
+	sc_mpz_set_str(&metadata.a, 16, sc->ecdsa->params->a);
+	sc_mpz_set_str(&metadata.m, 16, sc->ecdsa->params->p);
+	sc_mpz_set_str(&metadata.mu, 16, sc->ecdsa->params->mu);
+	sc_mpz_set_str(&metadata.order, 16, sc->ecdsa->params->order);
 	sc_mpz_init2(&temp, 2*MAX_ECC_BITS);
 	sc_mpz_init2(&r, MAX_ECC_BITS);
 	sc_mpz_init2(&s, MAX_ECC_BITS);
 	sc_mpz_init2(&w, MAX_ECC_BITS);
 	sc_mpz_init2(&z, MAX_ECC_BITS);
-	sc_mpz_init2(&metadata.a, MAX_ECC_BITS);
-	sc_mpz_init2(&metadata.m, MAX_ECC_BITS);
-	sc_mpz_set_str(&metadata.m, 16, sc->ecdsa->params->p);
-	sc_mpz_set_str(&metadata.a, 16, sc->ecdsa->params->a);
 	point_init(&p_base, MAX_ECC_LIMBS);
 	point_init(&p_public, MAX_ECC_LIMBS);
 	point_init(&p_u1, MAX_ECC_LIMBS);
 	point_init(&p_u2, MAX_ECC_LIMBS);
 
-	fprintf(stderr, "public x = "); sc_mpz_out_str(stderr, 16, &p_public.x); fprintf(stderr, "\n");
-	fprintf(stderr, "public y = "); sc_mpz_out_str(stderr, 16, &p_public.y); fprintf(stderr, "\n");
+	sc_mpz_set_bytes(&r, sigbuf, num_bytes);
+	sc_mpz_set_bytes(&s, sigbuf + num_bytes, num_bytes);
+	fprintf(stderr, "r = "); sc_mpz_out_str(stderr, 16, &r); fprintf(stderr, "\n");
+	fprintf(stderr, "s = "); sc_mpz_out_str(stderr, 16, &s); fprintf(stderr, "\n");
+
+	sc_mpz_set_bytes(&z, m, mlen);
 
 	// w = s^{-1}
-	sc_mpz_invmod(&w, &s, &p);
+	sc_mpz_invmod(&w, &s, &metadata.m);
 
 	// Obtain the public key Q in the form of an elliptic curve point
 	p_public.n = sc->ecdsa->params->num_limbs;
 	sc_mpz_set_bytes(&p_public.x, sc->pubkey->key, num_bytes);
 	sc_mpz_set_bytes(&p_public.y, sc->pubkey->key + num_bytes, num_bytes);
+	fprintf(stderr, "public x = "); sc_mpz_out_str(stderr, 16, &p_public.x); fprintf(stderr, "\n");
+	fprintf(stderr, "public y = "); sc_mpz_out_str(stderr, 16, &p_public.y); fprintf(stderr, "\n");
 
 	// Obtain the base point G
 	p_base.n = sc->ecdsa->params->num_limbs;
@@ -1326,7 +1349,7 @@ SINT32 ecc_verify(safecrypto_t *sc, const UINT8 *m, size_t mlen,
 
 	// u1 = w * z * G
 	sc_mpz_mul(&temp, &w, &z);
-	sc_mpz_mod(&temp, &temp, &p);
+	sc_mpz_mod(&temp, &temp, &metadata.m);
 	secret = sc_mpz_get_limbs(&temp);
 	scalar_point_mult(num_bits, &metadata, &p_base, secret, &p_u1);
 
@@ -1337,7 +1360,13 @@ SINT32 ecc_verify(safecrypto_t *sc, const UINT8 *m, size_t mlen,
 	scalar_point_mult(num_bits, &metadata, &p_public, secret, &p_u2);
 
 	// Point addition to obtain the signature point on the curve
+	fprintf(stderr, "u1 x = "); sc_mpz_out_str(stderr, 16, &p_u1.x); fprintf(stderr, "\n");
+	fprintf(stderr, "u1 y = "); sc_mpz_out_str(stderr, 16, &p_u1.y); fprintf(stderr, "\n");
+	fprintf(stderr, "u2 x = "); sc_mpz_out_str(stderr, 16, &p_u2.x); fprintf(stderr, "\n");
+	fprintf(stderr, "u2 y = "); sc_mpz_out_str(stderr, 16, &p_u2.y); fprintf(stderr, "\n");
 	point_add(&metadata, &p_u1, &p_u2);
+	fprintf(stderr, "u1 x = "); sc_mpz_out_str(stderr, 16, &p_u1.x); fprintf(stderr, "\n");
+	fprintf(stderr, "u1 y = "); sc_mpz_out_str(stderr, 16, &p_u1.y); fprintf(stderr, "\n");
 
 	// Validate the signature
 	if (0 == sc_mpz_cmp(&p_u1.x, &r)) {
@@ -1348,8 +1377,14 @@ SINT32 ecc_verify(safecrypto_t *sc, const UINT8 *m, size_t mlen,
 	}
 
 	// Free memory resources
+	sc_mpz_clear(&metadata.lambda);
+	sc_mpz_clear(&metadata.x);
+	sc_mpz_clear(&metadata.y);
+	sc_mpz_clear(&metadata.temp);
 	sc_mpz_clear(&metadata.a);
 	sc_mpz_clear(&metadata.m);
+	sc_mpz_clear(&metadata.mu);
+	sc_mpz_clear(&metadata.order);
 	sc_mpz_clear(&temp);
 	sc_mpz_clear(&r);
 	sc_mpz_clear(&s);
