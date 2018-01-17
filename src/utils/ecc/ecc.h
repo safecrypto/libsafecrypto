@@ -86,6 +86,7 @@ extern SINT32 ecc_diffie_hellman_encapsulate(safecrypto_t *sc, const sc_ulimb_t 
 extern SINT32 ecc_diffie_hellman_decapsulate(safecrypto_t *sc, const sc_ulimb_t *secret,
 	size_t flen, const UINT8 *from, size_t *tlen, UINT8 **to);
 
+extern SINT32 ecc_keygen(safecrypto_t *sc);
 extern SINT32 ecc_sign(safecrypto_t *sc, const UINT8 *m, size_t mlen,
     UINT8 **sigret, size_t *siglen);
 

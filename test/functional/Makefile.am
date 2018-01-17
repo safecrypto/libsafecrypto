@@ -92,6 +92,7 @@ TESTS                   += func_alg_dilithium \
 endif BUILD_DILITHIUM
 
 TESTS                   += func_alg_ecdh
+TESTS                   += func_alg_ecdsa
 
 noinst_PROGRAMS          = $(TESTS)
 
@@ -350,5 +351,10 @@ func_alg_ecdh_SOURCES                = func_alg_ecdh.c \
                                        $(top_srcdir)/include/safecrypto.h
 func_alg_ecdh_LDADD                  = $(top_builddir)/libs/libsafecrypto.la -lm
 func_alg_ecdh_LDFLAGS                = -static
+
+func_alg_ecdsa_SOURCES               = func_alg_ecdsa.c \
+                                       $(top_srcdir)/include/safecrypto.h
+func_alg_ecdsa_LDADD                 = $(top_builddir)/libs/libsafecrypto.la -lm
+func_alg_ecdsa_LDFLAGS               = -static
 
 endif

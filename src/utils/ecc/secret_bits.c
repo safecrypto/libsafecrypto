@@ -25,7 +25,7 @@ static SINT32 naf(const sc_ulimb_t *secret, size_t num_bits, sc_ulimb_t *recoded
 	sc_mpz_init2(&e, MAX_ECC_BITS);
 	size_t max_limbs = (num_bits + SC_LIMB_BITS - 1) >> SC_LIMB_BITS_SHIFT;
 	sc_ulimb_t mask = (0 == (num_bits & SC_LIMB_BITS_MASK))? SC_LIMB_MASK : (1UL << (num_bits & SC_LIMB_BITS_MASK)) - 1;
-	sc_mpz_add_ui(&e, &e, secret[max_limbs - i - 1] & mask);
+	sc_mpz_add_ui(&e, &e, secret[max_limbs - 1] & mask);
 	for (i=1; i<max_limbs; i++) {
 		sc_mpz_mul_2exp(&e, &e, SC_LIMB_BITS);
 		sc_mpz_add_ui(&e, &e, secret[max_limbs - i - 1]);

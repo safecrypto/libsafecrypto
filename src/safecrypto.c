@@ -54,8 +54,11 @@
 #ifndef DISABLE_IBE_DLP
 #include "schemes/ibe/dlp/dlp_ibe.h"
 #endif
-#if 1
+#ifndef DISABLE_ECDH
 #include "schemes/dh/ecdh/ecdh.h"
+#endif
+#ifndef DISABLE_ECDSA
+#include "schemes/sig/ecdsa/ecdsa.h"
 #endif
 
 #include <string.h>
@@ -203,8 +206,8 @@ static safecrypto_alg_t safecrypto_algorithms[] = {
       dlp_ibe_pubkey_load, dlp_ibe_privkey_load, dlp_ibe_pubkey_encode, dlp_ibe_privkey_encode,
       NULL, NULL, dlp_ibe_secret_key, dlp_ibe_extract, dlp_ibe_encrypt, NULL, dlp_ibe_decrypt, NULL, NULL, NULL, NULL, NULL, NULL, dlp_ibe_stats },
 #endif
-#if defined(DISABLE_IBE) || defined(DISABLE_IBE_DLP)
-    { SC_SCHEME_IBE_DLP, NULL, NULL, NULL, NULL, NULL,
+#if defined(DISABLE_DH) || defined(DISABLE_ECDH)
+    { SC_SCHEME_DH_ECDH, NULL, NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
 #else
@@ -212,6 +215,16 @@ static safecrypto_alg_t safecrypto_algorithms[] = {
       NULL, NULL,
       NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, ecdh_diffie_hellman_init, ecdh_diffie_hellman_final, ecdh_stats },
+#endif
+#if defined(DISABLE_SIG) || defined(DISABLE_SIG_ECDSA)
+    { SC_SCHEME_SIG_ECDSA, NULL, NULL, NULL, NULL, NULL,
+      NULL, NULL, NULL, NULL,
+      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
+#else
+    { SC_SCHEME_SIG_ECDSA, ecdsa_create, ecdsa_destroy, ecdsa_keygen,
+      NULL, NULL,
+      ecdsa_pubkey_load, ecdsa_privkey_load, ecdsa_pubkey_encode, ecdsa_privkey_encode,
+      NULL, NULL, NULL, NULL, NULL, NULL, NULL, ecdsa_sign, ecdsa_verify, NULL, NULL, NULL, NULL, ecdsa_stats },
 #endif
 };
 
