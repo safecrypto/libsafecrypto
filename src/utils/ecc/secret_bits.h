@@ -19,9 +19,16 @@ typedef enum ecc_direction {
 	ECC_DIR_RIGHT,
 } ecc_direction_e;
 
+#define ECC_K_CODING_NAF_BIT         0x08
+#define ECC_K_CODING_NAF_BIT_SHIFT   3
+
 typedef enum ecc_k_coding {
 	ECC_K_BINARY = 0,
-	ECC_K_NAF_4,
+	ECC_K_NAF_2  = ECC_K_CODING_NAF_BIT,
+	ECC_K_NAF_3  = ECC_K_CODING_NAF_BIT + 1,
+	ECC_K_NAF_4  = ECC_K_CODING_NAF_BIT + 2,
+	ECC_K_NAF_5  = ECC_K_CODING_NAF_BIT + 3,
+	ECC_K_NAF_6  = ECC_K_CODING_NAF_BIT + 4,
 } ecc_k_coding_e;
 
 typedef struct point_secret {

@@ -60,7 +60,7 @@ END_TEST
 START_TEST(test_secret_bits_init_naf)
 {
     size_t bits;
-    ecc_k_coding_e coding = ECC_K_NAF_4;
+    ecc_k_coding_e coding = ECC_K_NAF_2;
     point_secret_t bit_ctx;
     sc_ulimb_t secret[3] = {0};
 
@@ -103,7 +103,7 @@ START_TEST(test_secret_bits_naf)
 {
     UINT32 data;
     size_t bits, i;
-    ecc_k_coding_e coding = ECC_K_NAF_4;
+    ecc_k_coding_e coding = ECC_K_NAF_2;
     point_secret_t bit_ctx;
     sc_ulimb_t secret[3] = {0};
 
@@ -115,6 +115,32 @@ START_TEST(test_secret_bits_naf)
     data = secret_bits_pull(&bit_ctx);
     ck_assert_uint_eq(data, ECC_K_IS_HIGH);
     for (i=0; i<SC_LIMB_BITS + SC_LIMB_BITS2 - 1; i++) {
+        data = secret_bits_pull(&bit_ctx);
+        ck_assert_uint_eq(data, ECC_K_IS_LOW);
+    }
+    data = secret_bits_pull(&bit_ctx);
+    ck_assert_uint_eq(data, ECC_K_IS_MINUS_ONE);
+}
+END_TEST
+
+START_TEST(test_secret_bits_naf_2)
+{
+    UINT32 data;
+    size_t bits, i;
+    ecc_k_coding_e coding = ECC_K_NAF_2;
+    point_secret_t bit_ctx;
+    sc_ulimb_t secret[7] = {0};
+
+    secret[0] = SC_LIMB_MASK;
+    secret[1] = SC_LIMB_MASK;
+    secret[2] = SC_LIMB_MASK;
+    secret[3] = SC_LIMB_MASK;
+    bits = secret_bits_init(coding, &bit_ctx, secret, 4*SC_LIMB_BITS);
+    ck_assert_uint_eq(bits, 4*SC_LIMB_BITS + 1);
+
+    data = secret_bits_pull(&bit_ctx);
+    ck_assert_uint_eq(data, ECC_K_IS_HIGH);
+    for (i=0; i<4*SC_LIMB_BITS - 1; i++) {
         data = secret_bits_pull(&bit_ctx);
         ck_assert_uint_eq(data, ECC_K_IS_LOW);
     }
@@ -135,6 +161,7 @@ Suite *secret_bits_suite(void)
     tcase_add_test(tc_core, test_secret_bits_init_binary);
     tcase_add_test(tc_core, test_secret_bits_init_naf);
     tcase_add_test(tc_core, test_secret_bits_naf);
+    tcase_add_test(tc_core, test_secret_bits_naf_2);
     suite_add_tcase(s, tc_core);
 
     return s;
