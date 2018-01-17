@@ -29,7 +29,7 @@ typedef struct ecc_metadata {
 	size_t     n;
 } ecc_metadata_t;
 
-const ecdh_set_t param_ecdh_secp256r1 = {
+const ec_set_t param_ec_secp256r1 = {
 	256,
 	32,
 	256 >> SC_LIMB_BITS_SHIFT,
@@ -675,7 +675,7 @@ typedef struct ecc_metadata {
 	size_t   k;
 } ecc_metadata_t;
 
-const ecdh_set_t param_ecdh_secp256r1 = {
+const ec_set_t param_ec_secp256r1 = {
 	256,
 	32,
 	256 >> SC_LIMB_BITS_SHIFT,
@@ -688,7 +688,7 @@ const ecdh_set_t param_ecdh_secp256r1 = {
 	"FFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551",
 };
 
-const ecdh_set_t param_ecdh_secp384r1 = {
+const ec_set_t param_ec_secp384r1 = {
 	384,
 	48,
 	384 >> SC_LIMB_BITS_SHIFT,
@@ -701,7 +701,7 @@ const ecdh_set_t param_ecdh_secp384r1 = {
 	"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFC7634D81F4372DDF581A0DB248B0A77AECEC196ACCC52973",
 };
 
-const ecdh_set_t param_ecdh_secp521r1 = {
+const ec_set_t param_ec_secp521r1 = {
 	521,
 	66,
 	(521 + SC_LIMB_BITS - 1) >> SC_LIMB_BITS_SHIFT,

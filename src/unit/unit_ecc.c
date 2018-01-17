@@ -20,8 +20,8 @@ START_TEST(test_ecc_zero_double)
     sc_mpz_t a, p;
     ecc_point_t p_base;
 #ifdef USE_OPT_ECC
-    metadata.a = param_ecdh_secp256r1.a;
-    metadata.m = param_ecdh_secp256r1.p;
+    metadata.a = param_ec_secp256r1.a;
+    metadata.m = param_ec_secp256r1.p;
 #else
     sc_mpz_init2(&metadata.a, MAX_ECC_BITS);
     sc_mpz_init2(&metadata.m, MAX_ECC_BITS);
@@ -29,8 +29,8 @@ START_TEST(test_ecc_zero_double)
     sc_mpz_init2(&metadata.x, MAX_ECC_BITS);
     sc_mpz_init2(&metadata.y, MAX_ECC_BITS);
     sc_mpz_init2(&metadata.temp, 2*MAX_ECC_BITS);
-    sc_mpz_set_str(&metadata.a, 16, param_ecdh_secp256r1.a);
-    sc_mpz_set_str(&metadata.m, 16, param_ecdh_secp256r1.p);
+    sc_mpz_set_str(&metadata.a, 16, param_ec_secp256r1.a);
+    sc_mpz_set_str(&metadata.m, 16, param_ec_secp256r1.p);
 #endif
 
     point_init(&p_base, 4);
@@ -67,8 +67,8 @@ START_TEST(test_ecc_mul_basic)
     ecc_point_t point, p_base;
     sc_ulimb_t secret[MAX_ECC_LIMBS] = {0};
 #ifdef USE_OPT_ECC
-    metadata.a = param_ecdh_secp256r1.a;
-    metadata.m = param_ecdh_secp256r1.p;
+    metadata.a = param_ec_secp256r1.a;
+    metadata.m = param_ec_secp256r1.p;
 #else
     sc_mpz_init2(&metadata.a, MAX_ECC_BITS);
     sc_mpz_init2(&metadata.m, MAX_ECC_BITS);
@@ -76,8 +76,8 @@ START_TEST(test_ecc_mul_basic)
     sc_mpz_init2(&metadata.x, MAX_ECC_BITS);
     sc_mpz_init2(&metadata.y, MAX_ECC_BITS);
     sc_mpz_init2(&metadata.temp, 2*MAX_ECC_BITS);
-    sc_mpz_set_str(&metadata.a, 16, param_ecdh_secp256r1.a);
-    sc_mpz_set_str(&metadata.m, 16, param_ecdh_secp256r1.p);
+    sc_mpz_set_str(&metadata.a, 16, param_ec_secp256r1.a);
+    sc_mpz_set_str(&metadata.m, 16, param_ec_secp256r1.p);
 #endif
 
     point_init(&point, 4);
@@ -91,11 +91,11 @@ START_TEST(test_ecc_mul_basic)
 #endif
 
     secret[0] = 1;
-    scalar_point_mult(param_ecdh_secp256r1.num_bits, &metadata, &p_base, secret, &point);
+    scalar_point_mult(param_ec_secp256r1.num_bits, &metadata, &p_base, secret, &point);
     //ck_assert_str_eq(tv_m_1_x, );
 
     secret[0] = 2;
-    scalar_point_mult(param_ecdh_secp256r1.num_bits, &metadata, &p_base, secret, &point);
+    scalar_point_mult(param_ec_secp256r1.num_bits, &metadata, &p_base, secret, &point);
     //ck_assert_str_eq(tv_m_1_x, );
 
 #ifndef USE_OPT_ECC
@@ -136,10 +136,10 @@ START_TEST(test_ecc_double_basic)
     metadata.k = 4;
 #ifdef USE_OPT_ECC
     metadata.n = 4;
-    metadata.a = param_ecdh_secp256r1.a;
-    metadata.m = param_ecdh_secp256r1.p;
-    metadata.mu = param_ecdh_secp256r1.p_mu;
-    metadata.order = param_ecdh_secp256r1.order;
+    metadata.a = param_ec_secp256r1.a;
+    metadata.m = param_ec_secp256r1.p;
+    metadata.mu = param_ec_secp256r1.p_mu;
+    metadata.order = param_ec_secp256r1.order;
 #else
     sc_mpz_init2(&metadata.a, MAX_ECC_BITS);
     sc_mpz_init2(&metadata.m, MAX_ECC_BITS);
@@ -149,10 +149,10 @@ START_TEST(test_ecc_double_basic)
     sc_mpz_init2(&metadata.x, MAX_ECC_BITS);
     sc_mpz_init2(&metadata.y, MAX_ECC_BITS);
     sc_mpz_init2(&metadata.temp, 2*MAX_ECC_BITS);
-    sc_mpz_set_str(&metadata.a, 16, param_ecdh_secp256r1.a);
-    sc_mpz_set_str(&metadata.m, 16, param_ecdh_secp256r1.p);
-    sc_mpz_set_str(&metadata.mu, 16, param_ecdh_secp256r1.mu);
-    sc_mpz_set_str(&metadata.order, 16, param_ecdh_secp256r1.order);
+    sc_mpz_set_str(&metadata.a, 16, param_ec_secp256r1.a);
+    sc_mpz_set_str(&metadata.m, 16, param_ec_secp256r1.p);
+    sc_mpz_set_str(&metadata.mu, 16, param_ec_secp256r1.mu);
+    sc_mpz_set_str(&metadata.order, 16, param_ec_secp256r1.order);
 #endif
 
     // Set the point to the above test vector
@@ -225,10 +225,10 @@ START_TEST(test_ecc_add_basic)
 
 #ifdef USE_OPT_ECC
     metadata.n = 4;
-    metadata.a = param_ecdh_secp256r1.a;
-    metadata.m = param_ecdh_secp256r1.p;
-    metadata.mu = param_ecdh_secp256r1.p_mu;
-    metadata.order = param_ecdh_secp256r1.order;
+    metadata.a = param_ec_secp256r1.a;
+    metadata.m = param_ec_secp256r1.p;
+    metadata.mu = param_ec_secp256r1.p_mu;
+    metadata.order = param_ec_secp256r1.order;
 #else
     // Set the curve parameters a and prime (modulus)
     sc_mpz_init2(&metadata.a, MAX_ECC_BITS);
@@ -237,8 +237,8 @@ START_TEST(test_ecc_add_basic)
     sc_mpz_init2(&metadata.x, MAX_ECC_BITS);
     sc_mpz_init2(&metadata.y, MAX_ECC_BITS);
     sc_mpz_init2(&metadata.temp, 2*MAX_ECC_BITS);
-    sc_mpz_set_str(&metadata.a, 16, param_ecdh_secp256r1.a);
-    sc_mpz_set_str(&metadata.m, 16, param_ecdh_secp256r1.p);
+    sc_mpz_set_str(&metadata.a, 16, param_ec_secp256r1.a);
+    sc_mpz_set_str(&metadata.m, 16, param_ec_secp256r1.p);
 #endif
 
     // Set the two points to the above test vectors

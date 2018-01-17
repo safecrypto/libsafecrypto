@@ -1216,6 +1216,7 @@ if test "x${enable_kem_ens}" = "xyes"; then
     AC_CONFIG_FILES([src/schemes/kem/ens/Makefile])
 fi
 AC_CONFIG_FILES([src/schemes/dh/ecdh/Makefile])
+AC_CONFIG_FILES([src/schemes/sig/ecdsa/Makefile])
 
 #AC_CONFIG_SUBDIRS([src/utils/crypto])
 #AX_SUBDIRS_CONFIGURE([src/utils/crypto])

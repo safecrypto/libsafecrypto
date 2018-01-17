@@ -35,7 +35,7 @@ typedef struct ecc_point {
 } ecc_point_t;
 #endif
 
-typedef struct _ecdh_set_t {
+typedef struct _ec_set_t {
 	size_t      num_bits;
 	size_t      num_bytes;
 	size_t      num_limbs;
@@ -57,19 +57,26 @@ typedef struct _ecdh_set_t {
 	const char *mu;
 	const char *order;
 #endif
-} ecdh_set_t;
+} ec_set_t;
+
+extern const ec_set_t param_ec_secp256r1;
+extern const ec_set_t param_ec_secp384r1;
+extern const ec_set_t param_ec_secp521r1;
 
 SC_STRUCT_PACK_START
 typedef struct _ecdh_cfg_t {
-    const ecdh_set_t *params;
-	ecc_point_t       base;
+    const ec_set_t *params;
+	ecc_point_t     base;
 } SC_STRUCT_PACKED ecdh_cfg_t;
 SC_STRUCT_PACK_END
 
+SC_STRUCT_PACK_START
+typedef struct _ecdsa_cfg_t {
+    const ec_set_t *params;
+	ecc_point_t     base;
+} SC_STRUCT_PACKED ecdsa_cfg_t;
+SC_STRUCT_PACK_END
 
-extern const ecdh_set_t param_ecdh_secp256r1;
-extern const ecdh_set_t param_ecdh_secp384r1;
-extern const ecdh_set_t param_ecdh_secp521r1;
 
 extern SINT32 ecc_diffie_hellman(safecrypto_t *sc, const ecc_point_t *p_base,
 	const sc_ulimb_t *secret, size_t *tlen, UINT8 **to);

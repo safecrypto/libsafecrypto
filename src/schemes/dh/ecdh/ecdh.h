@@ -22,7 +22,7 @@
 #include "hash.h"
 
 
-typedef struct _ecdh_set_t ecdh_set_t;
+typedef struct _ec_set_t ec_set_t;
 typedef struct _ecdh_cfg_t ecdh_cfg_t;
 
 
