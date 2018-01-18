@@ -27,7 +27,7 @@
 
 #define MIN_PARAM_SET 0
 #define MAX_PARAM_SET 0
-#define MAX_ITER      1
+#define MAX_ITER      4096
 
 #define USE_FIXED_BUFFERS     1
 #if USE_FIXED_BUFFERS == 1
@@ -117,7 +117,7 @@ int main(void)
     flags[0]  = SC_FLAG_MORE;
     flags[0] |= SC_FLAG_0_SAMPLE_CDF | SC_FLAG_0_SAMPLE_128BIT;
     flags[1]  = SC_FLAG_1_CSPRNG_AES_CTR_DRBG;
-    flags[1] |= SC_FLAG_1_CSPRNG_USE_CALLBACK_RANDOM;
+    //flags[1] |= SC_FLAG_1_CSPRNG_USE_CALLBACK_RANDOM;
     flags[1] |= SC_FLAG_MORE;
     flags[2]  = SC_FLAG_NONE;
 
@@ -140,7 +140,7 @@ int main(void)
         printf("Message length: %6d bytes\n", (int)length);
 
         // Create a SAFEcrypto object
-        safecrypto_entropy_callback(prng_entropy_source);
+        //safecrypto_entropy_callback(prng_entropy_source);
         sc = safecrypto_create(SC_SCHEME_SIG_ECDSA, i, flags);
 
         for (j=0; j<MAX_ITER; j++) {
@@ -183,7 +183,7 @@ int main(void)
             // Generate a signature for that message
             SC_TIMER_START(sign_timer);
             siglen = FIXED_BUFFER_SIZE;
-            if (SC_FUNC_SUCCESS != safecrypto_sign(sc, md, 64, &sig, &siglen)) {
+            if (SC_FUNC_SUCCESS != safecrypto_sign(sc, md, 32, &sig, &siglen)) {
                 goto error_return;
             }
             SC_TIMER_STOP(sign_timer);
@@ -215,7 +215,7 @@ int main(void)
             }
             else */{
                 // Verify the signature using the public key
-                if (SC_FUNC_SUCCESS != safecrypto_verify(sc, md, 64, sig, siglen)) {
+                if (SC_FUNC_SUCCESS != safecrypto_verify(sc, md, 32, sig, siglen)) {
                     fprintf(stderr, "ERROR! Signature NOT verified\n");
                     goto error_return;
                 }

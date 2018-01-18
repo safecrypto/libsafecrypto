@@ -138,21 +138,21 @@ START_TEST(test_ecc_double_basic)
     metadata.n = 4;
     metadata.a = param_ec_secp256r1.a;
     metadata.m = param_ec_secp256r1.p;
-    metadata.mu = param_ec_secp256r1.p_mu;
-    metadata.order = param_ec_secp256r1.order;
+    metadata.m_inv = param_ec_secp256r1.p_m_inv;
+    metadata.order_m = param_ec_secp256r1.order_m;
 #else
     sc_mpz_init2(&metadata.a, MAX_ECC_BITS);
     sc_mpz_init2(&metadata.m, MAX_ECC_BITS);
-    sc_mpz_init2(&metadata.mu, MAX_ECC_BITS+1);
-    sc_mpz_init2(&metadata.order, MAX_ECC_BITS);
+    sc_mpz_init2(&metadata.m_inv, MAX_ECC_BITS+1);
+    sc_mpz_init2(&metadata.order_m, MAX_ECC_BITS);
     sc_mpz_init2(&metadata.lambda, MAX_ECC_BITS);
     sc_mpz_init2(&metadata.x, MAX_ECC_BITS);
     sc_mpz_init2(&metadata.y, MAX_ECC_BITS);
     sc_mpz_init2(&metadata.temp, 2*MAX_ECC_BITS);
     sc_mpz_set_str(&metadata.a, 16, param_ec_secp256r1.a);
     sc_mpz_set_str(&metadata.m, 16, param_ec_secp256r1.p);
-    sc_mpz_set_str(&metadata.mu, 16, param_ec_secp256r1.mu);
-    sc_mpz_set_str(&metadata.order, 16, param_ec_secp256r1.order);
+    sc_mpz_set_str(&metadata.m_inv, 16, param_ec_secp256r1.p_inv);
+    sc_mpz_set_str(&metadata.order_m, 16, param_ec_secp256r1.order_m);
 #endif
 
     // Set the point to the above test vector
@@ -189,8 +189,8 @@ START_TEST(test_ecc_double_basic)
     sc_mpz_clear(&metadata.temp);
     sc_mpz_clear(&metadata.a);
     sc_mpz_clear(&metadata.m);
-    sc_mpz_clear(&metadata.mu);
-    sc_mpz_clear(&metadata.order);
+    sc_mpz_clear(&metadata.m_inv);
+    sc_mpz_clear(&metadata.order_m);
 #endif
 }
 END_TEST
@@ -227,8 +227,8 @@ START_TEST(test_ecc_add_basic)
     metadata.n = 4;
     metadata.a = param_ec_secp256r1.a;
     metadata.m = param_ec_secp256r1.p;
-    metadata.mu = param_ec_secp256r1.p_mu;
-    metadata.order = param_ec_secp256r1.order;
+    metadata.m_inv = param_ec_secp256r1.p_inv;
+    metadata.order_m = param_ec_secp256r1.order_m;
 #else
     // Set the curve parameters a and prime (modulus)
     sc_mpz_init2(&metadata.a, MAX_ECC_BITS);

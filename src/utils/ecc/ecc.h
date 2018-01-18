@@ -47,15 +47,14 @@ typedef struct _ec_set_t {
 	const sc_ulimb_t p[MAX_ECC_LIMBS];
 	const sc_ulimb_t p_mu[MAX_ECC_LIMBS];
 	const sc_ulimb_t order[MAX_ECC_LIMBS];
-	const sc_ulimb_t mu[MAX_ECC_LIMBS+1];
 #else
 	const char *a;
 	const char *b;
 	const char *g_x;
 	const char *g_y;
 	const char *p;
-	const char *mu;
-	const char *order;
+	const char *p_inv;
+	const char *order_m;
 #endif
 } ec_set_t;
 

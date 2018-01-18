@@ -11,6 +11,8 @@
 
 #include "utils/ecc/secret_bits.h"
 
+#define TEST_HACK
+
 
 #ifdef USE_OPT_ECC
 #include "utils/crypto/prng.h"
@@ -22,8 +24,8 @@ typedef struct ecc_metadata {
 	sc_ulimb_t x[MAX_ECC_LIMBS];
 	sc_ulimb_t y[MAX_ECC_LIMBS];
 	const sc_ulimb_t *m;
-	const sc_ulimb_t *mu;
-	const sc_ulimb_t *order;
+	const sc_ulimb_t *m_inv;
+	const sc_ulimb_t *order_m;
 	const sc_ulimb_t *a;
 	size_t     k;
 	size_t     n;
@@ -136,20 +138,20 @@ static sc_ulimb_t sub(sc_ulimb_t *out, const sc_ulimb_t *x, const sc_ulimb_t *y,
 	return (sc_ulimb_t) d;
 }
 
-static void ec_field_add(sc_ulimb_t *out, const sc_ulimb_t *in1, const sc_ulimb_t *in2, size_t n, const sc_ulimb_t *mu)
+static void ec_field_add(sc_ulimb_t *out, const sc_ulimb_t *in1, const sc_ulimb_t *in2, size_t n, const sc_ulimb_t *m_inv)
 {
 	if (add(out, in1, in2, n)) {
 		sc_ulimb_t temp[MAX_ECC_LIMBS] = {0};
-		add(temp, out, mu, n);
+		add(temp, out, m_inv, n);
 		ec_copy(out, temp, n);
 	}
 }
 
-static void ec_field_sub(sc_ulimb_t *out, const sc_ulimb_t *in1, const sc_ulimb_t *in2, size_t n, const sc_ulimb_t *mu)
+static void ec_field_sub(sc_ulimb_t *out, const sc_ulimb_t *in1, const sc_ulimb_t *in2, size_t n, const sc_ulimb_t *m_inv)
 {
 	if (sub(out, in1, in2, n)) {
 		sc_ulimb_t temp[MAX_ECC_LIMBS] = {0};
-		add(temp, out, mu, n);
+		add(temp, out, m_inv, n);
 		ec_copy(out, temp, n);
 	}
 }
@@ -186,7 +188,7 @@ static sc_ulimb_t ec_rshift(sc_ulimb_t *inout, size_t n)
 	}
 }
 
-static void ec_field_add_div(sc_ulimb_t* out, const sc_ulimb_t *in, size_t n, const sc_ulimb_t *m, const sc_ulimb_t *mu){
+static void ec_field_add_div(sc_ulimb_t* out, const sc_ulimb_t *in, size_t n, const sc_ulimb_t *m, const sc_ulimb_t *m_inv){
 	sc_ulimb_t c = add(out, in, m, n);
 	ec_rshift(out, n);
 	if (c) { //add prime if carry is still set!
@@ -197,7 +199,7 @@ static void ec_field_add_div(sc_ulimb_t* out, const sc_ulimb_t *in, size_t n, co
 #endif
 		if (ec_cmp(out, m, n) > 0) {
 			sc_ulimb_t tempas[2*MAX_ECC_LIMBS] = {0};
-			add(tempas, out, mu, 2*n);
+			add(tempas, out, m_inv, 2*n);
 			ec_copy(out, tempas, n);
 		}
 		
@@ -205,7 +207,7 @@ static void ec_field_add_div(sc_ulimb_t* out, const sc_ulimb_t *in, size_t n, co
 }
 
 
-static void ec_field_inv(sc_ulimb_t *out, const sc_ulimb_t *in, size_t n, const sc_ulimb_t *m, const sc_ulimb_t *mu)
+static void ec_field_inv(sc_ulimb_t *out, const sc_ulimb_t *in, size_t n, const sc_ulimb_t *m, const sc_ulimb_t *m_inv)
 {
 	sc_ulimb_t u[MAX_ECC_LIMBS] = {0}, v[MAX_ECC_LIMBS] = {0}, x1[MAX_ECC_LIMBS] = {0}, x2[MAX_ECC_LIMBS] = {0};
 	sc_ulimb_t tempm[MAX_ECC_LIMBS] = {0};
@@ -223,7 +225,7 @@ static void ec_field_inv(sc_ulimb_t *out, const sc_ulimb_t *in, size_t n, const 
 				ec_rshift(x1, n);				/* Divide by 2 */
 			}
 			else {
-				ec_field_add_div(tempm, x1, n, m, mu);	/* tempm = x1 + p */
+				ec_field_add_div(tempm, x1, n, m, m_inv);	/* tempm = x1 + p */
 				ec_copy(x1, tempm, n);					/* x1 = tempm */
 			}
 		} 
@@ -233,7 +235,7 @@ static void ec_field_inv(sc_ulimb_t *out, const sc_ulimb_t *in, size_t n, const 
 				ec_rshift(x2, n);	 			/* Divide by 2 */
 			}
 			else {
-				ec_field_add_div(tempm, x2, n, m, mu);	/* tempm = x2 + p */
+				ec_field_add_div(tempm, x2, n, m, m_inv);	/* tempm = x2 + p */
 				ec_copy(x2, tempm, n); 				/* x2 = tempm */ 
 			}
 		}
@@ -258,11 +260,11 @@ static void ec_field_inv(sc_ulimb_t *out, const sc_ulimb_t *in, size_t n, const 
 	}
 }
 
-static void ec_field_mod(sc_ulimb_t *a, const sc_ulimb_t *b, size_t n, const sc_ulimb_t *m, const sc_ulimb_t *mu)
+static void ec_field_mod(sc_ulimb_t *a, const sc_ulimb_t *b, size_t n, const sc_ulimb_t *m, const sc_ulimb_t *m_inv)
 {
 }
 
-static void ec_field_mod_secp256r1(sc_ulimb_t *a, const sc_ulimb_t *b, size_t n, const sc_ulimb_t *m, const sc_ulimb_t *mu)
+static void ec_field_mod_secp256r1(sc_ulimb_t *a, const sc_ulimb_t *b, size_t n, const sc_ulimb_t *m, const sc_ulimb_t *m_inv)
 {
 	size_t i;
 	sc_ulimb_t tempm[4] = {0};
@@ -279,32 +281,32 @@ static void ec_field_mod_secp256r1(sc_ulimb_t *a, const sc_ulimb_t *b, size_t n,
 	tempm[3] = b[7];
 
 	/* tempm2=T+S1 */
-	ec_field_add(tempm2, a, tempm, 4, mu);
+	ec_field_add(tempm2, a, tempm, 4, m_inv);
 	/* A=T+S1+S1 */ 
-	ec_field_add(a, tempm2, tempm, 4, mu);
+	ec_field_add(a, tempm2, tempm, 4, m_inv);
 	/* Form S2 */
 	tempm[0] = 0;
 	tempm[1] = b[6] << 32;
 	tempm[2] = (b[6] >> 32) | (b[7] << 32);
 	tempm[3] = b[7] >> 32;
 	/* tempm2=T+S1+S1+S2 */ 
-	ec_field_add(tempm2, a, tempm, 4, mu);
+	ec_field_add(tempm2, a, tempm, 4, m_inv);
 	/* A=T+S1+S1+S2+S2 */ 
-	ec_field_add(a, tempm2, tempm, 4, mu);
+	ec_field_add(a, tempm2, tempm, 4, m_inv);
 	/* Form S3 */ 
 	tempm[0] = b[4];
 	tempm[1] = b[5] & 0xFFFFFFFF;
 	tempm[2] = 0;
 	tempm[3] = b[7];
 	/* tempm2=T+S1+S1+S2+S2+S3 */ 
-	ec_field_add(tempm2, a, tempm, 4, mu);
+	ec_field_add(tempm2, a, tempm, 4, m_inv);
 	/* Form S4 */ 
 	tempm[0] = (b[5] << 32) | (b[4] >> 32);
 	tempm[1] = (b[6] & 0xFFFFFFFF00000000ULL) | (b[5] >> 32);;
 	tempm[2] = b[7];
 	tempm[3] = (b[6] >> 32) | (b[4] << 32);
 	/* A=T+S1+S1+S2+S2+S3+S4 */ 
-	ec_field_add(a, tempm2, tempm, 4, mu);
+	ec_field_add(a, tempm2, tempm, 4, m_inv);
 	/* Form D1 */ 
 	tempm[0] = (b[6] << 32) | (b[5] >> 32);
 	tempm[1] = b[6] >> 32;
@@ -337,30 +339,30 @@ static void ec_field_mod_secp256r1(sc_ulimb_t *a, const sc_ulimb_t *b, size_t n,
 	for (i=3; i<8; i++) tempm[i] = b[i+8];
 
 	/* tempm2=T+S1 */ 
-	ec_field_add(tempm2, a, tempm, n, mu);
+	ec_field_add(tempm2, a, tempm, n, m_inv);
 	/* A=T+S1+S1 */ 
-	ec_field_add(a, tempm2, tempm, n, mu);
+	ec_field_add(a, tempm2, tempm, n, m_inv);
 	/* Form S2 */ 
 	for (i=0; i<3; i++) tempm[i] = 0; 
 	for (i=3; i<7; i++) tempm[i] = b[i+9]; 
 	for (i=7; i<8; i++) tempm[i] = 0;
 	/* tempm2=T+S1+S1+S2 */ 
-	ec_field_add(tempm2, a, tempm, n, mu);
+	ec_field_add(tempm2, a, tempm, n, m_inv);
 	/* A=T+S1+S1+S2+S2 */ 
-	ec_field_add(a, tempm2, tempm, n, mu);
+	ec_field_add(a, tempm2, tempm, n, m_inv);
 	/* Form S3 */ 
 	for (i=0; i<3; i++) tempm[i] = b[i+8]; 
 	for (i=3; i<6; i++) tempm[i] = 0; 
 	for (i=6; i<8; i++) tempm[i] = b[i+8];
 	/* tempm2=T+S1+S1+S2+S2+S3 */ 
-	ec_field_add(tempm2, a, tempm, n, mu);
+	ec_field_add(tempm2, a, tempm, n, m_inv);
 	/* Form S4 */ 
 	for (i=0; i<3; i++) tempm[i] = b[i+9]; 
 	for (i=3; i<6; i++) tempm[i] = b[i+10]; 
 	for (i=6; i<7; i++) tempm[i] = b[i+7]; 
 	for (i=7; i<8; i++) tempm[i] = b[i+1];
 	/* A=T+S1+S1+S2+S2+S3+S4 */ 
-	ec_field_add(a, tempm2, tempm, n, mu);
+	ec_field_add(a, tempm2, tempm, n, m_inv);
 	/* Form D1 */ 
 	for (i=0; i<3; i++) tempm[i] = b[i+11]; 
 	for (i=3; i<6; i++) tempm[i] = 0; 
@@ -424,40 +426,40 @@ static void point_double_affine(ecc_metadata_t *metadata, ecc_point_t *point)
 {
 	size_t n;
 	sc_ulimb_t *lambda, *temp, *x, *y;
-	const sc_ulimb_t *m, *a, *mu, *order;
+	const sc_ulimb_t *m, *a, *m_inv, *order_m;
 	lambda = metadata->lambda;
 	temp   = metadata->temp;
 	x      = metadata->x;
 	y      = metadata->y;
 	m      = metadata->m;
-	mu     = metadata->mu;
-	order  = metadata->order;
+	m_inv  = metadata->m_inv;
+	order_m  = metadata->order_m;
 	a      = metadata->a;
 	n      = metadata->n;
 
 	// lambda = (3*x^2 + a)/(2*y)
 	ec_mul(temp, point->x, point->x, n);
-	ec_field_mod_secp256r1(lambda, temp, n, m, mu);
+	ec_field_mod_secp256r1(lambda, temp, n, m, m_inv);
 	ec_zero(x, n);
 	x[0] = 3;
 	ec_mul(temp, lambda, x, n);
-	ec_field_mod_secp256r1(lambda, temp, n, m, mu);
-	ec_field_add(lambda, lambda, a, n, mu);
-	ec_field_add(temp, point->y, point->y, n, mu);
-	ec_field_inv(y, temp, n, m, mu);
+	ec_field_mod_secp256r1(lambda, temp, n, m, m_inv);
+	ec_field_add(lambda, lambda, a, n, m_inv);
+	ec_field_add(temp, point->y, point->y, n, m_inv);
+	ec_field_inv(y, temp, n, m, m_inv);
 	ec_mul(temp, lambda, y, n);
-	ec_field_mod_secp256r1(lambda, temp, n, m, mu);
+	ec_field_mod_secp256r1(lambda, temp, n, m, m_inv);
 
 	// xr = lambda^2 - 2*xp
 	ec_mul(temp, lambda, lambda, n);
-	ec_field_mod_secp256r1(x, temp, n, m, mu);
+	ec_field_mod_secp256r1(x, temp, n, m, m_inv);
 	ec_field_sub(temp, x, point->x, n, m);
 	ec_field_sub(x, temp, point->x, n, m);
 
 	// yr = lambda*(xp - xr) - yp
 	ec_field_sub(y, point->x, x, n, m);
 	ec_mul(temp, lambda, y, n);
-    ec_field_mod_secp256r1(y, temp, n, m, mu);
+    ec_field_mod_secp256r1(y, temp, n, m, m_inv);
 	ec_field_sub(point->y, y, point->y, n, m);
 
     // Overwrite the input point X coordinate with it's new value
@@ -468,32 +470,32 @@ static void point_add_affine(ecc_metadata_t *metadata, ecc_point_t *p_a, const e
 {
 	size_t n;
 	sc_ulimb_t *lambda, *temp, *x, *y;
-	const sc_ulimb_t *m, *mu;
+	const sc_ulimb_t *m, *m_inv;
 	lambda = metadata->lambda;
 	temp   = metadata->temp;
 	x      = metadata->x;
 	y      = metadata->y;
 	m      = metadata->m;
-	mu     = metadata->mu;
+	m_inv  = metadata->m_inv;
 	n      = metadata->n;
 
 	// lambda = (yb - ya) / (xb - xa)
 	ec_field_sub(y, p_b->y, p_a->y, n, m);
 	ec_field_sub(x, p_b->x, p_a->x, n, m);
-	ec_field_inv(lambda, x, n, m, mu);
+	ec_field_inv(lambda, x, n, m, m_inv);
 	ec_mul(temp, lambda, y, n);
-	ec_field_mod_secp256r1(lambda, temp, n, m, mu);
+	ec_field_mod_secp256r1(lambda, temp, n, m, m_inv);
 
 	// xr = lambda^2 - xp - xq
 	ec_mul(temp, lambda, lambda, n);
-	ec_field_mod_secp256r1(x, temp, n, m, mu);
+	ec_field_mod_secp256r1(x, temp, n, m, m_inv);
     ec_field_sub(x, x, p_a->x, n, m);
     ec_field_sub(p_a->x, x, p_b->x, n, m);
 
 	// yr = lambda*(xp - xq) - a
     ec_field_sub(y, p_b->x, p_a->x, n, m);
 	ec_mul(temp, lambda, y, n);
-	ec_field_mod_secp256r1(y, temp, n, m, mu);
+	ec_field_mod_secp256r1(y, temp, n, m, m_inv);
     ec_field_sub(p_a->y, y, p_b->y, n, m);
 }
 
@@ -586,8 +588,8 @@ SINT32 ecc_diffie_hellman(safecrypto_t *sc, const ecc_point_t *p_base, const sc_
 	metadata.n = num_limbs;
 	metadata.a = sc->ecdh->params->a;
 	metadata.m = sc->ecdh->params->p;
-	metadata.mu = sc->ecdh->params->p_mu;
-	metadata.order = sc->ecdh->params->order;
+	metadata.m_inv = sc->ecdh->params->p_inv;
+	metadata.order_m = sc->ecdh->params->order_m;
 	point_init(&p_result, num_limbs);
 
 	// Perform a scalar point multiplication from the base point using the random secret
@@ -671,8 +673,8 @@ typedef struct ecc_metadata {
 	sc_mpz_t x;
 	sc_mpz_t y;
 	sc_mpz_t m;
-	sc_mpz_t mu;
-	sc_mpz_t order;
+	sc_mpz_t m_inv;
+	sc_mpz_t order_m;
 	sc_mpz_t a;
 	size_t   k;
 } ecc_metadata_t;
@@ -686,7 +688,7 @@ const ec_set_t param_ec_secp256r1 = {
 	"6B17D1F2E12C4247F8BCE6E563A440F277037D812DEB33A0F4A13945D898C296",
 	"4FE342E2FE1A7F9B8EE7EB4A7C0F9E162BCE33576B315ECECBB6406837BF51F5",
 	"FFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFF",
-	"100000000fffffffffffffffefffffffefffffffeffffffff0000000000000003",//"100000000FFFFFFFFFFFFFFFEFFFFFFFF43190552DF1A6C21012FFD85EEDF9BFE",
+	"100000000fffffffffffffffefffffffefffffffeffffffff0000000000000003",
 	"FFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551",
 };
 
@@ -699,8 +701,8 @@ const ec_set_t param_ec_secp384r1 = {
 	"AA87CA22BE8B05378EB1C71EF320AD746E1D3B628BA79B9859F741E082542A385502F25DBF55296C3A545E3872760AB7",
 	"3617DE4A96262C6F5D9E98BF9292DC29F8F41DBD289A147CE9DA3113B5F0B8C00A60B1CE1D7E819D7A431D7C90EA0E5F",
 	"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFFFF0000000000000000FFFFFFFF",
-	"",
 	"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFC7634D81F4372DDF581A0DB248B0A77AECEC196ACCC52973",
+	"",
 };
 
 const ec_set_t param_ec_secp521r1 = {
@@ -711,8 +713,8 @@ const ec_set_t param_ec_secp521r1 = {
 	"0051953EB9618E1C9A1F929A21A0B68540EEA2DA725B99B315F3B8B489918EF109E156193951EC7E937B1652C0BD3BB1BF073573DF883D2C34F1EF451FD46B503F00",
 	"00C6858E06B70404E9CD9E3ECB662395B4429C648139053FB521F828AF606B4D3DBAA14B5E77EFE75928FE1DC127A2FFA8DE3348B3C1856A429BF97E7E31C2E5BD66",
 	"011839296A789A3BC0045C8A5FB42C7D1BD998F54449579B446817AFBD17273E662C97EE72995EF42640C550B9013FAD0761353C7086A272C24088BE94769FD16650",
-	"",
 	"01FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFA51868783BF2F966B7FCC0148F709A5D03BB5C9B8899C47AEBB6FB71E91386409",
+	"",
 };
 
 
@@ -754,15 +756,15 @@ static SINT32 point_is_zero(const ecc_point_t *p)
 
 static void point_double_affine(ecc_metadata_t *metadata, ecc_point_t *point)
 {
-	sc_mpz_t *lambda, *temp, *x, *y, *m, *a, *mu, *order;
-	lambda = &metadata->lambda;
-	temp   = &metadata->temp;
-	x      = &metadata->x;
-	y      = &metadata->y;
-	m      = &metadata->m;
-	mu     = &metadata->mu;
-	order  = &metadata->order;
-	a      = &metadata->a;
+	sc_mpz_t *lambda, *temp, *x, *y, *m, *a, *m_inv, *order_m;
+	lambda        = &metadata->lambda;
+	temp          = &metadata->temp;
+	x             = &metadata->x;
+	y             = &metadata->y;
+	m             = &metadata->m;
+	m_inv         = &metadata->m_inv;
+	order_m       = &metadata->order_m;
+	a             = &metadata->a;
 
 	// lambda = (3*x^2 + a)/(2*y)
 	sc_mpz_mul(temp, &point->x, &point->x);
@@ -923,6 +925,7 @@ static void scalar_point_mult_naf(size_t num_bits, ecc_metadata_t *metadata,
 	ecc_point_t p_dummy, p_in_minus;
 
 	point_init(&p_dummy, MAX_ECC_LIMBS);
+	point_reset(&p_dummy);
 	point_reset(p_out);
 	point_copy(p_out, p_in);
 	point_init(&p_in_minus, MAX_ECC_LIMBS);
@@ -960,14 +963,12 @@ static void scalar_point_mult_naf(size_t num_bits, ecc_metadata_t *metadata,
 		if (ECC_K_IS_LOW != bit) {
 			// Branch-free pointer selection in constant time where we create a mask of all zeros
 			// if ECC_K_IS_HIGH or all ones if an ECC_K_IS_SCA_DUMMY operation
-			intptr_t temp, mask, p_temp, p_temp2;
-			sc_ulimb_t hide     = bit & 0x1;
+			intptr_t mask, p_temp, p_temp2;
+			sc_ulimb_t hide     = (bit & 0x1) - ((bit & 0x2) >> 1);
 			sc_ulimb_t subtract = (bit >> 1);
-			temp   = (intptr_t) (hide << (SC_LIMB_BITS - 1));
-			mask   = (hide ^ temp) - temp;
+			mask   = (intptr_t) 0 - (intptr_t) hide;
 			p_temp = (intptr_t) p_out ^ (((intptr_t) p_out ^ (intptr_t) &p_dummy) & mask);
-			temp   = (intptr_t) (subtract << (SC_LIMB_BITS - 1));
-			mask   = (subtract ^ temp) - temp;
+			mask   = (intptr_t) 0 - (intptr_t) subtract;
 			p_temp2 = (intptr_t) p_in ^ (((intptr_t) p_in ^ (intptr_t) &p_in_minus) & mask);
 
 			// Point addition
@@ -1022,14 +1023,14 @@ SINT32 ecc_diffie_hellman(safecrypto_t *sc, const ecc_point_t *p_base, const sc_
 	sc_mpz_init2(&metadata.temp, 2*MAX_ECC_BITS);
 	sc_mpz_init2(&metadata.a, MAX_ECC_BITS);
 	sc_mpz_init2(&metadata.m, MAX_ECC_BITS);
-	sc_mpz_init2(&metadata.mu, MAX_ECC_BITS+1);
-	sc_mpz_init2(&metadata.order, MAX_ECC_BITS);
+	sc_mpz_init2(&metadata.m_inv, MAX_ECC_BITS+1);
+	sc_mpz_init2(&metadata.order_m, MAX_ECC_BITS);
 	sc_mpz_init2(&p_result.x, MAX_ECC_BITS);
 	sc_mpz_init2(&p_result.y, MAX_ECC_BITS);
 	sc_mpz_set_str(&metadata.a, 16, sc->ecdh->params->a);
 	sc_mpz_set_str(&metadata.m, 16, sc->ecdh->params->p);
-	sc_mpz_set_str(&metadata.mu, 16, sc->ecdh->params->mu);
-	sc_mpz_set_str(&metadata.order, 16, sc->ecdh->params->order);
+	sc_mpz_set_str(&metadata.m_inv, 16, sc->ecdh->params->p_inv);
+	sc_mpz_set_str(&metadata.order_m, 16, sc->ecdh->params->order_m);
 
 	// Perform a scalar point multiplication from the base point using the random secret
 	scalar_point_mult(num_bits, &metadata, p_base, secret, &p_result);
@@ -1047,8 +1048,8 @@ SINT32 ecc_diffie_hellman(safecrypto_t *sc, const ecc_point_t *p_base, const sc_
 	sc_mpz_clear(&metadata.temp);
 	sc_mpz_clear(&metadata.a);
 	sc_mpz_clear(&metadata.m);
-	sc_mpz_clear(&metadata.mu);
-	sc_mpz_clear(&metadata.order);
+	sc_mpz_clear(&metadata.m_inv);
+	sc_mpz_clear(&metadata.order_m);
 	sc_mpz_clear(&p_result.x);
 	sc_mpz_clear(&p_result.y);
 
@@ -1108,12 +1109,12 @@ SINT32 ecc_keygen(safecrypto_t *sc)
 	sc_mpz_init2(&metadata.temp, 2*MAX_ECC_BITS);
 	sc_mpz_init2(&metadata.a, MAX_ECC_BITS);
 	sc_mpz_init2(&metadata.m, MAX_ECC_BITS);
-	sc_mpz_init2(&metadata.mu, MAX_ECC_BITS+1);
-	sc_mpz_init2(&metadata.order, MAX_ECC_BITS);
+	sc_mpz_init2(&metadata.m_inv, MAX_ECC_BITS+1);
+	sc_mpz_init2(&metadata.order_m, MAX_ECC_BITS);
 	sc_mpz_set_str(&metadata.a, 16, sc->ecdsa->params->a);
 	sc_mpz_set_str(&metadata.m, 16, sc->ecdsa->params->p);
-	sc_mpz_set_str(&metadata.mu, 16, sc->ecdsa->params->mu);
-	sc_mpz_set_str(&metadata.order, 16, sc->ecdsa->params->order);
+	sc_mpz_set_str(&metadata.m_inv, 16, sc->ecdsa->params->p_inv);
+	sc_mpz_set_str(&metadata.order_m, 16, sc->ecdsa->params->order_m);
 
 	// Allocate memory for the private key
     if (NULL == sc->privkey->key) {
@@ -1126,20 +1127,30 @@ SINT32 ecc_keygen(safecrypto_t *sc)
 	secret = sc->privkey->key;
 
 	// Generate a secret key as a random number
-#if 1
+	/*fprintf(stderr, "private key = ");
+	for (size_t q=0; q<32; q++) {
+		fprintf(stderr, "%02X", ((UINT8*)sc->privkey->key)[q]);
+		if (7 == (q & 0x7)) {
+			fprintf(stderr, " ");
+		}
+	}
+	fprintf(stderr, "\n");*/
+#ifdef TEST_HACK
 	static const sc_ulimb_t ecdsaTestSecret[4] = {0x401455A194A949FA, 0x896A33BBAD7294CA, 0x4321435B7A80E714, 0x41C1CB6B51247A14};
 	SC_MEMCOPY(secret, ecdsaTestSecret, num_bytes);
 #else
 	prng_mem(sc->prng_ctx[0], (UINT8*)secret, num_bytes);
 #endif
-	fprintf(stderr, "private key = %016lX %016lX %016lX %016lX\n", secret[3], secret[2], secret[1], secret[0]);
+	//fprintf(stderr, "private key = %016lX %016lX %016lX %016lX\n", secret[3], secret[2], secret[1], secret[0]);
 
 	// Generate the public key as the product of a scalar multiplication
 	// of the base point with k
 	point_init(&p_public, MAX_ECC_LIMBS);
 	scalar_point_mult(num_bits, &metadata, &sc->ecdsa->base, secret, &p_public);
-	fprintf(stderr, "public x = "); sc_mpz_out_str(stderr, 16, &p_public.x); fprintf(stderr, "\n");
-	fprintf(stderr, "public y = "); sc_mpz_out_str(stderr, 16, &p_public.y); fprintf(stderr, "\n");
+	sc_mpz_mod(&p_public.x, &p_public.x, &metadata.order_m);
+	sc_mpz_mod(&p_public.y, &p_public.y, &metadata.order_m);
+	/*fprintf(stderr, "public x = "); sc_mpz_out_str(stderr, 16, &p_public.x); fprintf(stderr, "\n");
+	fprintf(stderr, "public y = "); sc_mpz_out_str(stderr, 16, &p_public.y); fprintf(stderr, "\n");*/
 
 	// Allocate memory for the public key
     if (NULL == sc->pubkey->key) {
@@ -1165,8 +1176,8 @@ finish_free:
 	sc_mpz_clear(&metadata.temp);
 	sc_mpz_clear(&metadata.a);
 	sc_mpz_clear(&metadata.m);
-	sc_mpz_clear(&metadata.mu);
-	sc_mpz_clear(&metadata.order);
+	sc_mpz_clear(&metadata.m_inv);
+	sc_mpz_clear(&metadata.order_m);
 
 	return retval;
 }
@@ -1181,7 +1192,7 @@ SINT32 ecc_sign(safecrypto_t *sc, const UINT8 *m, size_t mlen,
 	SINT32 mem_is_zero;
 	ecc_metadata_t metadata;
 
-#if 1
+#ifdef TEST_HACK
 	static const sc_ulimb_t ecdsaTestRand1[] = { 0x191A1B1C1D1E1F20, 0x1112131415161718, 0x090A0B0C0D0E0F10, 0x0102030405060708};
 	static const sc_ulimb_t ecdsaTestMessage[] = { 0x2061207365637572, 0x2068617368206F66, 0x6869732069732061, 0x48616C6C6F2C2054};
 	SC_MEMCOPY(m, ecdsaTestMessage, mlen);
@@ -1198,12 +1209,12 @@ SINT32 ecc_sign(safecrypto_t *sc, const UINT8 *m, size_t mlen,
 	sc_mpz_init2(&metadata.temp, 2*MAX_ECC_BITS);
 	sc_mpz_init2(&metadata.a, MAX_ECC_BITS);
 	sc_mpz_init2(&metadata.m, MAX_ECC_BITS);
-	sc_mpz_init2(&metadata.mu, MAX_ECC_BITS+1);
-	sc_mpz_init2(&metadata.order, MAX_ECC_BITS);
+	sc_mpz_init2(&metadata.m_inv, MAX_ECC_BITS+1);
+	sc_mpz_init2(&metadata.order_m, MAX_ECC_BITS);
 	sc_mpz_set_str(&metadata.a, 16, sc->ecdsa->params->a);
 	sc_mpz_set_str(&metadata.m, 16, sc->ecdsa->params->p);
-	sc_mpz_set_str(&metadata.mu, 16, sc->ecdsa->params->mu);
-	sc_mpz_set_str(&metadata.order, 16, sc->ecdsa->params->order);
+	sc_mpz_set_str(&metadata.m_inv, 16, sc->ecdsa->params->p_inv);
+	sc_mpz_set_str(&metadata.order_m, 16, sc->ecdsa->params->order_m);
 
 	sc_mpz_init2(&d, MAX_ECC_BITS);
 	sc_mpz_init2(&e, MAX_ECC_BITS);
@@ -1220,41 +1231,48 @@ SINT32 ecc_sign(safecrypto_t *sc, const UINT8 *m, size_t mlen,
 	sc_mpz_set_limbs(&d, (sc_ulimb_t*) sc->privkey->key, num_limbs);
 	sc_mpz_set_bytes(&e, m, mlen);
 
-	fprintf(stderr, "private key = %016lX %016lX %016lX %016lX\n",
-		((sc_ulimb_t*) sc->privkey->key)[3], ((sc_ulimb_t*) sc->privkey->key)[2], ((sc_ulimb_t*) sc->privkey->key)[1], ((sc_ulimb_t*) sc->privkey->key)[0]);
-	fprintf(stderr, "private MPZ = "); sc_mpz_out_str(stderr, 16, &d); fprintf(stderr, "\n");
+	/*fprintf(stderr, "base x      = "); sc_mpz_out_str(stderr, 16, &p_base.x); fprintf(stderr, "\n");
+	fprintf(stderr, "base y      = "); sc_mpz_out_str(stderr, 16, &p_base.y); fprintf(stderr, "\n");
+	fprintf(stderr, "private key = "); sc_mpz_out_str(stderr, 16, &d); fprintf(stderr, "\n");
+	fprintf(stderr, "message     = "); sc_mpz_out_str(stderr, 16, &e); fprintf(stderr, "\n");*/
 
 restart:
 	// Generate a random secret k
-#if 1
-	SC_MEMCOPY((UINT8*)secret, ecdsaTestRand1, mlen);
+#ifdef TEST_HACK
+	secret[0] = ecdsaTestRand1[0];
+	secret[1] = ecdsaTestRand1[1];
+	secret[2] = ecdsaTestRand1[2];
+	secret[3] = ecdsaTestRand1[3];
 #else
 	prng_mem(sc->prng_ctx[0], (UINT8*)secret, num_bytes);
 #endif
 	sc_mpz_set_limbs(&k, secret, num_limbs);
-	fprintf(stderr, "k = "); sc_mpz_out_str(stderr, 16, &k); fprintf(stderr, "\n");
+	//fprintf(stderr, "k           = "); sc_mpz_out_str(stderr, 16, &k); fprintf(stderr, "\n");
 
 	// Perform a scalar point multiplication from the base point using the random secret k
 	scalar_point_mult(num_bits, &metadata, &p_base, secret, &p_result);
-	sc_mpz_mod(&p_result.x, &p_result.x, &metadata.m);
+	sc_mpz_mod(&p_result.x, &p_result.x, &metadata.order_m);
 	if (sc_mpz_is_zero(&p_result.x)) {
 		goto restart;
 	}
 
 	// s = k^(-1)*(z + r*d) mod n
 	sc_mpz_mul(&temp1, &p_result.x, &d);
-	sc_mpz_mod(&temp2, &temp1, &metadata.m);
+	sc_mpz_mod(&temp2, &temp1, &metadata.order_m);
+	//fprintf(stderr, "r*d = "); sc_mpz_out_str(stderr, 16, &temp2); fprintf(stderr, "\n");
 	sc_mpz_add(&temp1, &temp2, &e);
-	sc_mpz_mod(&temp1, &temp1, &metadata.m);
-	sc_mpz_invmod(&temp2, &k, &metadata.m);
+	sc_mpz_mod(&temp1, &temp1, &metadata.order_m);
+	//fprintf(stderr, "z + r*d = "); sc_mpz_out_str(stderr, 16, &temp1); fprintf(stderr, "\n");
+	sc_mpz_invmod(&temp2, &k, &metadata.order_m);
+	//fprintf(stderr, "k^{-1} = "); sc_mpz_out_str(stderr, 16, &temp2); fprintf(stderr, "\n");
 	sc_mpz_mul(&temp1, &temp2, &temp1);
-	sc_mpz_mod(&temp2, &temp1, &metadata.m);
+	sc_mpz_mod(&temp2, &temp1, &metadata.order_m);
 	if (sc_mpz_is_zero(&temp2)) {
 		goto restart;
 	}
 
-	fprintf(stderr, "r = "); sc_mpz_out_str(stderr, 16, &p_result.x); fprintf(stderr, "\n");
-	fprintf(stderr, "s = "); sc_mpz_out_str(stderr, 16, &temp2); fprintf(stderr, "\n");
+	/*fprintf(stderr, "r = "); sc_mpz_out_str(stderr, 16, &p_result.x); fprintf(stderr, "\n");
+	fprintf(stderr, "s = "); sc_mpz_out_str(stderr, 16, &temp2); fprintf(stderr, "\n");*/
 
 	// Pack r and s into the output signature
 	*siglen = 2*num_bytes;
@@ -1268,8 +1286,8 @@ restart:
 	sc_mpz_clear(&metadata.temp);
 	sc_mpz_clear(&metadata.a);
 	sc_mpz_clear(&metadata.m);
-	sc_mpz_clear(&metadata.mu);
-	sc_mpz_clear(&metadata.order);
+	sc_mpz_clear(&metadata.m_inv);
+	sc_mpz_clear(&metadata.order_m);
 
 	sc_mpz_clear(&d);
 	sc_mpz_clear(&e);
@@ -1292,11 +1310,6 @@ SINT32 ecc_verify(safecrypto_t *sc, const UINT8 *m, size_t mlen,
 	ecc_point_t p_base, p_public, p_u1, p_u2;
 	ecc_metadata_t metadata;
 
-#if 1
-	static const sc_ulimb_t ecdsaTestMessage[] = { 0x2061207365637572, 0x2068617368206F66, 0x6869732069732061, 0x48616C6C6F2C2054};
-	SC_MEMCOPY(m, ecdsaTestMessage, mlen);
-#endif
-
 	// Obtain common array lengths
 	num_bits  = sc->ecdsa->params->num_bits;
 	num_bytes = sc->ecdsa->params->num_bytes;
@@ -1309,12 +1322,12 @@ SINT32 ecc_verify(safecrypto_t *sc, const UINT8 *m, size_t mlen,
 	sc_mpz_init2(&metadata.temp, 2*MAX_ECC_BITS);
 	sc_mpz_init2(&metadata.a, MAX_ECC_BITS);
 	sc_mpz_init2(&metadata.m, MAX_ECC_BITS);
-	sc_mpz_init2(&metadata.mu, MAX_ECC_BITS+1);
-	sc_mpz_init2(&metadata.order, MAX_ECC_BITS);
+	sc_mpz_init2(&metadata.m_inv, MAX_ECC_BITS+1);
+	sc_mpz_init2(&metadata.order_m, MAX_ECC_BITS);
 	sc_mpz_set_str(&metadata.a, 16, sc->ecdsa->params->a);
 	sc_mpz_set_str(&metadata.m, 16, sc->ecdsa->params->p);
-	sc_mpz_set_str(&metadata.mu, 16, sc->ecdsa->params->mu);
-	sc_mpz_set_str(&metadata.order, 16, sc->ecdsa->params->order);
+	sc_mpz_set_str(&metadata.m_inv, 16, sc->ecdsa->params->p_inv);
+	sc_mpz_set_str(&metadata.order_m, 16, sc->ecdsa->params->order_m);
 	sc_mpz_init2(&temp, 2*MAX_ECC_BITS);
 	sc_mpz_init2(&r, MAX_ECC_BITS);
 	sc_mpz_init2(&s, MAX_ECC_BITS);
@@ -1327,20 +1340,26 @@ SINT32 ecc_verify(safecrypto_t *sc, const UINT8 *m, size_t mlen,
 
 	sc_mpz_set_bytes(&r, sigbuf, num_bytes);
 	sc_mpz_set_bytes(&s, sigbuf + num_bytes, num_bytes);
-	fprintf(stderr, "r = "); sc_mpz_out_str(stderr, 16, &r); fprintf(stderr, "\n");
-	fprintf(stderr, "s = "); sc_mpz_out_str(stderr, 16, &s); fprintf(stderr, "\n");
+	/*fprintf(stderr, "r = "); sc_mpz_out_str(stderr, 16, &r); fprintf(stderr, "\n");
+	fprintf(stderr, "s = "); sc_mpz_out_str(stderr, 16, &s); fprintf(stderr, "\n");*/
 
+#ifdef TEST_HACK
+	static const sc_ulimb_t ecdsaTestRand1[] = { 0x191A1B1C1D1E1F20, 0x1112131415161718, 0x090A0B0C0D0E0F10, 0x0102030405060708};
+	static const sc_ulimb_t ecdsaTestMessage[] = { 0x2061207365637572, 0x2068617368206F66, 0x6869732069732061, 0x48616C6C6F2C2054};
+	sc_mpz_set_limbs(&z, ecdsaTestMessage, 4);
+#else
 	sc_mpz_set_bytes(&z, m, mlen);
+#endif
 
 	// w = s^{-1}
-	sc_mpz_invmod(&w, &s, &metadata.m);
+	sc_mpz_invmod(&w, &s, &metadata.order_m);
 
 	// Obtain the public key Q in the form of an elliptic curve point
 	p_public.n = sc->ecdsa->params->num_limbs;
 	sc_mpz_set_bytes(&p_public.x, sc->pubkey->key, num_bytes);
 	sc_mpz_set_bytes(&p_public.y, sc->pubkey->key + num_bytes, num_bytes);
-	fprintf(stderr, "public x = "); sc_mpz_out_str(stderr, 16, &p_public.x); fprintf(stderr, "\n");
-	fprintf(stderr, "public y = "); sc_mpz_out_str(stderr, 16, &p_public.y); fprintf(stderr, "\n");
+	/*fprintf(stderr, "public x = "); sc_mpz_out_str(stderr, 16, &p_public.x); fprintf(stderr, "\n");
+	fprintf(stderr, "public y = "); sc_mpz_out_str(stderr, 16, &p_public.y); fprintf(stderr, "\n");*/
 
 	// Obtain the base point G
 	p_base.n = sc->ecdsa->params->num_limbs;
@@ -1349,24 +1368,24 @@ SINT32 ecc_verify(safecrypto_t *sc, const UINT8 *m, size_t mlen,
 
 	// u1 = w * z * G
 	sc_mpz_mul(&temp, &w, &z);
-	sc_mpz_mod(&temp, &temp, &metadata.m);
+	sc_mpz_mod(&temp, &temp, &metadata.order_m);
 	secret = sc_mpz_get_limbs(&temp);
 	scalar_point_mult(num_bits, &metadata, &p_base, secret, &p_u1);
 
 	// u2 = w * r * Q
 	sc_mpz_mul(&temp, &w, &r);
-	sc_mpz_mod(&temp, &temp, &metadata.m);
+	sc_mpz_mod(&temp, &temp, &metadata.order_m);
 	secret = sc_mpz_get_limbs(&temp);
 	scalar_point_mult(num_bits, &metadata, &p_public, secret, &p_u2);
 
 	// Point addition to obtain the signature point on the curve
-	fprintf(stderr, "u1 x = "); sc_mpz_out_str(stderr, 16, &p_u1.x); fprintf(stderr, "\n");
+	/*fprintf(stderr, "u1 x = "); sc_mpz_out_str(stderr, 16, &p_u1.x); fprintf(stderr, "\n");
 	fprintf(stderr, "u1 y = "); sc_mpz_out_str(stderr, 16, &p_u1.y); fprintf(stderr, "\n");
 	fprintf(stderr, "u2 x = "); sc_mpz_out_str(stderr, 16, &p_u2.x); fprintf(stderr, "\n");
-	fprintf(stderr, "u2 y = "); sc_mpz_out_str(stderr, 16, &p_u2.y); fprintf(stderr, "\n");
+	fprintf(stderr, "u2 y = "); sc_mpz_out_str(stderr, 16, &p_u2.y); fprintf(stderr, "\n");*/
 	point_add(&metadata, &p_u1, &p_u2);
-	fprintf(stderr, "u1 x = "); sc_mpz_out_str(stderr, 16, &p_u1.x); fprintf(stderr, "\n");
-	fprintf(stderr, "u1 y = "); sc_mpz_out_str(stderr, 16, &p_u1.y); fprintf(stderr, "\n");
+	/*fprintf(stderr, "u1 x = "); sc_mpz_out_str(stderr, 16, &p_u1.x); fprintf(stderr, "\n");
+	fprintf(stderr, "u1 y = "); sc_mpz_out_str(stderr, 16, &p_u1.y); fprintf(stderr, "\n");*/
 
 	// Validate the signature
 	if (0 == sc_mpz_cmp(&p_u1.x, &r)) {
@@ -1383,8 +1402,8 @@ SINT32 ecc_verify(safecrypto_t *sc, const UINT8 *m, size_t mlen,
 	sc_mpz_clear(&metadata.temp);
 	sc_mpz_clear(&metadata.a);
 	sc_mpz_clear(&metadata.m);
-	sc_mpz_clear(&metadata.mu);
-	sc_mpz_clear(&metadata.order);
+	sc_mpz_clear(&metadata.m_inv);
+	sc_mpz_clear(&metadata.order_m);
 	sc_mpz_clear(&temp);
 	sc_mpz_clear(&r);
 	sc_mpz_clear(&s);
