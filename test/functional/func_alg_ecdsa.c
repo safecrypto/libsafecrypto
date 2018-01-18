@@ -189,12 +189,12 @@ int main(void)
             SC_TIMER_STOP(sign_timer);
 
             SC_TIMER_START(verify_timer);
-            /*// Invert a bit of the message digest to cause verification to fail
+            // Invert a bit of the message digest to cause verification to fail
             if ((j & 0x3) == 3) {
-                sig[j%64] ^= 1 << (j % 8);
+                sig[j%32] ^= 1 << (j % 8);
 
                 // Verify the signature using the public key
-                if (SC_FUNC_SUCCESS == safecrypto_verify(sc, md, 64, sig, siglen)) {
+                if (SC_FUNC_SUCCESS == safecrypto_verify(sc, md, 32, sig, siglen)) {
                     fprintf(stderr, "ERROR! Signature verified even though it was corrupt (j=%d)\n", j);
                     for (i=0; i<siglen; i++) {
                         if ((i&0x0F) == 0) fprintf(stderr, "\n  ");
@@ -205,15 +205,15 @@ int main(void)
                 }
             }
             else if ((j & 0x3) == 2) {
-                md[j%64] ^= 1 << (j % 8);
+                md[j%32] ^= 1 << (j % 8);
 
                 // Verify the signature using the public key
-                if (SC_FUNC_SUCCESS == safecrypto_verify(sc, md, 64, sig, siglen)) {
+                if (SC_FUNC_SUCCESS == safecrypto_verify(sc, md, 32, sig, siglen)) {
                     fprintf(stderr, "ERROR! Signature verified even though the message was corrupt\n");
                     goto error_return;
                 }
             }
-            else */{
+            else {
                 // Verify the signature using the public key
                 if (SC_FUNC_SUCCESS != safecrypto_verify(sc, md, 32, sig, siglen)) {
                     fprintf(stderr, "ERROR! Signature NOT verified\n");

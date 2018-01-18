@@ -11,7 +11,7 @@
 
 #include "utils/ecc/secret_bits.h"
 
-#define TEST_HACK
+//#define TEST_HACK
 
 
 #ifdef USE_OPT_ECC
@@ -1340,8 +1340,8 @@ SINT32 ecc_verify(safecrypto_t *sc, const UINT8 *m, size_t mlen,
 
 	sc_mpz_set_bytes(&r, sigbuf, num_bytes);
 	sc_mpz_set_bytes(&s, sigbuf + num_bytes, num_bytes);
-	/*fprintf(stderr, "r = "); sc_mpz_out_str(stderr, 16, &r); fprintf(stderr, "\n");
-	fprintf(stderr, "s = "); sc_mpz_out_str(stderr, 16, &s); fprintf(stderr, "\n");*/
+	/*fprintf(stderr, "r = "); sc_mpz_out_str(stderr, 16, &r); fprintf(stderr, "\n");*/
+	/*fprintf(stderr, "s = "); sc_mpz_out_str(stderr, 16, &s); fprintf(stderr, "\n");*/
 
 #ifdef TEST_HACK
 	static const sc_ulimb_t ecdsaTestRand1[] = { 0x191A1B1C1D1E1F20, 0x1112131415161718, 0x090A0B0C0D0E0F10, 0x0102030405060708};
