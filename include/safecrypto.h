@@ -719,9 +719,6 @@ extern SINT32 safecrypto_hash_update(safecrypto_hash_t *hash, const UINT8 *data,
 extern SINT32 safecrypto_hash_final(safecrypto_hash_t *hash, UINT8 *md);
 /**@}*/
 
-#ifdef __cplusplus
-}
-#endif
 
 
 /** @name Extendible Output Function
@@ -862,3 +859,8 @@ extern SINT32 safecrypto_aes_encrypt(safecrypto_aes_t *ctx, const UINT8 *in, UIN
 extern SINT32 safecrypto_aes_decrypt(safecrypto_aes_t *ctx, const UINT8 *in, UINT8 *out);
 
 /**@}*/
+
+#ifdef __cplusplus
+}
+#endif
+
