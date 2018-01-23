@@ -165,10 +165,6 @@ typedef unsigned __int128 uint128_t;
 /// A typedef for the entropy function pointers
 typedef void (safecrypto_entropy_cb_func)(size_t, UINT8 *);
 
-#ifdef __cplusplus
-}
-#endif
-
 
 /// An enumerated type for print debug levels
 typedef enum sc_debug_level {
@@ -360,3 +356,9 @@ typedef struct _sc_statistics {
 #endif
 } SC_STRUCT_PACKED sc_statistics_t;
 SC_STRUCT_PACK_END
+
+
+#ifdef __cplusplus
+}
+#endif
+
