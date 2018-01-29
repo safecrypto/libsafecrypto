@@ -1315,6 +1315,11 @@ SINT32 ecc_verify(safecrypto_t *sc, const UINT8 *m, size_t mlen,
 	num_bytes = sc->ecdsa->params->num_bytes;
 	num_limbs = sc->ecdsa->params->num_limbs;
 
+	// VErify that the signature length is valid and accomodates the r and s components
+	if (siglen != 2*num_bytes) {
+		return SC_FUNC_FAILURE;
+	}
+
 	// Configure the curve parameters
 	sc_mpz_init2(&metadata.lambda, MAX_ECC_BITS);
 	sc_mpz_init2(&metadata.x, MAX_ECC_BITS);

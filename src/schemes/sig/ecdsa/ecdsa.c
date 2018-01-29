@@ -118,18 +118,47 @@ SINT32 ecdsa_keygen(safecrypto_t *sc)
 
 SINT32 ecdsa_pubkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len)
 {
+    size_t num_limbs, num_bytes;
+
+    if (NULL == sc || NULL == key) {
+        SC_LOG_ERROR(sc, SC_NULL_POINTER);
+        return SC_FUNC_FAILURE;
+    }
+
+    num_limbs = sc->ecdsa->params->num_limbs;
+    num_bytes = sc->ecdsa->params->num_bytes;
+
+    if (sc->pubkey->key) {
+        SC_FREE(sc->pubkey->key, 2 * num_limbs * sizeof(sc_ulimb_t));
+    }
+    if (NULL == sc->pubkey->key) {
+        sc->pubkey->key = SC_MALLOC(2 * num_limbs * sizeof(sc_ulimb_t));
+        if (NULL == sc->pubkey->key) {
+            SC_LOG_ERROR(sc, SC_NULL_POINTER);
+            return SC_FUNC_FAILURE;
+        }
+    }
+
+    // Copy the input public key to storage
+    SC_MEMCOPY(sc->pubkey->key, key, key_len);
+    SC_PRINT_1D_UINT8(sc, SC_LEVEL_DEBUG, "Loaded public key", key, key_len);
+
+    return SC_FUNC_SUCCESS;
 }
 
 SINT32 ecdsa_privkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len)
 {
+    return SC_FUNC_FAILURE;
 }
 
 SINT32 ecdsa_pubkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
 {
+    return SC_FUNC_FAILURE;
 }
 
 SINT32 ecdsa_privkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
 {
+    return SC_FUNC_FAILURE;
 }
 
 SINT32 ecdsa_sign(safecrypto_t *sc, const UINT8 *m, size_t m_len,
