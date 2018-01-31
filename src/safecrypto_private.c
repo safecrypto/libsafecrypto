@@ -109,8 +109,9 @@ SINT32 sc_mem_is_zero(volatile const UINT8 *a, size_t n)
 {
     volatile SINT32 is_zero = 0;
     for (;n--;) {
-        is_zero |= a[n] ^ a[n];
+        is_zero |= a[n];
     }
+    // Will return 0 if the array a contains all zeros, non-zero otherwise
     return is_zero;
 }
 

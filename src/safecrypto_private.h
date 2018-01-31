@@ -81,7 +81,7 @@ extern SINT32 sc_init_stats(safecrypto_t *sc, size_t pub_key, size_t priv_key,
 #define SC_FREE(s,l)        sc_free((s), (l)); (s) = NULL;
 #define SC_MEMZERO(s,l)     sc_explicit_memzero((s), (l))
 #define SC_MEMCOPY(d,s,l)   sc_memcpy((d), (s), (l))
-#define SC_MEM_IS_ZERO(s,l) sc_mem_is_zero((d), (l))
+#define SC_MEM_IS_ZERO(s,l) sc_mem_is_zero((s), (l))
 /**@}*/
 
 
