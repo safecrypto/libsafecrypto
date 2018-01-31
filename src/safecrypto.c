@@ -855,6 +855,11 @@ SINT32 safecrypto_get_key_coding(safecrypto_t *sc, sc_entropy_type_e *pub,
     if (check_safecrypto(sc) != SC_FUNC_SUCCESS)
         return SC_FUNC_FAILURE;
 
+    if (NULL == pub || NULL == priv) {
+        SC_LOG_ERROR(sc, SC_NULL_POINTER);
+        return SC_FUNC_FAILURE;
+    }
+
     // Get the key compression uniquely for each scheme
     if (safecrypto_algorithms[sc->alg_index].get_key_coding == NULL) {
         SC_LOG_ERROR(sc, SC_INVALID_FUNCTION_CALL);
@@ -897,6 +902,11 @@ SINT32 safecrypto_public_key_encode(safecrypto_t *sc, UINT8 **key, size_t *keyle
     if (check_safecrypto(sc) != SC_FUNC_SUCCESS)
         return SC_FUNC_FAILURE;
 
+    if (NULL == key || NULL == keylen) {
+        SC_LOG_ERROR(sc, SC_NULL_POINTER);
+        return SC_FUNC_FAILURE;
+    }
+
     if (safecrypto_algorithms[sc->alg_index].pubkey_encode == NULL) {
         SC_LOG_ERROR(sc, SC_INVALID_FUNCTION_CALL);
         return SC_FUNC_FAILURE;
@@ -910,6 +920,11 @@ SINT32 safecrypto_private_key_encode(safecrypto_t *sc, UINT8 **key, size_t *keyl
 {
     if (check_safecrypto(sc) != SC_FUNC_SUCCESS)
         return SC_FUNC_FAILURE;
+
+    if (NULL == key || NULL == keylen) {
+        SC_LOG_ERROR(sc, SC_NULL_POINTER);
+        return SC_FUNC_FAILURE;
+    }
 
     if (safecrypto_algorithms[sc->alg_index].privkey_encode == NULL) {
         SC_LOG_ERROR(sc, SC_INVALID_FUNCTION_CALL);
@@ -926,6 +941,11 @@ SINT32 safecrypto_encapsulation(safecrypto_t *sc, UINT8 **c, size_t *c_len,
     if (check_safecrypto(sc) != SC_FUNC_SUCCESS)
         return SC_FUNC_FAILURE;
 
+    if (NULL == c || NULL == c_len || NULL == k || NULL == k_len) {
+        SC_LOG_ERROR(sc, SC_NULL_POINTER);
+        return SC_FUNC_FAILURE;
+    }
+
     if (safecrypto_algorithms[sc->alg_index].encapsulation == NULL) {
         SC_LOG_ERROR(sc, SC_INVALID_FUNCTION_CALL);
         return SC_FUNC_FAILURE;
@@ -939,6 +959,11 @@ SINT32 safecrypto_decapsulation(safecrypto_t *sc, const UINT8 *c, size_t c_len,
 {
     if (check_safecrypto(sc) != SC_FUNC_SUCCESS)
         return SC_FUNC_FAILURE;
+
+    if (NULL == k || NULL == k_len) {
+        SC_LOG_ERROR(sc, SC_NULL_POINTER);
+        return SC_FUNC_FAILURE;
+    }
 
     if (safecrypto_algorithms[sc->alg_index].decapsulation == NULL) {
         SC_LOG_ERROR(sc, SC_INVALID_FUNCTION_CALL);
@@ -967,6 +992,11 @@ SINT32 safecrypto_ibe_extract(safecrypto_t *sc, size_t idlen, const UINT8 *id,
     if (check_safecrypto(sc) != SC_FUNC_SUCCESS)
         return SC_FUNC_FAILURE;
 
+    if (NULL == sk || NULL == sklen) {
+        SC_LOG_ERROR(sc, SC_NULL_POINTER);
+        return SC_FUNC_FAILURE;
+    }
+
     if (safecrypto_algorithms[sc->alg_index].extract == NULL) {
         SC_LOG_ERROR(sc, SC_INVALID_FUNCTION_CALL);
         return SC_FUNC_FAILURE;
@@ -983,6 +1013,11 @@ SINT32 safecrypto_ibe_public_encrypt(safecrypto_t *sc,
     if (check_safecrypto(sc) != SC_FUNC_SUCCESS)
         return SC_FUNC_FAILURE;
 
+    if (NULL == to || NULL == tlen) {
+        SC_LOG_ERROR(sc, SC_NULL_POINTER);
+        return SC_FUNC_FAILURE;
+    }
+
     if (safecrypto_algorithms[sc->alg_index].ibe_encrypt == NULL) {
         SC_LOG_ERROR(sc, SC_INVALID_FUNCTION_CALL);
         return SC_FUNC_FAILURE;
@@ -998,6 +1033,11 @@ SINT32 safecrypto_public_encrypt(safecrypto_t *sc,
     if (check_safecrypto(sc) != SC_FUNC_SUCCESS)
         return SC_FUNC_FAILURE;
 
+    if (NULL == to || NULL == tlen) {
+        SC_LOG_ERROR(sc, SC_NULL_POINTER);
+        return SC_FUNC_FAILURE;
+    }
+
     if (safecrypto_algorithms[sc->alg_index].encrypt == NULL) {
         SC_LOG_ERROR(sc, SC_INVALID_FUNCTION_CALL);
         return SC_FUNC_FAILURE;
@@ -1012,6 +1052,11 @@ SINT32 safecrypto_private_decrypt(safecrypto_t *sc,
     if (check_safecrypto(sc) != SC_FUNC_SUCCESS)
         return SC_FUNC_FAILURE;
 
+    if (NULL == to || NULL == tlen) {
+        SC_LOG_ERROR(sc, SC_NULL_POINTER);
+        return SC_FUNC_FAILURE;
+    }
+
     if (safecrypto_algorithms[sc->alg_index].decrypt == NULL) {
         SC_LOG_ERROR(sc, SC_INVALID_FUNCTION_CALL);
         return SC_FUNC_FAILURE;
@@ -1025,6 +1070,11 @@ SINT32 safecrypto_sign(safecrypto_t *sc, const UINT8 *m, size_t mlen,
 {
     if (check_safecrypto(sc) != SC_FUNC_SUCCESS)
         return SC_FUNC_FAILURE;
+
+    if (NULL == sigret || NULL == siglen) {
+        SC_LOG_ERROR(sc, SC_NULL_POINTER);
+        return SC_FUNC_FAILURE;
+    }
 
     if (safecrypto_algorithms[sc->alg_index].signing == NULL) {
         SC_LOG_ERROR(sc, SC_INVALID_FUNCTION_CALL);
@@ -1054,6 +1104,11 @@ SINT32 safecrypto_sign_with_recovery(safecrypto_t *sc, UINT8 **m, size_t *mlen,
     if (check_safecrypto(sc) != SC_FUNC_SUCCESS)
         return SC_FUNC_FAILURE;
 
+    if (NULL == sigret || NULL == siglen) {
+        SC_LOG_ERROR(sc, SC_NULL_POINTER);
+        return SC_FUNC_FAILURE;
+    }
+
     if (safecrypto_algorithms[sc->alg_index].signing_recovery == NULL) {
         SC_LOG_ERROR(sc, SC_INVALID_FUNCTION_CALL);
         return SC_FUNC_FAILURE;
@@ -1067,6 +1122,11 @@ SINT32 safecrypto_verify_with_recovery(safecrypto_t *sc, UINT8 **m, size_t *mlen
 {
     if (check_safecrypto(sc) != SC_FUNC_SUCCESS)
         return SC_FUNC_FAILURE;
+
+    if (NULL == m || NULL == mlen) {
+        SC_LOG_ERROR(sc, SC_NULL_POINTER);
+        return SC_FUNC_FAILURE;
+    }
 
     if (safecrypto_algorithms[sc->alg_index].verification_recovery == NULL) {
         SC_LOG_ERROR(sc, SC_INVALID_FUNCTION_CALL);
