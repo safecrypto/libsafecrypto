@@ -1156,7 +1156,6 @@ AC_CONFIG_FILES([Makefile docs/Doxygen/Makefile \
     src/utils/crypto/Makefile \
     src/utils/sampling/Makefile \
     src/utils/entropy/Makefile \
-    src/utils/third_party/Makefile \
     src/unit/crypto/Makefile \
     src/unit/Makefile \
     test/Makefile \
