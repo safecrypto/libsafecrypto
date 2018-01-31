@@ -1,4 +1,4 @@
-![Alt text](bindings/csharp/ui/Images/Header.jpg)
+![Alt text](https://www.safecrypto.eu/wp-content/uploads/2015/02/Header.jpg)
 
 # SAFEcrypto
 
