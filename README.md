@@ -1,8 +1,8 @@
-![Alt text](bindings/csharp/ui/Images/Header.jpg)
+![Alt text](https://www.safecrypto.eu/wp-content/uploads/2015/02/Header.jpg)
 
 # SAFEcrypto
 
-__S__ecure __A__rchitectures of __F__uture __E__merging __Cryptography__
+**S**ecure **A**rchitectures of **F**uture **E**merging **Cryptography**
 
 SAFEcrypto will provide a new generation of practical, robust, and physically
 secure post-quantum cryptographic functions. Work Package 6 will develop a

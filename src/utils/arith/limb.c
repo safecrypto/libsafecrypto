@@ -21,7 +21,6 @@
 #include "safecrypto_types.h"
 #include "safecrypto_private.h"
 #include "safecrypto_debug.h"
-//#include "utils/third_party/libtommath-develop/tommath.h"
 
 #include <math.h>
 #include <assert.h>

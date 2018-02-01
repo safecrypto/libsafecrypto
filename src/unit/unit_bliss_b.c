@@ -382,6 +382,122 @@ START_TEST(test_bliss_b_keys_priv_load)
 }
 END_TEST
 
+START_TEST(test_bliss_b_coding)
+{
+    size_t i;
+    SINT32 retcode;
+    UINT8 *pubkey = NULL, *privkey = NULL;
+    size_t len, privlen;
+    safecrypto_t *sc = NULL;
+    UINT32 flags[1] = {0};
+    sc_entropy_type_e pub, priv;
+
+    sc = safecrypto_create(SC_SCHEME_SIG_HELLO_WORLD, 0, flags);
+
+    retcode = bliss_b_create(sc, 0, flags);
+    ck_assert_int_eq(retcode, SC_FUNC_SUCCESS);
+
+    // Generate a key-pair with key coding 
+    retcode = bliss_b_keygen(sc);
+    ck_assert_int_eq(retcode, SC_FUNC_SUCCESS);
+
+    retcode = bliss_b_set_key_coding(sc, SC_ENTROPY_NONE, SC_ENTROPY_NONE);
+    ck_assert_int_eq(retcode, SC_FUNC_SUCCESS);
+    retcode = bliss_b_get_key_coding(sc, &pub, &priv);
+    ck_assert_int_eq(retcode, SC_FUNC_SUCCESS);
+    ck_assert_int_eq(pub, SC_ENTROPY_NONE);
+    ck_assert_int_eq(priv, SC_ENTROPY_NONE);
+    retcode = bliss_b_set_key_coding(sc, SC_ENTROPY_BAC, SC_ENTROPY_HUFFMAN_STATIC);
+    ck_assert_int_eq(retcode, SC_FUNC_SUCCESS);
+    retcode = bliss_b_get_key_coding(sc, &pub, &priv);
+    ck_assert_int_eq(retcode, SC_FUNC_SUCCESS);
+    ck_assert_int_eq(pub, SC_ENTROPY_NONE);
+    ck_assert_int_eq(priv, SC_ENTROPY_HUFFMAN_STATIC);
+    retcode = bliss_b_set_key_coding(sc, SC_ENTROPY_HUFFMAN_STATIC, SC_ENTROPY_BAC);
+    ck_assert_int_eq(retcode, SC_FUNC_SUCCESS);
+    retcode = bliss_b_get_key_coding(sc, &pub, &priv);
+    ck_assert_int_eq(retcode, SC_FUNC_SUCCESS);
+    ck_assert_int_eq(pub, SC_ENTROPY_NONE);
+    ck_assert_int_eq(priv, SC_ENTROPY_BAC);
+    retcode = bliss_b_set_key_coding(sc, SC_ENTROPY_NONE, SC_ENTROPY_BAC_RLE);
+    ck_assert_int_eq(retcode, SC_FUNC_SUCCESS);
+    retcode = bliss_b_get_key_coding(sc, &pub, &priv);
+    ck_assert_int_eq(retcode, SC_FUNC_SUCCESS);
+    ck_assert_int_eq(pub, SC_ENTROPY_NONE);
+    ck_assert_int_eq(priv, SC_ENTROPY_NONE);
+
+    // Generate a key-pair with key coding 
+    retcode = bliss_b_keygen(sc);
+    ck_assert_int_eq(retcode, SC_FUNC_SUCCESS);
+
+    // Copy the key-pair for later comparison
+    SINT16 *key = malloc((sc->privkey->len + sc->pubkey->len) * sizeof(SINT16));
+    memcpy(key, sc->pubkey->key, sc->pubkey->len * sizeof(SINT16));
+    memcpy(key + sc->pubkey->len, sc->privkey->key, sc->privkey->len * sizeof(SINT16));
+
+    // Extract the private key-pair
+    len = 0;
+    retcode = bliss_b_pubkey_encode(sc, &pubkey, &len);
+    ck_assert_int_eq(retcode, SC_FUNC_SUCCESS);
+    privlen = 0;
+    retcode = bliss_b_privkey_encode(sc, &privkey, &privlen);
+    ck_assert_int_eq(retcode, SC_FUNC_SUCCESS);
+    ck_assert_ptr_ne(pubkey, NULL);
+    ck_assert_int_ge(len, 0);
+    ck_assert_ptr_ne(privkey, NULL);
+    ck_assert_int_ge(privlen, 0);
+
+    // Destroy and create the SAFEcrypto object (destroying the key-pair)
+    retcode = bliss_b_destroy(sc);
+    ck_assert_int_eq(retcode, SC_FUNC_SUCCESS);
+    safecrypto_destroy(sc);
+    sc = safecrypto_create(SC_SCHEME_SIG_HELLO_WORLD, 0, flags);
+    retcode = bliss_b_create(sc, 0, flags);
+    ck_assert_int_eq(retcode, SC_FUNC_SUCCESS);
+    ck_assert_ptr_ne(sc->pubkey, NULL);
+
+    retcode = bliss_b_set_key_coding(sc, SC_ENTROPY_NONE, SC_ENTROPY_NONE);
+    ck_assert_int_eq(retcode, SC_FUNC_SUCCESS);
+
+    // Load the private key
+    retcode = bliss_b_pubkey_load(sc, pubkey, len);
+    ck_assert_int_eq(retcode, SC_FUNC_SUCCESS);
+    retcode = bliss_b_privkey_load(sc, privkey, privlen);
+    ck_assert_int_eq(retcode, SC_FUNC_SUCCESS);
+    ck_assert_ptr_ne(sc->pubkey->key, NULL);
+    ck_assert_ptr_ne(sc->privkey->key, NULL);
+
+    // Compare the original public key and the encoded/loaded version
+    for (i=0; i<sc->pubkey->len; i++) {
+        ck_assert_int_eq(key[i], ((SINT16 *)sc->pubkey->key)[i]);
+    }
+    for (i=0; i<sc->privkey->len; i++) {
+        ck_assert_int_eq(key[sc->pubkey->len + i], ((SINT16 *)sc->privkey->key)[i]);
+    }
+
+    retcode = bliss_b_destroy(sc);
+    ck_assert_int_eq(retcode, SC_FUNC_SUCCESS);
+
+    safecrypto_destroy(sc);
+}
+END_TEST
+
+START_TEST(test_bliss_b_sign_bad)
+{
+    int32_t retcode;
+    retcode = bliss_b_sign(NULL, NULL, 0, NULL, NULL);
+    ck_assert_int_eq(retcode, SC_FUNC_FAILURE);
+}
+END_TEST
+
+START_TEST(test_bliss_b_verify_bad)
+{
+    int32_t retcode;
+    retcode = bliss_b_verify(NULL, NULL, 0, NULL, 0);
+    ck_assert_int_eq(retcode, SC_FUNC_FAILURE);
+}
+END_TEST
+
 Suite *bliss_b_suite(void)
 {
     Suite *s;
@@ -403,6 +519,7 @@ Suite *bliss_b_suite(void)
     tc_keys = tcase_create("KEYS");
     tcase_add_test(tc_keys, test_bliss_b_keys_pub_load);
     tcase_add_test(tc_keys, test_bliss_b_keys_priv_load);
+    tcase_add_test(tc_keys, test_bliss_b_coding);
     suite_add_tcase(s, tc_keys);
 
     tc_sign = tcase_create("SIGN");
@@ -410,6 +527,8 @@ Suite *bliss_b_suite(void)
     tcase_add_test(tc_sign, test_bliss_b_oracle_good);
     tcase_add_test(tc_sign, test_bliss_b_greedy_sc_bad);
     tcase_add_test(tc_sign, test_bliss_b_greedy_sc_good);
+    tcase_add_test(tc_sign, test_bliss_b_sign_bad);
+    tcase_add_test(tc_sign, test_bliss_b_verify_bad);
     suite_add_tcase(s, tc_sign);
 
     return s;

@@ -21,6 +21,7 @@
 #include "safecrypto_version.h"
 
 #include "utils/crypto/prng.h"
+#include "utils/crypto/aes/aes.h"
 #ifdef HAVE_MULTITHREADING
 #include "utils/threading/threading.h"
 #endif
@@ -68,136 +69,136 @@
 static safecrypto_alg_t safecrypto_algorithms[] = {
     { SC_SCHEME_SIG_HELLO_WORLD, helloworld_create, helloworld_destroy, NULL, NULL, NULL,
       NULL, NULL, NULL,
-      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, helloworld_sign, helloworld_verify, NULL, NULL, NULL },
+      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, helloworld_sign, helloworld_verify, NULL, NULL, NULL, NULL, NULL },
 #if defined(DISABLE_SIGNATURES) || defined(DISABLE_SIG_BLISS_B)
     { SC_SCHEME_SIG_BLISS, NULL, NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL,
-      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
+      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
 #else
     { SC_SCHEME_SIG_BLISS, bliss_b_create, bliss_b_destroy, bliss_b_keygen,
       bliss_b_set_key_coding, bliss_b_get_key_coding,
       bliss_b_pubkey_load, bliss_b_privkey_load, bliss_b_pubkey_encode, bliss_b_privkey_encode,
-      NULL, NULL, NULL, NULL, NULL, NULL, NULL, bliss_b_sign, bliss_b_verify, NULL, NULL, bliss_b_stats },
+      NULL, NULL, NULL, NULL, NULL, NULL, NULL, bliss_b_sign, bliss_b_verify, NULL, NULL, NULL, NULL, bliss_b_stats },
 #endif
 #if defined(DISABLE_SIGNATURES) || defined(DISABLE_SIG_DILITHIUM)
     { SC_SCHEME_SIG_DILITHIUM, NULL, NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL,
-      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
+      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
 #else
     { SC_SCHEME_SIG_DILITHIUM, dilithium_create, dilithium_destroy, dilithium_keygen,
       dilithium_set_key_coding, dilithium_get_key_coding,
       dilithium_pubkey_load, dilithium_privkey_load, dilithium_pubkey_encode, dilithium_privkey_encode,
-      NULL, NULL, NULL, NULL, NULL, NULL, NULL, dilithium_sign, dilithium_verify, NULL, NULL, dilithium_stats },
+      NULL, NULL, NULL, NULL, NULL, NULL, NULL, dilithium_sign, dilithium_verify, NULL, NULL, NULL, NULL, dilithium_stats },
 #endif
 #if defined(DISABLE_SIGNATURES) || defined(DISABLE_SIG_DILITHIUM_G)
     { SC_SCHEME_SIG_DILITHIUM_G, NULL, NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL,
-      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
+      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
 #else
     { SC_SCHEME_SIG_DILITHIUM_G, dilithium_create, dilithium_destroy, dilithium_keygen,
       dilithium_set_key_coding, dilithium_get_key_coding,
       dilithium_pubkey_load, dilithium_privkey_load, dilithium_pubkey_encode, dilithium_privkey_encode,
-      NULL, NULL, NULL, NULL, NULL, NULL, NULL, dilithium_sign, dilithium_verify, NULL, NULL, dilithium_stats },
+      NULL, NULL, NULL, NULL, NULL, NULL, NULL, dilithium_sign, dilithium_verify, NULL, NULL, NULL, NULL, dilithium_stats },
 #endif
 #if defined(DISABLE_SIGNATURES) || defined(DISABLE_SIG_RING_TESLA)
     { SC_SCHEME_SIG_RING_TESLA, NULL, NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL,
-      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
+      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
 #else
     { SC_SCHEME_SIG_RING_TESLA, ring_tesla_create, ring_tesla_destroy, ring_tesla_keygen,
       ring_tesla_set_key_coding, ring_tesla_get_key_coding,
       ring_tesla_pubkey_load, ring_tesla_privkey_load, ring_tesla_pubkey_encode, ring_tesla_privkey_encode,
-      NULL, NULL, NULL, NULL, NULL, NULL, NULL, ring_tesla_sign, ring_tesla_verify, NULL, NULL, ring_tesla_stats },
+      NULL, NULL, NULL, NULL, NULL, NULL, NULL, ring_tesla_sign, ring_tesla_verify, NULL, NULL, NULL, NULL, ring_tesla_stats },
 #endif
 #if defined(DISABLE_SIGNATURES) || defined(DISABLE_SIG_ENS)
     { SC_SCHEME_SIG_ENS, NULL, NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL,
-      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
+      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
 #else
     { SC_SCHEME_SIG_ENS, ens_dlp_sig_create, ens_dlp_sig_destroy, ens_dlp_sig_keygen,
       ens_dlp_set_key_coding, ens_dlp_get_key_coding,
       ens_dlp_sig_pubkey_load, ens_dlp_sig_privkey_load, ens_dlp_sig_pubkey_encode, ens_dlp_sig_privkey_encode,
-      NULL, NULL, NULL, NULL, NULL, NULL, NULL, ens_dlp_sig_sign, ens_dlp_sig_verify, NULL, NULL, ens_dlp_sig_stats },
+      NULL, NULL, NULL, NULL, NULL, NULL, NULL, ens_dlp_sig_sign, ens_dlp_sig_verify, NULL, NULL, NULL, NULL, ens_dlp_sig_stats },
 #endif
 #if defined(DISABLE_SIGNATURES) || defined(DISABLE_SIG_ENS)
     { SC_SCHEME_SIG_ENS_WITH_RECOVERY, NULL, NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL,
-      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
+      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
 #else
     { SC_SCHEME_SIG_ENS_WITH_RECOVERY, ens_dlp_sig_create, ens_dlp_sig_destroy, ens_dlp_sig_keygen,
       ens_dlp_set_key_coding, ens_dlp_get_key_coding,
       ens_dlp_sig_pubkey_load, ens_dlp_sig_privkey_load, ens_dlp_sig_pubkey_encode, ens_dlp_sig_privkey_encode,
-      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, ens_dlp_sig_sign_recovery, ens_dlp_sig_verify_recovery, ens_dlp_sig_stats },
+      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, ens_dlp_sig_sign_recovery, ens_dlp_sig_verify_recovery, NULL, NULL, ens_dlp_sig_stats },
 #endif
 #if defined(DISABLE_SIGNATURES) || defined(DISABLE_SIG_DLP)
     { SC_SCHEME_SIG_DLP, NULL, NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL,
-      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
+      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
 #else
     { SC_SCHEME_SIG_DLP, ens_dlp_sig_create, ens_dlp_sig_destroy, ens_dlp_sig_keygen,
       ens_dlp_set_key_coding, ens_dlp_get_key_coding,
       ens_dlp_sig_pubkey_load, ens_dlp_sig_privkey_load, ens_dlp_sig_pubkey_encode, ens_dlp_sig_privkey_encode,
-      NULL, NULL, NULL, NULL, NULL, NULL, NULL, ens_dlp_sig_sign, ens_dlp_sig_verify, NULL, NULL, ens_dlp_sig_stats },
+      NULL, NULL, NULL, NULL, NULL, NULL, NULL, ens_dlp_sig_sign, ens_dlp_sig_verify, NULL, NULL, NULL, NULL, ens_dlp_sig_stats },
 #endif
 #if defined(DISABLE_SIGNATURES) || defined(DISABLE_SIG_DLP)
     { SC_SCHEME_SIG_DLP_WITH_RECOVERY, NULL, NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL,
-      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
+      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
 #else
     { SC_SCHEME_SIG_DLP_WITH_RECOVERY, ens_dlp_sig_create, ens_dlp_sig_destroy, ens_dlp_sig_keygen,
       ens_dlp_set_key_coding, ens_dlp_get_key_coding,
       ens_dlp_sig_pubkey_load, ens_dlp_sig_privkey_load, ens_dlp_sig_pubkey_encode, ens_dlp_sig_privkey_encode,
-      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, ens_dlp_sig_sign_recovery, ens_dlp_sig_verify_recovery, ens_dlp_sig_stats },
+      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, ens_dlp_sig_sign_recovery, ens_dlp_sig_verify_recovery, NULL, NULL, ens_dlp_sig_stats },
 #endif
 #if defined(DISABLE_ENCRYPTION) || defined(DISABLE_ENC_RLWE)
     { SC_SCHEME_ENC_RLWE, NULL, NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL,
-      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
+      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
 #else
     { SC_SCHEME_ENC_RLWE, rlwe_enc_create, rlwe_enc_destroy, rlwe_enc_keygen,
       rlwe_enc_set_key_coding, rlwe_enc_get_key_coding,
       rlwe_enc_pubkey_load, rlwe_enc_privkey_load, rlwe_enc_pubkey_encode, rlwe_enc_privkey_encode,
-      NULL, NULL, NULL, NULL, NULL, rlwe_enc_encrypt, rlwe_enc_decrypt, NULL, NULL, NULL, NULL, rlwe_enc_stats },
+      NULL, NULL, NULL, NULL, NULL, rlwe_enc_encrypt, rlwe_enc_decrypt, NULL, NULL, NULL, NULL, NULL, NULL, rlwe_enc_stats },
 #endif
 #if defined(DISABLE_ENCRYPTION) || defined(DISABLE_ENC_KYBER)
     { SC_SCHEME_ENC_KYBER_CPA, NULL, NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL,
-      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
+      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
 #else
     { SC_SCHEME_ENC_KYBER_CPA, kyber_enc_create, kyber_enc_destroy, kyber_enc_keygen,
       kyber_enc_set_key_coding, kyber_enc_get_key_coding,
       kyber_enc_pubkey_load, kyber_enc_privkey_load, kyber_enc_pubkey_encode, kyber_enc_privkey_encode,
-      NULL, NULL, NULL, NULL, NULL, kyber_enc_encrypt, kyber_enc_decrypt, NULL, NULL, NULL, NULL, kyber_enc_stats },
+      NULL, NULL, NULL, NULL, NULL, kyber_enc_encrypt, kyber_enc_decrypt, NULL, NULL, NULL, NULL, NULL, NULL, kyber_enc_stats },
 #endif
 #if defined(DISABLE_KEM) || defined(DISABLE_KEM_ENS)
     { SC_SCHEME_KEM_ENS, NULL, NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL,
-      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
+      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
 #else
     { SC_SCHEME_KEM_ENS, ens_kem_create, ens_kem_destroy, ens_kem_keygen,
       ens_kem_set_key_coding, ens_kem_get_key_coding,
       ens_kem_pubkey_load, ens_kem_privkey_load, ens_kem_pubkey_encode, ens_kem_privkey_encode,
-      ens_kem_encapsulation, ens_kem_decapsulation, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, ens_kem_stats },
+      ens_kem_encapsulation, ens_kem_decapsulation, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, ens_kem_stats },
 #endif
 #if defined(DISABLE_KEM) || defined(DISABLE_KEM_KYBER)
     { SC_SCHEME_KEM_KYBER, NULL, NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL,
-      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
+      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
 #else
     { SC_SCHEME_KEM_KYBER, kyber_kem_create, kyber_kem_destroy, kyber_kem_keygen,
       kyber_kem_set_key_coding, kyber_kem_get_key_coding,
       kyber_kem_pubkey_load, kyber_kem_privkey_load, kyber_kem_pubkey_encode, kyber_kem_privkey_encode,
-      kyber_kem_encapsulation, kyber_kem_decapsulation, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, kyber_kem_stats },
+      kyber_kem_encapsulation, kyber_kem_decapsulation, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, kyber_kem_stats },
 #endif
 #if defined(DISABLE_IBE) || defined(DISABLE_IBE_DLP)
     { SC_SCHEME_IBE_DLP, NULL, NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL,
-      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
+      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
 #else
     { SC_SCHEME_IBE_DLP, dlp_ibe_create, dlp_ibe_destroy, dlp_ibe_keygen,
       dlp_ibe_set_key_coding, dlp_ibe_get_key_coding,
       dlp_ibe_pubkey_load, dlp_ibe_privkey_load, dlp_ibe_pubkey_encode, dlp_ibe_privkey_encode,
-      NULL, NULL, dlp_ibe_secret_key, dlp_ibe_extract, dlp_ibe_encrypt, NULL, dlp_ibe_decrypt, NULL, NULL, NULL, NULL, dlp_ibe_stats },
+      NULL, NULL, dlp_ibe_secret_key, dlp_ibe_extract, dlp_ibe_encrypt, NULL, dlp_ibe_decrypt, NULL, NULL, NULL, NULL, NULL, NULL, dlp_ibe_stats },
 #endif
 };
 
@@ -221,6 +222,9 @@ static sc_hash_t g_hash_schemes[SC_HASH_MAX];
 
 // A linked list that lists all supported XOF schemes
 static sc_xof_t g_xof_schemes[SC_XOF_MAX];
+
+// A linked list that lists all supported PRNG schemes
+static sc_prng_t g_prng_schemes[SC_PRNG_MAX];
 
 
 /****************************************************************************
@@ -560,6 +564,24 @@ static void add_xof_node(sc_xof_t *list, sc_xof_e scheme)
     }
 }
 
+static void add_prng_node(sc_prng_t *list, safecrypto_prng_e scheme)
+{
+    size_t i = 0;
+    while (NULL != list[i].next) {
+        i++;
+    }
+
+    if (0 == i && SC_PRNG_MAX == list[0].scheme) {
+        list[0].scheme   = scheme;
+        list[0].next     = NULL;
+    }
+    else {
+        list[i+1].scheme = scheme;
+        list[i+1].next   = NULL;
+        list[i].next     = &list[i+1];
+    }
+}
+
 
 /*****************************************************************************
  * PUBLIC FUNCTIONS
@@ -833,6 +855,11 @@ SINT32 safecrypto_get_key_coding(safecrypto_t *sc, sc_entropy_type_e *pub,
     if (check_safecrypto(sc) != SC_FUNC_SUCCESS)
         return SC_FUNC_FAILURE;
 
+    if (NULL == pub || NULL == priv) {
+        SC_LOG_ERROR(sc, SC_NULL_POINTER);
+        return SC_FUNC_FAILURE;
+    }
+
     // Get the key compression uniquely for each scheme
     if (safecrypto_algorithms[sc->alg_index].get_key_coding == NULL) {
         SC_LOG_ERROR(sc, SC_INVALID_FUNCTION_CALL);
@@ -875,6 +902,11 @@ SINT32 safecrypto_public_key_encode(safecrypto_t *sc, UINT8 **key, size_t *keyle
     if (check_safecrypto(sc) != SC_FUNC_SUCCESS)
         return SC_FUNC_FAILURE;
 
+    if (NULL == key || NULL == keylen) {
+        SC_LOG_ERROR(sc, SC_NULL_POINTER);
+        return SC_FUNC_FAILURE;
+    }
+
     if (safecrypto_algorithms[sc->alg_index].pubkey_encode == NULL) {
         SC_LOG_ERROR(sc, SC_INVALID_FUNCTION_CALL);
         return SC_FUNC_FAILURE;
@@ -888,6 +920,11 @@ SINT32 safecrypto_private_key_encode(safecrypto_t *sc, UINT8 **key, size_t *keyl
 {
     if (check_safecrypto(sc) != SC_FUNC_SUCCESS)
         return SC_FUNC_FAILURE;
+
+    if (NULL == key || NULL == keylen) {
+        SC_LOG_ERROR(sc, SC_NULL_POINTER);
+        return SC_FUNC_FAILURE;
+    }
 
     if (safecrypto_algorithms[sc->alg_index].privkey_encode == NULL) {
         SC_LOG_ERROR(sc, SC_INVALID_FUNCTION_CALL);
@@ -904,6 +941,11 @@ SINT32 safecrypto_encapsulation(safecrypto_t *sc, UINT8 **c, size_t *c_len,
     if (check_safecrypto(sc) != SC_FUNC_SUCCESS)
         return SC_FUNC_FAILURE;
 
+    if (NULL == c || NULL == c_len || NULL == k || NULL == k_len) {
+        SC_LOG_ERROR(sc, SC_NULL_POINTER);
+        return SC_FUNC_FAILURE;
+    }
+
     if (safecrypto_algorithms[sc->alg_index].encapsulation == NULL) {
         SC_LOG_ERROR(sc, SC_INVALID_FUNCTION_CALL);
         return SC_FUNC_FAILURE;
@@ -917,6 +959,11 @@ SINT32 safecrypto_decapsulation(safecrypto_t *sc, const UINT8 *c, size_t c_len,
 {
     if (check_safecrypto(sc) != SC_FUNC_SUCCESS)
         return SC_FUNC_FAILURE;
+
+    if (NULL == k || NULL == k_len) {
+        SC_LOG_ERROR(sc, SC_NULL_POINTER);
+        return SC_FUNC_FAILURE;
+    }
 
     if (safecrypto_algorithms[sc->alg_index].decapsulation == NULL) {
         SC_LOG_ERROR(sc, SC_INVALID_FUNCTION_CALL);
@@ -945,6 +992,11 @@ SINT32 safecrypto_ibe_extract(safecrypto_t *sc, size_t idlen, const UINT8 *id,
     if (check_safecrypto(sc) != SC_FUNC_SUCCESS)
         return SC_FUNC_FAILURE;
 
+    if (NULL == sk || NULL == sklen) {
+        SC_LOG_ERROR(sc, SC_NULL_POINTER);
+        return SC_FUNC_FAILURE;
+    }
+
     if (safecrypto_algorithms[sc->alg_index].extract == NULL) {
         SC_LOG_ERROR(sc, SC_INVALID_FUNCTION_CALL);
         return SC_FUNC_FAILURE;
@@ -961,6 +1013,11 @@ SINT32 safecrypto_ibe_public_encrypt(safecrypto_t *sc,
     if (check_safecrypto(sc) != SC_FUNC_SUCCESS)
         return SC_FUNC_FAILURE;
 
+    if (NULL == to || NULL == tlen) {
+        SC_LOG_ERROR(sc, SC_NULL_POINTER);
+        return SC_FUNC_FAILURE;
+    }
+
     if (safecrypto_algorithms[sc->alg_index].ibe_encrypt == NULL) {
         SC_LOG_ERROR(sc, SC_INVALID_FUNCTION_CALL);
         return SC_FUNC_FAILURE;
@@ -976,6 +1033,11 @@ SINT32 safecrypto_public_encrypt(safecrypto_t *sc,
     if (check_safecrypto(sc) != SC_FUNC_SUCCESS)
         return SC_FUNC_FAILURE;
 
+    if (NULL == to || NULL == tlen) {
+        SC_LOG_ERROR(sc, SC_NULL_POINTER);
+        return SC_FUNC_FAILURE;
+    }
+
     if (safecrypto_algorithms[sc->alg_index].encrypt == NULL) {
         SC_LOG_ERROR(sc, SC_INVALID_FUNCTION_CALL);
         return SC_FUNC_FAILURE;
@@ -990,6 +1052,11 @@ SINT32 safecrypto_private_decrypt(safecrypto_t *sc,
     if (check_safecrypto(sc) != SC_FUNC_SUCCESS)
         return SC_FUNC_FAILURE;
 
+    if (NULL == to || NULL == tlen) {
+        SC_LOG_ERROR(sc, SC_NULL_POINTER);
+        return SC_FUNC_FAILURE;
+    }
+
     if (safecrypto_algorithms[sc->alg_index].decrypt == NULL) {
         SC_LOG_ERROR(sc, SC_INVALID_FUNCTION_CALL);
         return SC_FUNC_FAILURE;
@@ -1003,6 +1070,11 @@ SINT32 safecrypto_sign(safecrypto_t *sc, const UINT8 *m, size_t mlen,
 {
     if (check_safecrypto(sc) != SC_FUNC_SUCCESS)
         return SC_FUNC_FAILURE;
+
+    if (NULL == sigret || NULL == siglen) {
+        SC_LOG_ERROR(sc, SC_NULL_POINTER);
+        return SC_FUNC_FAILURE;
+    }
 
     if (safecrypto_algorithms[sc->alg_index].signing == NULL) {
         SC_LOG_ERROR(sc, SC_INVALID_FUNCTION_CALL);
@@ -1032,6 +1104,11 @@ SINT32 safecrypto_sign_with_recovery(safecrypto_t *sc, UINT8 **m, size_t *mlen,
     if (check_safecrypto(sc) != SC_FUNC_SUCCESS)
         return SC_FUNC_FAILURE;
 
+    if (NULL == sigret || NULL == siglen) {
+        SC_LOG_ERROR(sc, SC_NULL_POINTER);
+        return SC_FUNC_FAILURE;
+    }
+
     if (safecrypto_algorithms[sc->alg_index].signing_recovery == NULL) {
         SC_LOG_ERROR(sc, SC_INVALID_FUNCTION_CALL);
         return SC_FUNC_FAILURE;
@@ -1046,12 +1123,44 @@ SINT32 safecrypto_verify_with_recovery(safecrypto_t *sc, UINT8 **m, size_t *mlen
     if (check_safecrypto(sc) != SC_FUNC_SUCCESS)
         return SC_FUNC_FAILURE;
 
+    if (NULL == m || NULL == mlen) {
+        SC_LOG_ERROR(sc, SC_NULL_POINTER);
+        return SC_FUNC_FAILURE;
+    }
+
     if (safecrypto_algorithms[sc->alg_index].verification_recovery == NULL) {
         SC_LOG_ERROR(sc, SC_INVALID_FUNCTION_CALL);
         return SC_FUNC_FAILURE;
     }
 
     return safecrypto_algorithms[sc->alg_index].verification_recovery(sc, m, mlen, sigbuf, siglen);
+}
+
+SINT32 safecrypto_diffie_hellman_init(safecrypto_t *sc, size_t *tlen, UINT8 **to)
+{
+    if (check_safecrypto(sc) != SC_FUNC_SUCCESS)
+        return SC_FUNC_FAILURE;
+
+    if (safecrypto_algorithms[sc->alg_index].dh_init == NULL) {
+        SC_LOG_ERROR(sc, SC_INVALID_FUNCTION_CALL);
+        return SC_FUNC_FAILURE;
+    }
+
+    return safecrypto_algorithms[sc->alg_index].dh_init(sc, tlen, to);
+}
+
+SINT32 safecrypto_diffie_hellman_final(safecrypto_t *sc, size_t flen, const UINT8 *from,
+    size_t *tlen, UINT8 **to)
+{
+    if (check_safecrypto(sc) != SC_FUNC_SUCCESS)
+        return SC_FUNC_FAILURE;
+
+    if (safecrypto_algorithms[sc->alg_index].dh_final == NULL) {
+        SC_LOG_ERROR(sc, SC_INVALID_FUNCTION_CALL);
+        return SC_FUNC_FAILURE;
+    }
+
+    return safecrypto_algorithms[sc->alg_index].dh_final(sc, flen, from, tlen, to);
 }
 
 
@@ -1190,3 +1299,217 @@ SINT32 safecrypto_xof_squeeze(safecrypto_xof_t *xof, UINT8 *output, size_t len)
 {
     return xof_squeeze(xof, output, len);
 }
+
+
+const sc_prng_t *safecrypto_get_prng_schemes(void)
+{
+    g_prng_schemes[0].scheme = SC_PRNG_MAX;
+    g_prng_schemes[0].next   = NULL;
+
+#if defined(SC_PRNG_SYSTEM)
+    add_prng_node(g_prng_schemes, SC_PRNG_SYSTEM);
+#endif
+#if defined(SC_PRNG_AES_CTR_DRBG)
+    add_prng_node(g_prng_schemes, SC_PRNG_AES_CTR_DRBG);
+#endif
+#if defined(SC_PRNG_AES_CTR)
+    add_prng_node(g_prng_schemes, SC_PRNG_AES_CTR);
+#endif
+#if defined(SC_PRNG_CHACHA)
+    add_prng_node(g_prng_schemes, SC_PRNG_CHACHA);
+#endif
+#if defined(SC_PRNG_SALSA)
+    add_prng_node(g_prng_schemes, SC_PRNG_SALSA);
+#endif
+#if defined(SC_PRNG_ISAAC)
+    add_prng_node(g_prng_schemes, SC_PRNG_ISAAC);
+#endif
+#if defined(SC_PRNG_KISS)
+    add_prng_node(g_prng_schemes, SC_PRNG_KISS);
+#endif
+#if defined(SC_PRNG_HASH_DRBG_SHA2_256)
+    add_prng_node(g_prng_schemes, SC_PRNG_HASH_DRBG_SHA2_256);
+#endif
+#if defined(SC_PRNG_HASH_DRBG_SHA2_512)
+    add_prng_node(g_prng_schemes, SC_PRNG_HASH_DRBG_SHA2_512);
+#endif
+#if defined(SC_PRNG_HASH_DRBG_SHA3_256)
+    add_prng_node(g_prng_schemes, SC_PRNG_HASH_DRBG_SHA3_256);
+#endif
+#if defined(SC_PRNG_HASH_DRBG_SHA3_512)
+    add_prng_node(g_prng_schemes, SC_PRNG_HASH_DRBG_SHA3_512);
+#endif
+#if defined(SC_PRNG_HASH_DRBG_BLAKE2_256)
+    add_prng_node(g_prng_schemes, SC_PRNG_HASH_DRBG_BLAKE2_256);
+#endif
+#if defined(SC_PRNG_HASH_DRBG_BLAKE2_512)
+    add_prng_node(g_prng_schemes, SC_PRNG_HASH_DRBG_BLAKE2_512);
+#endif
+#if defined(SC_PRNG_HASH_DRBG_WHIRLPOOL_512)
+    add_prng_node(g_prng_schemes, SC_PRNG_HASH_DRBG_WHIRLPOOL_512);
+#endif
+#if defined(SC_PRNG_FILE)
+    add_prng_node(g_prng_schemes, SC_PRNG_FILE);
+#endif
+#if defined(SC_PRNG_HIGH_ENTROPY)
+    add_prng_node(g_prng_schemes, SC_PRNG_HIGH_ENTROPY);
+#endif
+
+    return (SC_PRNG_MAX == g_prng_schemes[0].scheme)? NULL : g_prng_schemes;
+}
+
+safecrypto_prng_t * safecrypto_prng_create(safecrypto_prng_e type, size_t seed_period,
+    safecrypto_prng_entropy_callback cb)
+{
+    prng_ctx_t *ctx = prng_create(SC_ENTROPY_CALLBACK, type, SC_PRNG_THREADING_NONE, seed_period);
+    if (NULL == ctx) {
+        return NULL;
+    }
+
+    prng_set_entropy_callback(cb);
+    prng_init(ctx, NULL, 0);
+    return (safecrypto_prng_t*)ctx;
+}
+
+SINT32 safecrypto_prng_destroy(safecrypto_prng_t *ctx)
+{
+    return prng_destroy((prng_ctx_t *)ctx);
+}
+
+safecrypto_prng_e safecrypto_prng_get_type(safecrypto_prng_t *ctx)
+{
+    return prng_get_type((prng_ctx_t *)ctx);
+}
+
+void safecrypto_prng_reset(safecrypto_prng_t *ctx)
+{
+    prng_reset((prng_ctx_t *)ctx);
+}
+
+#ifdef HAVE_64BIT
+UINT64 safecrypto_prng_64(safecrypto_prng_t *ctx)
+{
+    return prng_64((prng_ctx_t *)ctx);
+}
+#endif
+
+UINT32 safecrypto_prng_32(safecrypto_prng_t *ctx)
+{
+    return prng_32((prng_ctx_t *)ctx);
+}
+
+UINT16 safecrypto_prng_16(safecrypto_prng_t *ctx)
+{
+    return prng_16((prng_ctx_t *)ctx);
+}
+
+UINT8 safecrypto_prng_8(safecrypto_prng_t *ctx)
+{
+    return prng_8((prng_ctx_t *)ctx);
+}
+
+SINT32 safecrypto_prng_bit(safecrypto_prng_t *ctx)
+{
+    return prng_bit((prng_ctx_t *)ctx);
+}
+
+FLOAT safecrypto_prng_float(safecrypto_prng_t *ctx)
+{
+    return prng_float((prng_ctx_t *)ctx);
+}
+
+DOUBLE safecrypto_prng_double(safecrypto_prng_t *ctx)
+{
+    return prng_double((prng_ctx_t *)ctx);
+}
+
+UINT32 safecrypto_prng_var(safecrypto_prng_t *ctx, size_t n)
+{
+    return prng_var((prng_ctx_t *)ctx, n);
+}
+
+SINT32 safecrypto_prng_mem(safecrypto_prng_t *ctx, UINT8 *mem, SINT32 length)
+{
+    return prng_mem((prng_ctx_t *)ctx, mem, length);
+}
+
+
+safecrypto_aes_t * safecrypto_aes_create(safecrypto_aes_type_e type, const UINT8 *key)
+{
+    if (NULL == key) {
+        return NULL;
+    }
+
+    if (type >= SC_AES_MAX) {
+        return NULL;
+    }
+
+    switch (type)
+    {
+        case SC_AES_ENCRYPT_128:
+            {
+                aes_encrypt_ctx *ctx = SC_MALLOC(sizeof(aes_encrypt_ctx));
+                aes_encrypt_key128(key, ctx);
+                return (safecrypto_aes_t*)ctx;
+            }
+        case SC_AES_ENCRYPT_192:
+            {
+                aes_encrypt_ctx *ctx = SC_MALLOC(sizeof(aes_encrypt_ctx));
+                aes_encrypt_key192(key, ctx);
+                return (safecrypto_aes_t*)ctx;
+            }
+        case SC_AES_ENCRYPT_256:
+            {
+                aes_encrypt_ctx *ctx = SC_MALLOC(sizeof(aes_encrypt_ctx));
+                aes_encrypt_key256(key, ctx);
+                return (safecrypto_aes_t*)ctx;
+            }
+        case SC_AES_DECRYPT_128:
+            {
+                aes_decrypt_ctx *ctx = SC_MALLOC(sizeof(aes_decrypt_ctx));
+                aes_decrypt_key128(key, ctx);
+                return (safecrypto_aes_t*)ctx;
+            }
+        case SC_AES_DECRYPT_192:
+            {
+                aes_decrypt_ctx *ctx = SC_MALLOC(sizeof(aes_decrypt_ctx));
+                aes_decrypt_key192(key, ctx);
+                return (safecrypto_aes_t*)ctx;
+            }
+        case SC_AES_DECRYPT_256:
+            {
+                aes_decrypt_ctx *ctx = SC_MALLOC(sizeof(aes_decrypt_ctx));
+                aes_decrypt_key256(key, ctx);
+                return (safecrypto_aes_t*)ctx;
+            }
+        default:;
+    }
+
+    return NULL;
+}
+
+SINT32 safecrypto_aes_destroy(safecrypto_aes_t *ctx)
+{
+    if (NULL == ctx) {
+        return SC_FUNC_FAILURE;
+    }
+    SC_FREE(ctx, sizeof(aes_encrypt_ctx));
+    return SC_FUNC_SUCCESS;
+}
+
+SINT32 safecrypto_aes_encrypt(safecrypto_aes_t *ctx, const UINT8 *in, UINT8 *out)
+{
+    if (NULL == ctx) {
+        return SC_FUNC_FAILURE;
+    }
+    return aes_encrypt(in, out, (aes_encrypt_ctx*)ctx);
+}
+
+SINT32 safecrypto_aes_decrypt(safecrypto_aes_t *ctx, const UINT8 *in, UINT8 *out)
+{
+    if (NULL == ctx) {
+        return SC_FUNC_FAILURE;
+    }
+    return aes_decrypt(in, out, (aes_decrypt_ctx*)ctx);
+}
+

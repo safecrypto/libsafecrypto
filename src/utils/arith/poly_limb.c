@@ -23,7 +23,6 @@
 #include "safecrypto_types.h"
 #include "safecrypto_private.h"
 #include "safecrypto_debug.h"
-//#include "utils/third_party/libtommath-develop/tommath.h"
 
 #include <math.h>
 #include <assert.h>
@@ -213,6 +212,15 @@ SINT32 poly_limb_degree(const sc_ulimb_t *h, size_t n)
         deg = j;
     }
     return deg;
+}
+
+SINT32 poly_limb_is_zero(const sc_ulimb_t *h, size_t n)
+{
+    SINT32 degree = poly_limb_degree(h, n);
+    if (0 == degree && 0 == h[0]) {
+        return 0;
+    }
+    return 1;
 }
 
 void poly_limb_reset(sc_ulimb_t *inout, size_t n)

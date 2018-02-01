@@ -515,16 +515,12 @@ AM_CONDITIONAL([WITH_MPFR], [test "x${enable_mpfr}" = "xyes"])
 if test "x${enable_gmp}" = "xyes"; then
     AC_SUBST([AM_CPPFLAGS], ["$AM_CPPFLAGS -DUSE_GMP_MULTIPLE_PRECISION"])
 else
-    if test "x${enable_ibe_dlp}" = "xyes" || test "x${enable_sig_ens}" = "xyes" || test "x${enable_sig_dlp}" = "xyes"; then
-        AC_SUBST([AM_CPPFLAGS], ["$AM_CPPFLAGS -DUSE_SAFECRYPTO_INTEGER_MP"])
-    fi
+    AC_SUBST([AM_CPPFLAGS], ["$AM_CPPFLAGS -DUSE_SAFECRYPTO_INTEGER_MP"])
 fi
 if test "x${enable_mpfr}" = "xyes"; then
     AC_SUBST([AM_CPPFLAGS], ["$AM_CPPFLAGS -DUSE_MPFR_MULTIPLE_PRECISION"])
 else
-    if test "x${enable_high_prec_gaussian}" = "xyes"; then
-        AC_SUBST([AM_CPPFLAGS], ["$AM_CPPFLAGS -DUSE_SAFECRYPTO_FLOAT_MP"])
-    fi
+    AC_SUBST([AM_CPPFLAGS], ["$AM_CPPFLAGS -DUSE_SAFECRYPTO_FLOAT_MP"])
 fi
 
 
@@ -1160,7 +1156,6 @@ AC_CONFIG_FILES([Makefile docs/Doxygen/Makefile \
     src/utils/crypto/Makefile \
     src/utils/sampling/Makefile \
     src/utils/entropy/Makefile \
-    src/utils/third_party/Makefile \
     src/unit/crypto/Makefile \
     src/unit/Makefile \
     test/Makefile \

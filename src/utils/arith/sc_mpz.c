@@ -31,6 +31,11 @@ void sc_mpz_init(sc_mpz_t *inout)
     mpz_init(inout);
 }
 
+void sc_mpz_init2(sc_mpz_t *inout, size_t bits)
+{
+    mpz_init2(inout, bits);
+}
+
 void sc_mpz_clear(sc_mpz_t *inout)
 {
     mpz_clear(inout);
@@ -65,6 +70,25 @@ sc_slimb_t sc_mpz_get_si(const sc_mpz_t *in)
 DOUBLE sc_mpz_get_d(const sc_mpz_t *in)
 {
     return mpz_get_d(in);
+}
+
+SINT32 sc_mpz_get_bytes(UINT8 *out, const sc_mpz_t *in)
+{
+    sc_ulimb_t *limbs;
+    size_t num_limbs = sc_mpz_get_size(in);
+
+    if (NULL == in || NULL == out) {
+        return SC_FUNC_FAILURE;
+    }
+
+    limbs = sc_mpz_get_limbs(in);
+#if SC_LIMB_BITS == 64
+    SC_BIG_ENDIAN_64_COPY(out, 0, limbs, num_limbs * 8);
+#else
+    SC_BIG_ENDIAN_32_COPY(out, 0, limbs, num_limbs * 4);
+#endif
+
+    return SC_FUNC_SUCCESS;
 }
 
 sc_ulimb_t * sc_mpz_get_limbs(const sc_mpz_t *in)
@@ -259,6 +283,41 @@ void sc_mpz_set_d(sc_mpz_t *inout, DOUBLE value)
     mpz_set_d(inout, value);
 }
 
+void sc_mpz_set_bytes(sc_mpz_t *out, const UINT8 *bytes, size_t n)
+{
+    size_t i;
+    sc_mpz_t temp;
+    mpz_init(&temp);
+
+    sc_mpz_set_ui(out, 0);
+    for (i=n; i--;) {
+        sc_mpz_mul_2exp(&temp, out, 8);
+        sc_mpz_add_ui(out, &temp, bytes[i]);
+    }
+
+    mpz_clear(&temp);
+}
+
+void sc_mpz_set_limbs(sc_mpz_t *out, const sc_ulimb_t *limbs, size_t n)
+{
+    size_t i;
+    sc_mpz_t temp;
+    mpz_init(&temp);
+
+    sc_mpz_set_ui(out, 0);
+    for (i=n; i--;) {
+        sc_mpz_mul_2exp(&temp, out, SC_LIMB_BITS);
+        sc_mpz_add_ui(out, &temp, limbs[i]);
+    }
+
+    mpz_clear(&temp);
+}
+
+SINT32 sc_mpz_set_str(sc_mpz_t *out, SINT32 base, const char *str)
+{
+    return mpz_set_str(out, str, base);
+}
+
 void sc_mpz_mul(sc_mpz_t *out, const sc_mpz_t *in1, const sc_mpz_t *in2)
 {
     mpz_mul(out, in1, in2);
@@ -282,6 +341,11 @@ void sc_mpz_mul_si(sc_mpz_t *out, const sc_mpz_t *in1, const sc_slimb_t in2)
 void sc_mpz_addmul(sc_mpz_t *inout, const sc_mpz_t *in1, const sc_mpz_t *in2)
 {
     mpz_addmul(inout, in1, in2);
+}
+
+void sc_mpz_mul_2exp(sc_mpz_t *out, const sc_mpz_t *in, size_t exp)
+{
+    mpz_mul_2exp(out, in, exp);
 }
 
 void sc_mpz_submul(sc_mpz_t *inout, const sc_mpz_t *in1, const sc_mpz_t *in2)

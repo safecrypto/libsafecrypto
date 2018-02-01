@@ -47,8 +47,7 @@ DEFAULT_LIBS             = schemes/helloworld/libhelloworld.la \
                            utils/arith/libarith.la \
                            utils/crypto/libcrypto.la \
                            utils/sampling/libsampling.la \
-                           utils/entropy/libentropy.la \
-                           utils/third_party/lib_3rd_party.la
+                           utils/entropy/libentropy.la
 
 OPTIONAL_LIBS            =
 

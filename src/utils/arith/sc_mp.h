@@ -192,5 +192,6 @@ sc_ulimb_t mpz_mod_ui(sc_mpz_t *out, const sc_mpz_t *in, sc_ulimb_t m);
 void mpz_mod(sc_mpz_t *r, const sc_mpz_t *n, const sc_mpz_t *d);
 
 size_t mpz_out_str(FILE *stream, int base, const sc_mpz_t *in);
+SINT32 mpz_set_str(sc_mpz_t *out, const char *str, SINT32 base);
 
 #endif

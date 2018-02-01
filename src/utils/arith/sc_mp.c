@@ -1657,10 +1657,7 @@ size_t mpz_out_str (FILE *stream, int base, const sc_mpz_t *in)
     if (base < 0) {
         base = -base;
     }
-    if (0 == base) {
-        base = 10;
-    }
-    if (base > 36) {
+    if (!(2 == base) && !(8 == base) && !(16 == base) && !(32 == base)) {
         return 0;
     }
 
@@ -1676,31 +1673,28 @@ size_t mpz_out_str (FILE *stream, int base, const sc_mpz_t *in)
     else {
         size_t i = 0;
         SINT32 shift;
+        size_t j, k;
+        size_t bitsize = (2 == base)? 1 : (8 == base)? 3 : (16 == base)? 4 : 5;
+        uint8_t mask = (1 << bitsize) - 1;
 
         // Prepend a sign character as required
         if (in->used < 0) {
             str[i++] = '-';
         }
 
-        if (2 == base || 8 == base || 16 == base || 32 == base) {
-            size_t j, k;
-            size_t bitsize = (2 == base)? 1 : (8 == base)? 3 : (16 == base)? 4 : 5;
-            uint8_t mask = (1 << bitsize) - 1;
+        // Calculate the number of digits rounded up
+        str_len = (used * SC_LIMB_BITS + bitsize - 1 - limb_clz(in->limbs[used-1])) / bitsize;
 
-            // Calculate the number of digits rounded up
-            str_len = (used * SC_LIMB_BITS + bitsize - 1 - limb_clz(in->limbs[used-1])) / bitsize;
-
-            // Iterate through all the digits from the least significant, writing to the most
-            // significant characters of the output
-            for (j=0, k=str_len, shift=0; k-->0;) {
-                uint8_t c = in->limbs[j] >> shift;
-                shift += bitsize;
-                if (shift >= SC_LIMB_BITS && ++j < used) {
-                    shift -= SC_LIMB_BITS;
-                    c     |= in->limbs[j] << (bitsize - shift);
-                }
-                str[k+i] = mask & c;
+        // Iterate through all the digits from the least significant, writing to the most
+        // significant characters of the output
+        for (j=0, k=str_len, shift=0; k-->0;) {
+            uint8_t c = in->limbs[j] >> shift;
+            shift += bitsize;
+            if (shift >= SC_LIMB_BITS && ++j < used) {
+                shift -= SC_LIMB_BITS;
+                c     |= in->limbs[j] << (bitsize - shift);
             }
+            str[k+i] = mask & c;
         }
 
         for (; i<str_len; i++) {
@@ -1712,6 +1706,120 @@ size_t mpz_out_str (FILE *stream, int base, const sc_mpz_t *in)
     fwrite(str, 1, str_len, stream);
     SC_FREE(str, str_len);
     return len;
+}
+
+
+typedef struct mpz_base_coding {
+    size_t max_digits;
+    size_t log2_base;
+} mpz_base_coding_t;
+
+static const mpz_base_coding_t base_coding[] = {
+#if (64 == SC_LIMB_BITS)
+    {64, 0x1},
+    {21, 0x3},
+    {16, 0x4},
+    {12, 0x5},
+#else
+    {32, 0x1},
+    {10, 0x3},
+    {8, 0x4},
+    {6, 0x5},
+#endif
+};
+
+const UINT8 ascii_to_int[256] = {
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    0xFF, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18,
+    0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0x10, 0x11, 0x12, 0x13, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    0xFF, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18,
+    0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0x10, 0x11, 0x12, 0x13, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+};
+
+SINT32 mpz_set_str(sc_mpz_t *out, const char *str, SINT32 base)
+{
+    size_t minus = 0;
+    size_t base_code, len, limb_len, index;
+    sc_ulimb_t *limbs;
+    sc_ulimb_t limb;
+    SINT32 used;
+    const char *s;
+
+    if (base < 0) {
+        base = -base;
+    }
+
+    base_code = (2 == base)? 0 : (8 == base)? 1 : (16 == base)? 2 : (32 == base)? 3 : 4;
+    if (4 == base_code) {
+        return 0;
+    }
+
+    // Detect minus and advance the string pointer
+    if ('-' == str[0]) {
+        str++;
+        minus = 1;
+    }
+
+    // Strip hexadecimal prefix characters
+    if (16 == base && '0' == str[0] && ('x' == str[1] || 'X' == str[1])) {
+        str += 2;
+    }
+
+    len      = strlen(str);
+    limb_len = (len / base_coding[base_code].max_digits) + 1;
+    limbs    = out->limbs;
+    if (out->alloc < limb_len) {
+        limbs = mpz_realloc(out, limb_len);
+    }
+
+    used  = 0;
+    limb  = 0;
+    index = 0;
+    for (s = str + len - 1; s >= str; s--) {
+        sc_ulimb_t digit;
+
+        // Convert the character to a digit in the specified base, returning with an error if invalid
+        digit = ascii_to_int[*s];
+        if (digit >= base) {
+            return -1;
+        }
+
+        // Incrementally construct a limb word from the digit, advancing to the next limb when complete
+        limb |= digit << index;
+        index += base_coding[base_code].log2_base;
+        if (index >= SC_LIMB_BITS) {
+            limbs[used++] = limb;
+            index -= SC_LIMB_BITS;
+            limb = digit >> (base - index);
+        }
+    }
+
+    // Append any remaining bits to the MP integer
+    if (limb) {
+        limbs[used++] = limb;
+    }
+    while (used) {
+        if (limbs[--used]) {
+            used++;
+            break;
+        }
+    }
+
+    // Assign the number of limbs to the MP integer
+    out->used = (minus)? -used : used;
+
+    return 0;
 }
 
 #endif // USE_SAFECRYPTO_INTEGER_MP

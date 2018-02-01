@@ -165,10 +165,6 @@ typedef unsigned __int128 uint128_t;
 /// A typedef for the entropy function pointers
 typedef void (safecrypto_entropy_cb_func)(size_t, UINT8 *);
 
-#ifdef __cplusplus
-}
-#endif
-
 
 /// An enumerated type for print debug levels
 typedef enum sc_debug_level {
@@ -236,6 +232,46 @@ GENERATE_ENUM(sc_xof_e, XOF_LIST, SC_XOF_MAX);
 __attribute__((unused))
 GENERATE_ENUM_NAMES(sc_xof_names, XOF_LIST, SC_XOF_MAX);
 
+
+/// An enum defining the various types of CSPRNG
+typedef enum safecrypto_prng {
+    SC_PRNG_SYSTEM = 0,
+    SC_PRNG_AES_CTR_DRBG,
+    SC_PRNG_AES_CTR,
+    SC_PRNG_CHACHA,
+    SC_PRNG_SALSA,
+    SC_PRNG_ISAAC,
+    SC_PRNG_KISS,
+    SC_PRNG_HASH_DRBG_SHA2_256,
+    SC_PRNG_HASH_DRBG_SHA2_512,
+    SC_PRNG_HASH_DRBG_SHA3_256,
+    SC_PRNG_HASH_DRBG_SHA3_512,
+    SC_PRNG_HASH_DRBG_BLAKE2_256,
+    SC_PRNG_HASH_DRBG_BLAKE2_512,
+    SC_PRNG_HASH_DRBG_WHIRLPOOL_512,
+    SC_PRNG_FILE,
+    SC_PRNG_HIGH_ENTROPY,
+    SC_PRNG_MAX,
+} safecrypto_prng_e;
+
+/// An enum defining the various types of CSPRNG
+extern const char *safecrypto_prng_names [16];
+
+/// A function pointer used to provide PRNG entropy using a callback function
+typedef void (*safecrypto_prng_entropy_callback)(size_t, UINT8 *);
+
+
+/// A list of the available AES mechanisms
+#define AES_LIST(m) \
+   m(SC_AES_ENCRYPT_128) \
+   m(SC_AES_ENCRYPT_192) \
+   m(SC_AES_ENCRYPT_256) \
+   m(SC_AES_DECRYPT_128) \
+   m(SC_AES_DECRYPT_192) \
+   m(SC_AES_DECRYPT_256)
+
+/// An enumerated type for the choice of XOF algorithm
+GENERATE_ENUM(safecrypto_aes_type_e, AES_LIST, SC_AES_MAX);
 
 
 /// A list of the available AKE types
@@ -320,3 +356,9 @@ typedef struct _sc_statistics {
 #endif
 } SC_STRUCT_PACKED sc_statistics_t;
 SC_STRUCT_PACK_END
+
+
+#ifdef __cplusplus
+}
+#endif
+
