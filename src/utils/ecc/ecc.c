@@ -1203,6 +1203,10 @@ SINT32 ecc_sign(safecrypto_t *sc, const UINT8 *m, size_t mlen,
 	num_bytes = sc->ecdsa->params->num_bytes;
 	num_limbs = sc->ecdsa->params->num_limbs;
 
+	if (0 != *siglen && *siglen < 2*num_bytes) {
+		return SC_FUNC_FAILURE;
+	}
+
 	sc_mpz_init2(&metadata.lambda, MAX_ECC_BITS);
 	sc_mpz_init2(&metadata.x, MAX_ECC_BITS);
 	sc_mpz_init2(&metadata.y, MAX_ECC_BITS);
@@ -1275,8 +1279,10 @@ restart:
 	fprintf(stderr, "s = "); sc_mpz_out_str(stderr, 16, &temp2); fprintf(stderr, "\n");*/
 
 	// Pack r and s into the output signature
+	if (0 == *siglen || 0 == *sigret) {
+		*sigret = SC_MALLOC(2*num_bytes);
+	}
 	*siglen = 2*num_bytes;
-	*sigret = SC_MALLOC(*siglen);
 	sc_mpz_get_bytes(*sigret, &p_result.x);
 	sc_mpz_get_bytes(*sigret + num_bytes, &temp2);
 
