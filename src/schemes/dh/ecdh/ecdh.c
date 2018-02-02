@@ -86,12 +86,13 @@ SINT32 ecdh_destroy(safecrypto_t *sc)
     sc_mpz_clear(&sc->ecdh->base.y);
 #endif
 
-    if (sc->ecdh) {
-        SC_FREE(sc->ecdh, sizeof(ecdh_cfg_t));
+    if (sc->privkey->key) {
+        SC_FREE(sc->privkey->key, sc->ecdh->params->num_limbs * sizeof(sc_ulimb_t));
+        sc->privkey->len = 0;
     }
 
-    if (sc->privkey->key) {
-        SC_FREE(sc->privkey->key, MAX_ECC_LIMBS * sizeof(sc_ulimb_t));
+    if (sc->ecdh) {
+        SC_FREE(sc->ecdh, sizeof(ecdh_cfg_t));
     }
 
     SC_PRINT_DEBUG(sc, "ECDH algorithm - destroyed");
