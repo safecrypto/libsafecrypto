@@ -57,12 +57,12 @@ SINT32 ecdsa_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
     // Initialise the SAFEcrypto struct with the specified ECDH parameter set
     switch (set)
     {
-        case 0:  sc->ecdsa->params = &param_ec_secp256r1;
+        case 2:  sc->ecdsa->params = &param_ec_secp256r1;
                  break;
 #ifndef USE_OPT_ECC
-        case 1:  sc->ecdsa->params = &param_ec_secp384r1;
+        case 3:  sc->ecdsa->params = &param_ec_secp384r1;
                  break;
-        case 2:  sc->ecdsa->params = &param_ec_secp521r1;
+        case 4:  sc->ecdsa->params = &param_ec_secp521r1;
                  break;
 #endif
         default: SC_FREE(sc->ecdsa, sizeof(ecdh_cfg_t));

@@ -51,12 +51,12 @@ SINT32 ecdh_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
     // Initialise the SAFEcrypto struct with the specified ECDH parameter set
     switch (set)
     {
-        case 0:  sc->ecdh->params = &param_ec_secp256r1;
+        case 2:  sc->ecdh->params = &param_ec_secp256r1;
                  break;
 #ifndef USE_OPT_ECC
-        case 1:  sc->ecdh->params = &param_ec_secp384r1;
+        case 3:  sc->ecdh->params = &param_ec_secp384r1;
                  break;
-        case 2:  sc->ecdh->params = &param_ec_secp521r1;
+        case 4:  sc->ecdh->params = &param_ec_secp521r1;
                  break;
 #endif
         default: SC_FREE(sc->ecdh, sizeof(ecdh_cfg_t));
@@ -96,6 +96,66 @@ SINT32 ecdh_destroy(safecrypto_t *sc)
     }
 
     SC_PRINT_DEBUG(sc, "ECDH algorithm - destroyed");
+
+    return SC_FUNC_SUCCESS;
+}
+
+SINT32 ecdh_privkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len)
+{
+    size_t num_limbs, num_bytes;
+
+    if (NULL == sc || NULL == key) {
+        SC_LOG_ERROR(sc, SC_NULL_POINTER);
+        return SC_FUNC_FAILURE;
+    }
+
+    num_limbs = sc->ecdh->params->num_limbs;
+    num_bytes = sc->ecdh->params->num_bytes;
+
+    if (sc->privkey->key) {
+        SC_FREE(sc->privkey->key, num_limbs * sizeof(sc_ulimb_t));
+    }
+    if (NULL == sc->privkey->key) {
+        sc->privkey->key = SC_MALLOC(num_limbs * sizeof(sc_ulimb_t));
+        if (NULL == sc->privkey->key) {
+            SC_LOG_ERROR(sc, SC_NULL_POINTER);
+            return SC_FUNC_FAILURE;
+        }
+    }
+
+    // Copy the input private key to storage
+    SC_MEMCOPY(sc->privkey->key, key, key_len);
+    SC_PRINT_1D_UINT8(sc, SC_LEVEL_DEBUG, "Loaded private key", key, key_len);
+
+    return SC_FUNC_SUCCESS;
+}
+
+SINT32 ecdh_privkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
+{
+    size_t num_bytes;
+
+    if (NULL == key) {
+        SC_LOG_ERROR(sc, SC_NULL_POINTER);
+        return SC_FUNC_FAILURE;
+    }
+
+    num_bytes = sc->ecdh->params->num_bytes;
+
+    if (NULL == sc->privkey->key) {
+        return SC_FUNC_FAILURE;
+    }
+    if (0 == *key || 0 == *key_len) {
+        *key = SC_MALLOC(num_bytes * sizeof(uint8_t));
+        if (NULL == *key) {
+            SC_LOG_ERROR(sc, SC_NULL_POINTER);
+            return SC_FUNC_FAILURE;
+        }
+    }
+
+    // Copy the private key from storage
+    *key_len = num_bytes;
+    SC_MEMCOPY(*key, sc->privkey->key, num_bytes);
+    SC_PRINT_1D_UINT8(sc, SC_LEVEL_DEBUG, "Encoded private key", *key, *key_len);
 
     return SC_FUNC_SUCCESS;
 }

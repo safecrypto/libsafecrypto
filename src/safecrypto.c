@@ -213,7 +213,7 @@ static safecrypto_alg_t safecrypto_algorithms[] = {
 #else
     { SC_SCHEME_DH_ECDH, ecdh_create, ecdh_destroy, NULL,
       NULL, NULL,
-      NULL, NULL, NULL, NULL,
+      NULL, ecdh_privkey_load, NULL, ecdh_privkey_encode,
       NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, ecdh_diffie_hellman_init, ecdh_diffie_hellman_final, ecdh_stats },
 #endif
 #if defined(DISABLE_SIG) || defined(DISABLE_SIG_ECDSA)

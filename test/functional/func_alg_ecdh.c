@@ -72,7 +72,7 @@ int main(void)
 {
     safecrypto_t *sc_a = NULL, *sc_b = NULL;
 
-#ifdef DISABLE_SIGNATURES
+#ifdef DISABLE_ECDH
     UINT32 flags[1] = {SC_FLAG_NONE};
     sc = safecrypto_create(SC_SCHEME_SIG_ENS, 0, flags);
     if (NULL != sc) {
@@ -107,7 +107,7 @@ int main(void)
     SC_TIMER_CREATE(init_timer);
     SC_TIMER_CREATE(final_timer);
 
-    for (i=0; i<1; i++) {
+    for (i=2; i<3; i++) {
         printf("Parameter Set: %d\n", i);
 
 #ifdef USE_HUFFMAN_STATIC_ENTROPY
@@ -167,7 +167,7 @@ int main(void)
             }
             SC_TIMER_STOP(final_timer);
 
-            // Verify that Alice and Boc have the same shared secret
+            // Verify that Alice and Bob have the same shared secret
             if (reslen_a != reslen_b) {
                 fprintf(stderr, "ERROR! ECDH secret's are not of same length\n");
                 goto error_return;

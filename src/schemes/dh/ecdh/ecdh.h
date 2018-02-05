@@ -32,6 +32,12 @@ SINT32 ecdh_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags);
 /// Scheme destruction
 SINT32 ecdh_destroy(safecrypto_t *sc);
 
+/// Private key load function
+SINT32 ecdh_privkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len);
+
+/// Private key encode function used to disseminate the private key
+SINT32 ecdh_privkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len);
+
 /// Diffie-Hellman message initial exchange
 SINT32 ecdh_diffie_hellman_init(safecrypto_t *sc, size_t *tlen, UINT8 **to);
 
