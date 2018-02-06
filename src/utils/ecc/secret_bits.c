@@ -80,7 +80,25 @@ static SINT32 naf(const sc_ulimb_t *secret, size_t num_bits, sc_ulimb_t *recoded
 	return total > num_bits;
 }
 
-static UINT32 secret_bits_peek(point_secret_t *bit_ctx);
+static UINT32 secret_bits_peek(point_secret_t *bit_ctx)
+{
+	UINT32 bit;
+	sc_ulimb_t word, shift;
+
+	// Peek ahead at the bit(s) to be pulled depending upon the coding mode
+	if (ECC_K_BINARY == bit_ctx->coding) {
+		word  = bit_ctx->secret[bit_ctx->index];
+		shift = bit_ctx->shift;
+		bit   = (word >> shift) & 0x1;
+	}
+	else {
+		word  = bit_ctx->recoded[bit_ctx->index];
+		shift = bit_ctx->shift;
+		bit   = (word >> shift) & 0x3;
+	}
+
+	return bit;
+}
 
 size_t secret_bits_init(ecc_k_coding_e coding, point_secret_t *bit_ctx, const sc_ulimb_t *secret, size_t num_bits)
 {
@@ -100,7 +118,6 @@ size_t secret_bits_init(ecc_k_coding_e coding, point_secret_t *bit_ctx, const sc
 	bit_ctx->max    = num_bits;
 	bit_ctx->index  = (max_scale*bit_ctx->max - 1) >> SC_LIMB_BITS_SHIFT;
 	bit_ctx->shift  = ((max_scale*bit_ctx->max & SC_LIMB_BITS_MASK) - 1) & (SC_LIMB_BITS_MASK ^ is_naf);
-	bit_ctx->dir    = ECC_DIR_LEFT;
 	bit_ctx->coding = coding;
 
 	// Skim through the scalar value until the first bit/window to be pulled by the user will be non-zero
@@ -113,46 +130,21 @@ size_t secret_bits_init(ecc_k_coding_e coding, point_secret_t *bit_ctx, const sc
 	return num_bits;
 }
 
-static UINT32 secret_bits_peek(point_secret_t *bit_ctx)
-{
-	UINT32 bit;
-	sc_ulimb_t word, shift;
-
-	if (ECC_K_BINARY == bit_ctx->coding) {
-		word  = bit_ctx->secret[bit_ctx->index];
-	}
-	else {
-		word  = bit_ctx->recoded[bit_ctx->index];
-	}
-	shift = bit_ctx->shift;
-	if (ECC_K_BINARY == bit_ctx->coding) {
-		bit   = (word >> shift) & 0x1;
-	}
-	else {
-		bit   = (word >> shift) & 0x3;
-	}
-
-	return bit;
-}
-
 static UINT32 secret_bits_pull_binary(point_secret_t *bit_ctx)
 {
 	UINT32 bit;
 	sc_ulimb_t word, shift;
 
+	// Obtain the bit from the secret
 	word  = bit_ctx->secret[bit_ctx->index];
 	shift = bit_ctx->shift;
 	bit   = (word >> shift) & 0x1;
 
-	if (ECC_DIR_LEFT == bit_ctx->dir) {
-		bit_ctx->index -= !(((shift | (~shift + 1)) >> (SC_LIMB_BITS - 1)) & 1);
-		shift--;
-	}
-	else {
-		bit_ctx->index += (sc_ulimb_t)((((SC_LIMB_BITS - 1 - shift) ^ SC_LIMB_MASK) - SC_LIMB_MASK)) >> SC_LIMB_BITS_MASK;
-		shift++;
-	}
+	// Decrement the index if shift reaches 0
+	bit_ctx->index -= !(((shift | (~shift + 1)) >> (SC_LIMB_BITS - 1)) & 1);
 
+	// Decrement the shift and reset to SC_LIMB_BITS_MASK when it wraps around
+	shift--;
 	bit_ctx->shift = shift & SC_LIMB_BITS_MASK;
 
 	return bit;
@@ -163,19 +155,16 @@ static UINT32 secret_bits_pull_naf(point_secret_t *bit_ctx)
 	UINT32 bit;
 	sc_ulimb_t word, shift;
 
+	// Obtain the bit from the secret
 	word  = bit_ctx->recoded[bit_ctx->index];
 	shift = bit_ctx->shift;
 	bit   = (word >> shift) & 0x3;
 
-	if (ECC_DIR_LEFT == bit_ctx->dir) {
-		bit_ctx->index -= !(((shift | (~shift + 1)) >> (SC_LIMB_BITS - 1)) & 1);
-		shift -= 2;
-	}
-	else {
-		bit_ctx->index += (sc_ulimb_t)((((SC_LIMB_BITS - 1 - shift) ^ SC_LIMB_MASK) - SC_LIMB_MASK)) >> SC_LIMB_BITS_MASK;
-		shift += 2;
-	}
+	// Decrement the index if shift reaches 0
+	bit_ctx->index -= !(((shift | (~shift + 1)) >> (SC_LIMB_BITS - 1)) & 1);
 
+	// Decrement the shift and reset to SC_LIMB_BITS_MASK when it wraps around
+	shift -= 2;
 	bit_ctx->shift = shift & SC_LIMB_BITS_MASK;
 
 	return bit;
@@ -187,6 +176,7 @@ UINT32 secret_bits_pull(point_secret_t *bit_ctx)
 	UINT32 bit;
 	sc_ulimb_t word, shift;
 
+	// Obtain the bit depending upon the coding mode
 	if (ECC_K_BINARY == bit_ctx->coding) {
 		bit = secret_bits_pull_binary(bit_ctx);
 	}
@@ -194,6 +184,7 @@ UINT32 secret_bits_pull(point_secret_t *bit_ctx)
 		bit = secret_bits_pull_naf(bit_ctx);;
 	}
 
+	// Return the coded bit
 	return code[bit];
 }
 

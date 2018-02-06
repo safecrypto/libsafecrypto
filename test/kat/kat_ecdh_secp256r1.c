@@ -161,18 +161,6 @@ int main(void)
         //tv1_secret[0] = 20;
         safecrypto_private_key_load(sc, tv1_secret, 32);
 
-        msglen = FIXED_BUFFER_SIZE;
-        if (SC_FUNC_SUCCESS != safecrypto_diffie_hellman_init(sc, &msglen, &msg)) {
-            fprintf(stderr, "ERROR! safecrypto_diffie_hellman_init() failed\n");
-            goto error_return;
-        }
-
-        fprintf(stderr, "output:\n");
-        for (size_t i=0; i<64; i++) {
-            fprintf(stderr, "%02X ", msg[i]);
-        }
-        fprintf(stderr, "\n");
-
         // Generate the shared secret
         reslen = FIXED_BUFFER_SIZE;
         if (SC_FUNC_SUCCESS != safecrypto_diffie_hellman_final(sc, 64, tv1_pubkey, &reslen, &res)) {
@@ -192,7 +180,7 @@ int main(void)
         fprintf(stderr, "\n");
 
         // Verify that Alice and Bob have the same shared secret
-        if (64 != reslen) {
+        if (32 != reslen) {
             fprintf(stderr, "ERROR! ECDH secret's are not of same length\n");
             goto error_return;
         }

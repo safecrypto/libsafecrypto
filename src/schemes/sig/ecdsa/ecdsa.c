@@ -49,36 +49,33 @@ SINT32 ecdsa_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
     sc->coding_signature.type = SC_ENTROPY_NONE;
 
     // Allocate memory for BLISS configuration
-    sc->ecdsa = SC_MALLOC(sizeof(ecdsa_cfg_t));
-    if (NULL == sc->ecdsa) {
+    sc->ec = SC_MALLOC(sizeof(ec_cfg_t));
+    if (NULL == sc->ec) {
         return SC_FUNC_FAILURE;
     }
 
     // Initialise the SAFEcrypto struct with the specified ECDH parameter set
     switch (set)
     {
-        case 2:  sc->ecdsa->params = &param_ec_secp256r1;
+        case 0:  sc->ec->params = &param_ec_secp192r1;
+                break;
+        case 1:  sc->ec->params = &param_ec_secp224r1;
                  break;
-#ifndef USE_OPT_ECC
-        case 3:  sc->ecdsa->params = &param_ec_secp384r1;
+        case 2:  sc->ec->params = &param_ec_secp256r1;
                  break;
-        case 4:  sc->ecdsa->params = &param_ec_secp521r1;
+        case 3:  sc->ec->params = &param_ec_secp384r1;
                  break;
-#endif
-        default: SC_FREE(sc->ecdsa, sizeof(ecdh_cfg_t));
+        case 4:  sc->ec->params = &param_ec_secp521r1;
+                 break;
+        default: SC_FREE(sc->ec, sizeof(ec_cfg_t));
                  return SC_FUNC_FAILURE;
     }
 
-    sc->ecdsa->base.n = sc->ecdsa->params->num_limbs;
-#ifdef USE_OPT_ECC
-    mpn_copy(sc->ecdsa->base.x, sc->ecdsa->params->g_x, sc->ecdsa->base.n);
-    mpn_copy(sc->ecdsa->base.y, sc->ecdsa->params->g_y, sc->ecdsa->base.n);
-#else
-    sc_mpz_init2(&sc->ecdsa->base.x, MAX_ECC_BITS);
-    sc_mpz_init2(&sc->ecdsa->base.y, MAX_ECC_BITS);
-    sc_mpz_set_str(&sc->ecdsa->base.x, 16, sc->ecdsa->params->g_x);
-    sc_mpz_set_str(&sc->ecdsa->base.y, 16, sc->ecdsa->params->g_y);
-#endif
+    sc->ec->base.n = sc->ec->params->num_limbs;
+    sc_mpz_init2(&sc->ec->base.x, MAX_ECC_BITS);
+    sc_mpz_init2(&sc->ec->base.y, MAX_ECC_BITS);
+    sc_mpz_set_str(&sc->ec->base.x, 16, sc->ec->params->g_x);
+    sc_mpz_set_str(&sc->ec->base.y, 16, sc->ec->params->g_y);
 
     SC_PRINT_DEBUG(sc, "ECDSA algorithm - created");
 
@@ -87,15 +84,13 @@ SINT32 ecdsa_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
 
 SINT32 ecdsa_destroy(safecrypto_t *sc)
 {
-	size_t num_limbs = sc->ecdsa->params->num_limbs;
+	size_t num_limbs = sc->ec->params->num_limbs;
 
-#ifndef USE_OPT_ECC
-    sc_mpz_clear(&sc->ecdsa->base.x);
-    sc_mpz_clear(&sc->ecdsa->base.y);
-#endif
+    sc_mpz_clear(&sc->ec->base.x);
+    sc_mpz_clear(&sc->ec->base.y);
 
-    if (sc->ecdsa) {
-        SC_FREE(sc->ecdsa, sizeof(ecdsa_cfg_t));
+    if (sc->ec) {
+        SC_FREE(sc->ec, sizeof(ec_cfg_t));
     }
 
     if (sc->pubkey->key) {
@@ -125,8 +120,8 @@ SINT32 ecdsa_pubkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len)
         return SC_FUNC_FAILURE;
     }
 
-    num_limbs = sc->ecdsa->params->num_limbs;
-    num_bytes = sc->ecdsa->params->num_bytes;
+    num_limbs = sc->ec->params->num_limbs;
+    num_bytes = sc->ec->params->num_bytes;
 
     if (sc->pubkey->key) {
         SC_FREE(sc->pubkey->key, 2 * num_limbs * sizeof(sc_ulimb_t));
@@ -155,8 +150,8 @@ SINT32 ecdsa_privkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len)
         return SC_FUNC_FAILURE;
     }
 
-    num_limbs = sc->ecdsa->params->num_limbs;
-    num_bytes = sc->ecdsa->params->num_bytes;
+    num_limbs = sc->ec->params->num_limbs;
+    num_bytes = sc->ec->params->num_bytes;
 
     if (sc->privkey->key) {
         SC_FREE(sc->privkey->key, num_limbs * sizeof(sc_ulimb_t));
@@ -185,7 +180,7 @@ SINT32 ecdsa_pubkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
         return SC_FUNC_FAILURE;
     }
 
-    num_bytes = 2 * sc->ecdsa->params->num_bytes;
+    num_bytes = 2 * sc->ec->params->num_bytes;
 
     if (NULL == sc->pubkey->key) {
         return SC_FUNC_FAILURE;
@@ -215,7 +210,7 @@ SINT32 ecdsa_privkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
         return SC_FUNC_FAILURE;
     }
 
-    num_bytes = sc->ecdsa->params->num_bytes;
+    num_bytes = sc->ec->params->num_bytes;
 
     if (NULL == sc->privkey->key) {
         return SC_FUNC_FAILURE;

@@ -43,36 +43,33 @@ SINT32 ecdh_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
     sc->coding_encryption.type = SC_ENTROPY_NONE;
 
     // Allocate memory for BLISS configuration
-    sc->ecdh = SC_MALLOC(sizeof(ecdh_cfg_t));
-    if (NULL == sc->ecdh) {
+    sc->ec = SC_MALLOC(sizeof(ec_cfg_t));
+    if (NULL == sc->ec) {
         return SC_FUNC_FAILURE;
     }
 
     // Initialise the SAFEcrypto struct with the specified ECDH parameter set
     switch (set)
     {
-        case 2:  sc->ecdh->params = &param_ec_secp256r1;
+        case 0:  sc->ec->params = &param_ec_secp192r1;
                  break;
-#ifndef USE_OPT_ECC
-        case 3:  sc->ecdh->params = &param_ec_secp384r1;
+        case 1:  sc->ec->params = &param_ec_secp224r1;
                  break;
-        case 4:  sc->ecdh->params = &param_ec_secp521r1;
+        case 2:  sc->ec->params = &param_ec_secp256r1;
                  break;
-#endif
-        default: SC_FREE(sc->ecdh, sizeof(ecdh_cfg_t));
+        case 3:  sc->ec->params = &param_ec_secp384r1;
+                 break;
+        case 4:  sc->ec->params = &param_ec_secp521r1;
+                 break;
+        default: SC_FREE(sc->ec, sizeof(ec_cfg_t));
                  return SC_FUNC_FAILURE;
     }
 
-    sc->ecdh->base.n = sc->ecdh->params->num_limbs;
-#ifdef USE_OPT_ECC
-    mpn_copy(sc->ecdh->base.x, sc->ecdh->params->g_x, sc->ecdh->base.n);
-    mpn_copy(sc->ecdh->base.y, sc->ecdh->params->g_y, sc->ecdh->base.n);
-#else
-    sc_mpz_init2(&sc->ecdh->base.x, MAX_ECC_BITS);
-    sc_mpz_init2(&sc->ecdh->base.y, MAX_ECC_BITS);
-    sc_mpz_set_str(&sc->ecdh->base.x, 16, sc->ecdh->params->g_x);
-    sc_mpz_set_str(&sc->ecdh->base.y, 16, sc->ecdh->params->g_y);
-#endif
+    sc->ec->base.n = sc->ec->params->num_limbs;
+    sc_mpz_init2(&sc->ec->base.x, MAX_ECC_BITS);
+    sc_mpz_init2(&sc->ec->base.y, MAX_ECC_BITS);
+    sc_mpz_set_str(&sc->ec->base.x, 16, sc->ec->params->g_x);
+    sc_mpz_set_str(&sc->ec->base.y, 16, sc->ec->params->g_y);
 
     SC_PRINT_DEBUG(sc, "ECDH algorithm - created");
 
@@ -81,18 +78,16 @@ SINT32 ecdh_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
 
 SINT32 ecdh_destroy(safecrypto_t *sc)
 {
-#ifndef USE_OPT_ECC
-    sc_mpz_clear(&sc->ecdh->base.x);
-    sc_mpz_clear(&sc->ecdh->base.y);
-#endif
+    sc_mpz_clear(&sc->ec->base.x);
+    sc_mpz_clear(&sc->ec->base.y);
 
     if (sc->privkey->key) {
-        SC_FREE(sc->privkey->key, sc->ecdh->params->num_limbs * sizeof(sc_ulimb_t));
+        SC_FREE(sc->privkey->key, sc->ec->params->num_limbs * sizeof(sc_ulimb_t));
         sc->privkey->len = 0;
     }
 
-    if (sc->ecdh) {
-        SC_FREE(sc->ecdh, sizeof(ecdh_cfg_t));
+    if (sc->ec) {
+        SC_FREE(sc->ec, sizeof(ec_cfg_t));
     }
 
     SC_PRINT_DEBUG(sc, "ECDH algorithm - destroyed");
@@ -109,8 +104,8 @@ SINT32 ecdh_privkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len)
         return SC_FUNC_FAILURE;
     }
 
-    num_limbs = sc->ecdh->params->num_limbs;
-    num_bytes = sc->ecdh->params->num_bytes;
+    num_limbs = sc->ec->params->num_limbs;
+    num_bytes = sc->ec->params->num_bytes;
 
     if (sc->privkey->key) {
         SC_FREE(sc->privkey->key, num_limbs * sizeof(sc_ulimb_t));
@@ -139,7 +134,7 @@ SINT32 ecdh_privkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
         return SC_FUNC_FAILURE;
     }
 
-    num_bytes = sc->ecdh->params->num_bytes;
+    num_bytes = sc->ec->params->num_bytes;
 
     if (NULL == sc->privkey->key) {
         return SC_FUNC_FAILURE;
@@ -165,8 +160,8 @@ SINT32 ecdh_diffie_hellman_init(safecrypto_t *sc, size_t *tlen, UINT8 **to)
     size_t num_bytes, num_limbs;
     sc_ulimb_t *secret;
 
-    num_bytes = sc->ecdh->params->num_bytes;
-    num_limbs = sc->ecdh->params->num_limbs;
+    num_bytes = sc->ec->params->num_bytes;
+    num_limbs = sc->ec->params->num_limbs;
 
     // Allocate key pair memory
     if (NULL == sc->privkey->key) {
@@ -183,11 +178,12 @@ SINT32 ecdh_diffie_hellman_init(safecrypto_t *sc, size_t *tlen, UINT8 **to)
     for (size_t i=0; i<num_limbs; i++) {
         secret[i] = 0;
     }
-    static sc_ulimb_t val = 0;
+    secret[0] = 2;
+    /*static sc_ulimb_t val = 0;
     val ^= 1;
     secret[0] = val? 0 : 1;
     secret[1] = val? 0x800000000 : 2;//0xFFFFFFFFFFFFFFFFULL;
-    //secret[1] = val;
+    //secret[1] = val;*/
 #else
     prng_mem(sc->prng_ctx[0], (UINT8*) secret, num_bytes);
 #endif
