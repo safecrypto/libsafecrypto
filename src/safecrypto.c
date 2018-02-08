@@ -1202,6 +1202,11 @@ size_t safecrypto_hash_length(safecrypto_hash_t *hash)
     return hash_length(hash);
 }
 
+safecrypto_hash_t * safecrypto_hash_make_copy(safecrypto_hash_t *hash)
+{
+    return hash_make_copy(hash);
+}
+
 SINT32 safecrypto_hash_init(safecrypto_hash_t *hash)
 {
     return hash_init(hash);
