@@ -423,20 +423,21 @@ void sc_mpz_mod_barrett(sc_mpz_t *out, const sc_mpz_t *in, const sc_mpz_t *m, si
 
     sc_mpz_t temp, q1_q3;
     mpz_init2(&temp, SC_LIMB_BITS*2*(k+1));
-    mpz_init2(&q1_q3, SC_LIMB_BITS*(k+1));
+    //mpz_init2(&q1_q3, SC_LIMB_BITS*2*k);
 
-    sc_mpz_divquo_2exp(&q1_q3, in, SC_LIMB_BITS*(k-1));
-    mpz_mul(&temp, &q1_q3, mu);
-    sc_mpz_divquo_2exp(&q1_q3, &temp, SC_LIMB_BITS*(k+1));
-    mpz_mul(&temp, &q1_q3, m);
-    sc_mpz_copy(&q1_q3, in);
-    if (sc_mpz_get_size(&q1_q3) > (k+1)) {
-        sc_mpz_set_size(&q1_q3, k+1);            // r1
-    }
+    //sc_mpz_set_limbs(&q1_q3, sc_mpz_get_limbs(in) + k - 1, sc_mpz_get_size(in) - k + 1);
+    sc_mpz_divquo_2exp(out, in, SC_LIMB_BITS*(k-1));
+    mpz_mul(&temp, out, mu);
+    sc_mpz_divquo_2exp(out, &temp, SC_LIMB_BITS*(k+1));
+    mpz_mul(&temp, out, m);
     if (sc_mpz_get_size(&temp) > (k+1)) {
         sc_mpz_set_size(&temp, k+1);             // r2
     }
-    mpz_sub(out, &q1_q3, &temp);           // r = r1 - r2
+    sc_mpz_copy(out, in);
+    if (sc_mpz_get_size(out) > (k+1)) {
+        sc_mpz_set_size(out, k+1);            // r1
+    }
+    mpz_sub(out, out, &temp);           // r = r1 - r2
     /*if (sc_mpz_is_neg(out)) {
         sc_mpz_set_ui(&temp, 2);
         sc_mpz_pow_ui(&temp, &temp, SC_LIMB_BITS*(k+1));
@@ -447,7 +448,7 @@ void sc_mpz_mod_barrett(sc_mpz_t *out, const sc_mpz_t *in, const sc_mpz_t *m, si
     }
 
     mpz_clear(&temp);
-    mpz_clear(&q1_q3);
+    //mpz_clear(&q1_q3);
 }
 
 void sc_mpz_mod(sc_mpz_t *out, const sc_mpz_t *in, const sc_mpz_t *m)

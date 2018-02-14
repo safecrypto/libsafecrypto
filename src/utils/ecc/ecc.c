@@ -141,31 +141,36 @@ static void point_double_affine(ecc_metadata_t *metadata, ecc_point_t *point)
 	a             = &metadata->a;
 
 	// lambda = (3*x^2 + a)/(2*y)
+#if 0
 	sc_mpz_mul(temp, &point->x, &point->x);
-	sc_mpz_mod(lambda, temp, m);
-	sc_mpz_mul_ui(temp, lambda, 3);
-	sc_mpz_mod(lambda, temp, m);
+	sc_mpz_mul_ui(lambda, temp, 3);
+	sc_mpz_add(temp, lambda, a);
+	sc_mpz_mod_barrett(lambda, temp, m, metadata->k, m_inv);
+	sc_mpz_add(temp, &point->y, &point->y);
+	sc_mpz_invmod(y, temp, m);
+	sc_mpz_mul(temp, lambda, y);
+	sc_mpz_mod_barrett(lambda, temp, m, metadata->k, m_inv);
+#else
+	sc_mpz_mul(temp, &point->x, &point->x);
+	sc_mpz_mul_ui(lambda, temp, 3);
 	sc_mpz_add(temp, lambda, a);
 	sc_mpz_mod(lambda, temp, m);
 	sc_mpz_add(temp, &point->y, &point->y);
-	sc_mpz_mod(x, temp, m);
-	sc_mpz_invmod(y, x, m);
+	sc_mpz_invmod(y, temp, m);
 	sc_mpz_mul(temp, lambda, y);
 	sc_mpz_mod(lambda, temp, m);
+#endif
 
 	// xr = lambda^2 - 2*xp
 	sc_mpz_mul(temp, lambda, lambda);
-	sc_mpz_mod(x, temp, m);
-	sc_mpz_sub(temp, x, &point->x);
+	sc_mpz_sub(temp, temp, &point->x);
     sc_mpz_sub(temp, temp, &point->x);
 	sc_mpz_mod(x, temp, m);
 
 	// yr = lambda*(xp - xr) - yp
     sc_mpz_sub(y, x, &point->x);
-	sc_mpz_mod(y, y, m);
 	sc_mpz_mul(temp, lambda, y);
-	sc_mpz_mod(y, temp, m);
-    sc_mpz_add(y, y, &point->y);
+    sc_mpz_add(y, temp, &point->y);
     sc_mpz_negate(y, y);
     sc_mpz_mod(&point->y, y, m);
 
@@ -193,14 +198,12 @@ static void point_add_affine(ecc_metadata_t *metadata, ecc_point_t *p_a, const e
 
 	// xr = lambda^2 - xp - xq
 	sc_mpz_mul(temp, lambda, lambda);
-	sc_mpz_mod(x, temp, m);
-    sc_mpz_sub(x, x, &p_a->x);
+    sc_mpz_sub(x, temp, &p_a->x);
     sc_mpz_sub(x, x, &p_b->x);
     sc_mpz_mod(&p_a->x, x, m);
 
 	// yr = lambda*(xp - xq) - a
     sc_mpz_sub(y, &p_a->x, &p_b->x);
-    sc_mpz_mod(y, y, m);
 	sc_mpz_mul(temp, lambda, y);
 	sc_mpz_mod(y, temp, m);
     sc_mpz_add(y, y, &p_b->y);
