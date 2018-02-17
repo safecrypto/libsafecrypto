@@ -25,7 +25,7 @@
 #include <string.h>
 
 
-#define MAX_ITER    1024
+#define MAX_ITER    4096
 
 #define USE_FIXED_BUFFERS     0
 #if USE_FIXED_BUFFERS == 1
@@ -107,7 +107,7 @@ int main(void)
     SC_TIMER_CREATE(init_timer);
     SC_TIMER_CREATE(final_timer);
 
-    for (i=2; i<3; i++) {
+    for (i=0; i<5; i++) {
         printf("Parameter Set: %d\n", i);
 
 #ifdef USE_HUFFMAN_STATIC_ENTROPY

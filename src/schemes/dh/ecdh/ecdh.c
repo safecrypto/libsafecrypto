@@ -157,9 +157,10 @@ SINT32 ecdh_privkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
 
 SINT32 ecdh_diffie_hellman_init(safecrypto_t *sc, size_t *tlen, UINT8 **to)
 {
-    size_t num_bytes, num_limbs;
+    size_t num_bits, num_bytes, num_limbs;
     sc_ulimb_t *secret;
 
+    num_bits  = sc->ec->params->num_bits;
     num_bytes = sc->ec->params->num_bytes;
     num_limbs = sc->ec->params->num_limbs;
 
@@ -186,6 +187,7 @@ SINT32 ecdh_diffie_hellman_init(safecrypto_t *sc, size_t *tlen, UINT8 **to)
     //secret[1] = val;*/
 #else
     prng_mem(sc->prng_ctx[0], (UINT8*) secret, num_bytes);
+    secret[num_limbs-1] &= (1UL << (SC_LIMB_BITS - (num_limbs*SC_LIMB_BITS - num_bits))) - 1;
 #endif
 
 	return ecc_diffie_hellman_encapsulate(sc, secret, tlen, to);

@@ -72,20 +72,22 @@ DOUBLE sc_mpz_get_d(const sc_mpz_t *in)
     return mpz_get_d(in);
 }
 
-SINT32 sc_mpz_get_bytes(UINT8 *out, const sc_mpz_t *in)
+SINT32 sc_mpz_get_bytes(UINT8 *out, const sc_mpz_t *in, size_t n)
 {
     sc_ulimb_t *limbs;
-    size_t num_limbs = sc_mpz_get_size(in);
 
     if (NULL == in || NULL == out) {
         return SC_FUNC_FAILURE;
     }
 
+    if ((SC_LIMB_BITS * sc_mpz_get_size(in)) < (8*n)) {
+        n = sizeof(sc_ulimb_t) * sc_mpz_get_size(in);
+    }
     limbs = sc_mpz_get_limbs(in);
 #if SC_LIMB_BITS == 64
-    SC_LITTLE_ENDIAN_64_COPY(out, 0, limbs, num_limbs * 8);
+    SC_LITTLE_ENDIAN_64_COPY(out, 0, limbs, n);
 #else
-    SC_LITTLE_ENDIAN_32_COPY(out, 0, limbs, num_limbs * 4);
+    SC_LITTLE_ENDIAN_32_COPY(out, 0, limbs, n);
 #endif
 
     return SC_FUNC_SUCCESS;

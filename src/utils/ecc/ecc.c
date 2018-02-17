@@ -71,7 +71,7 @@ const ec_set_t param_ec_secp384r1 = {
 	48,
 	384 >> SC_LIMB_BITS_SHIFT,
 	"-3", // "FFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFC",
-	"B3312FA7E23EE7E4988E056BE3F82D19181D9C6EFE8141120314088F5013875AC656398D8A2ED19D2A85C8EDD3EC2AEF"
+	"B3312FA7E23EE7E4988E056BE3F82D19181D9C6EFE8141120314088F5013875AC656398D8A2ED19D2A85C8EDD3EC2AEF",
 	"AA87CA22BE8B05378EB1C71EF320AD746E1D3B628BA79B9859F741E082542A385502F25DBF55296C3A545E3872760AB7",
 	"3617DE4A96262C6F5D9E98BF9292DC29F8F41DBD289A147CE9DA3113B5F0B8C00A60B1CE1D7E819D7A431D7C90EA0E5F",
 	"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFFFF0000000000000000FFFFFFFF",
@@ -84,11 +84,12 @@ const ec_set_t param_ec_secp521r1 = {
 	66,
 	(521 + SC_LIMB_BITS - 1) >> SC_LIMB_BITS_SHIFT,
 	"-3", // "01FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFC",
-	"0051953EB9618E1C9A1F929A21A0B68540EEA2DA725B99B315F3B8B489918EF109E156193951EC7E937B1652C0BD3BB1BF073573DF883D2C34F1EF451FD46B503F00",
-	"00C6858E06B70404E9CD9E3ECB662395B4429C648139053FB521F828AF606B4D3DBAA14B5E77EFE75928FE1DC127A2FFA8DE3348B3C1856A429BF97E7E31C2E5BD66",
-	"011839296A789A3BC0045C8A5FB42C7D1BD998F54449579B446817AFBD17273E662C97EE72995EF42640C550B9013FAD0761353C7086A272C24088BE94769FD16650",
-	"3a77b8947d7ea1dc01141ae248a4dd8598404c68cfc673d96ba107e3eeb9bd1f9dff9b7bb4de14ab41a65a1d419c3a7b665a57354f01e54c8b7060d1f60c1364464",
-	"01FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFA51868783BF2F966B7FCC0148F709A5D03BB5C9B8899C47AEBB6FB71E91386409",
+	"51953EB9618E1C9A1F929A21A0B68540EEA2DA725B99B315F3B8B489918EF109E156193951EC7E937B1652C0BD3BB1BF073573DF883D2C34F1EF451FD46B503F00",
+	"C6858E06B70404E9CD9E3ECB662395B4429C648139053FB521F828AF606B4D3DBAA14B5E77EFE75928FE1DC127A2FFA8DE3348B3C1856A429BF97E7E31C2E5BD66",
+	"11839296A789A3BC0045C8A5FB42C7D1BD998F54449579B446817AFBD17273E662C97EE72995EF42640C550B9013FAD0761353C7086A272C24088BE94769FD16650",
+	"1FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",
+	"8000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000400000000000",
+	"1FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFA51868783BF2F966B7FCC0148F709A5D03BB5C9B8899C47AEBB6FB71E91386409",
 };
 
 
@@ -311,9 +312,8 @@ static void scalar_point_mult_naf(size_t num_bits, ecc_metadata_t *metadata,
 
 	/*fprintf(stderr, "in   x: "); sc_mpz_out_str(stderr, 16, &p_in->x); fprintf(stderr, "\n");
 	fprintf(stderr, "     y: "); sc_mpz_out_str(stderr, 16, &p_in->y); fprintf(stderr, "\n");
-	fprintf(stderr, "out  x: "); sc_mpz_out_str(stderr, 16, &p_out->x); fprintf(stderr, "\n");
-	fprintf(stderr, "     y: "); sc_mpz_out_str(stderr, 16, &p_out->y); fprintf(stderr, "\n");
-	fprintf(stderr, "secret: %016llX %016llX %016llX %016llX\n", secret[3], secret[2], secret[1], secret[0]);*/
+	fprintf(stderr, "secret: %016llX %016llX %016llX %016llX %016llX %016llX %016llX %016llX %016llX\n",
+		secret[8], secret[7], secret[6], secret[5], secret[4], secret[3], secret[2], secret[1], secret[0]);*/
 
 	// Windowing
 	/*size_t w = 4;
@@ -361,8 +361,8 @@ static void scalar_point_mult_naf(size_t num_bits, ecc_metadata_t *metadata,
 	}
 	SC_FREE(p_window, sizeof(ecc_point_t) * (1 << w));*/
 
-	//fprintf(stderr, "result x: "); sc_mpz_out_str(stderr, 16, &p_out->x); fprintf(stderr, "\n");
-	//fprintf(stderr, "       y: "); sc_mpz_out_str(stderr, 16, &p_out->y); fprintf(stderr, "\n");
+	/*fprintf(stderr, "result x: "); sc_mpz_out_str(stderr, 16, &p_out->x); fprintf(stderr, "\n");
+	fprintf(stderr, "       y: "); sc_mpz_out_str(stderr, 16, &p_out->y); fprintf(stderr, "\n");*/
 }
 
 static void scalar_point_mult(size_t num_bits, ecc_metadata_t *metadata,
@@ -415,9 +415,9 @@ SINT32 ecc_diffie_hellman(safecrypto_t *sc, const ecc_point_t *p_base, const sc_
 	// Translate the output point (coordinates are MP variables) to the output byte stream
 	*to = SC_MALLOC((2-final_flag)*num_bytes);
 	*tlen = (2-final_flag) * num_bytes;
-	sc_mpz_get_bytes(*to, &p_result.x);
+	sc_mpz_get_bytes(*to, &p_result.x, num_bytes);
 	if (0 == final_flag) {
-		sc_mpz_get_bytes(*to + num_bytes, &p_result.y);
+		sc_mpz_get_bytes(*to + num_bytes, &p_result.y, num_bytes);
 	}
 
 	// Free resources associated with the MP variables
@@ -536,8 +536,8 @@ SINT32 ecc_keygen(safecrypto_t *sc)
     }
 
     // Copy the public key to storage
-	sc_mpz_get_bytes(sc->pubkey->key, &p_public.x);
-	sc_mpz_get_bytes(sc->pubkey->key + num_bytes, &p_public.y);
+	sc_mpz_get_bytes(sc->pubkey->key, &p_public.x, num_bytes);
+	sc_mpz_get_bytes(sc->pubkey->key + num_bytes, &p_public.y, num_bytes);
 
 	retval = SC_FUNC_SUCCESS;
 
@@ -644,8 +644,8 @@ restart:
 		*sigret = SC_MALLOC(2*num_bytes);
 	}
 	*siglen = 2*num_bytes;
-	sc_mpz_get_bytes(*sigret, &p_result.x);
-	sc_mpz_get_bytes(*sigret + num_bytes, &temp2);
+	sc_mpz_get_bytes(*sigret, &p_result.x, num_bytes);
+	sc_mpz_get_bytes(*sigret + num_bytes, &temp2, num_bytes);
 
 	sc_mpz_clear(&metadata.lambda);
 	sc_mpz_clear(&metadata.x);

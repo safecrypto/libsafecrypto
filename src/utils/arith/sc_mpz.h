@@ -47,7 +47,7 @@ sc_ulimb_t sc_mpz_get_ui(const sc_mpz_t *in);
 sc_slimb_t sc_mpz_get_si(const sc_mpz_t *in);
 DOUBLE sc_mpz_get_d(const sc_mpz_t *in);
 sc_ulimb_t sc_mpz_get_ui_mod(const sc_mpz_t *a, const sc_mod_t *mod);
-SINT32 sc_mpz_get_bytes(UINT8 *out, const sc_mpz_t *in);
+SINT32 sc_mpz_get_bytes(UINT8 *out, const sc_mpz_t *in, size_t n);
 sc_ulimb_t * sc_mpz_get_limbs(const sc_mpz_t *in);
 SINT32 sc_mpz_get_size(const sc_mpz_t *in);
 void sc_mpz_set_ui(sc_mpz_t *inout, sc_ulimb_t value);
