@@ -23,6 +23,7 @@
 #include "utils/arith/sc_mpz.h"
 #include "utils/arith/sc_mpn.h"
 
+#include <stdio.h>
 
 SINT32 ecdh_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
 {
@@ -184,7 +185,7 @@ SINT32 ecdh_diffie_hellman_init(safecrypto_t *sc, size_t *tlen, UINT8 **to)
     //secret[1] = val;*/
 #else
     prng_mem(sc->prng_ctx[0], (UINT8*) secret, num_bytes);
-    secret[num_limbs-1] &= (1UL << (SC_LIMB_BITS - (num_limbs*SC_LIMB_BITS - num_bits))) - 1;
+    secret[num_limbs-1] &= SC_LIMB_MASK >> (num_limbs*SC_LIMB_BITS - num_bits);
 #endif
 
 	return ecc_diffie_hellman_encapsulate(sc, secret, tlen, to);
