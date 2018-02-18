@@ -20,6 +20,9 @@ typedef struct ecc_metadata {
 	sc_mpz_t temp;
 	sc_mpz_t x;
 	sc_mpz_t y;
+	sc_mpz_t z;
+	sc_mpz_t h;
+	sc_mpz_t w;
 	sc_mpz_t m;
 	sc_mpz_t m_inv;
 	sc_mpz_t order_m;
@@ -58,78 +61,165 @@ const ec_set_t param_ec_secp256r1 = {
 	32,
 	256 >> SC_LIMB_BITS_SHIFT,
 	"-3",//"FFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFC",
-	"5AC635D8AA3A93E7B3EBBD55769886BC651D06B0CC53B0F63BCE3C3E27D2604B",
-	"6B17D1F2E12C4247F8BCE6E563A440F277037D812DEB33A0F4A13945D898C296",
-	"4FE342E2FE1A7F9B8EE7EB4A7C0F9E162BCE33576B315ECECBB6406837BF51F5",
-	"FFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFF",
+	"5ac635d8aa3a93e7b3ebbd55769886bc651d06b0cc53b0f63bce3c3e27d2604b",
+	"6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296",
+	"4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5",
+	"ffffffff00000001000000000000000000000000ffffffffffffffffffffffff",
 	"100000000fffffffffffffffefffffffefffffffeffffffff0000000000000003", // from https://defuse.ca/big-number-calculator.htm
-	"FFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551",
+	"ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551",
 };
 
 const ec_set_t param_ec_secp384r1 = {
 	384,
 	48,
 	384 >> SC_LIMB_BITS_SHIFT,
-	"-3", // "FFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFC",
-	"B3312FA7E23EE7E4988E056BE3F82D19181D9C6EFE8141120314088F5013875AC656398D8A2ED19D2A85C8EDD3EC2AEF",
-	"AA87CA22BE8B05378EB1C71EF320AD746E1D3B628BA79B9859F741E082542A385502F25DBF55296C3A545E3872760AB7",
-	"3617DE4A96262C6F5D9E98BF9292DC29F8F41DBD289A147CE9DA3113B5F0B8C00A60B1CE1D7E819D7A431D7C90EA0E5F",
-	"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFFFF0000000000000000FFFFFFFF",
+	"-3", // "ffffffff00000001000000000000000000000000fffffffffffffffffffffffc",
+	"b3312fa7e23ee7e4988e056be3f82d19181d9c6efe8141120314088f5013875ac656398d8a2ed19d2a85c8edd3ec2aef",
+	"aa87ca22be8b05378eb1c71ef320ad746e1d3b628ba79b9859f741e082542a385502f25dbf55296c3a545e3872760ab7",
+	"3617de4a96262c6f5d9e98bf9292dc29f8f41dbd289a147ce9da3113b5f0b8c00a60b1ce1d7e819d7a431d7c90ea0e5f",
+	"fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffff0000000000000000ffffffff",
 	"1000000000000000000000000000000000000000000000000000000000000000100000000ffffffffffffffff00000001",
-	"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFC7634D81F4372DDF581A0DB248B0A77AECEC196ACCC52973",
+	"ffffffffffffffffffffffffffffffffffffffffffffffffc7634d81f4372ddf581a0db248b0a77aecec196accc52973",
 };
 
 const ec_set_t param_ec_secp521r1 = {
 	521,
 	66,
 	(521 + SC_LIMB_BITS - 1) >> SC_LIMB_BITS_SHIFT,
-	"-3", // "01FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFC",
-	"51953EB9618E1C9A1F929A21A0B68540EEA2DA725B99B315F3B8B489918EF109E156193951EC7E937B1652C0BD3BB1BF073573DF883D2C34F1EF451FD46B503F00",
-	"C6858E06B70404E9CD9E3ECB662395B4429C648139053FB521F828AF606B4D3DBAA14B5E77EFE75928FE1DC127A2FFA8DE3348B3C1856A429BF97E7E31C2E5BD66",
-	"11839296A789A3BC0045C8A5FB42C7D1BD998F54449579B446817AFBD17273E662C97EE72995EF42640C550B9013FAD0761353C7086A272C24088BE94769FD16650",
-	"1FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",
+	"-3", // "01fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc",
+	"51953eb9618e1c9a1f929a21a0b68540eea2da725b99b315f3b8b489918ef109e156193951ec7e937b1652c0bd3bb1bf073573df883d2c34f1ef451fd46b503f00",
+	"c6858e06b70404e9cd9e3ecb662395b4429c648139053fb521f828af606b4d3dbaa14b5e77efe75928fe1dc127a2ffa8de3348b3c1856a429bf97e7e31c2e5bd66",
+	"11839296a789a3bc0045c8a5fb42c7d1bd998f54449579b446817afbd17273e662c97ee72995ef42640c550b9013fad0761353c7086a272c24088be94769fd16650",
+	"1ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
 	"8000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000400000000000",
-	"1FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFA51868783BF2F966B7FCC0148F709A5D03BB5C9B8899C47AEBB6FB71E91386409",
+	"1fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffa51868783bf2f966b7fcc0148f709a5d03bb5c9b8899c47aebb6fb71e91386409",
 };
 
 
-static void point_reset(ecc_point_t *p)
+void point_reset(ecc_point_t *p)
 {
+	p->type = EC_COORD_AFFINE;
 	sc_mpz_set_ui(&p->x, 0);
 	sc_mpz_set_ui(&p->y, 0);
+	sc_mpz_set_ui(&p->z, 0);
 }
 
-static void point_init(ecc_point_t *p, size_t n)
+void point_init(ecc_point_t *p, size_t n)
 {
-	sc_mpz_init2(&p->x, MAX_ECC_BITS);
-	sc_mpz_init2(&p->y, MAX_ECC_BITS);
+	p->type = EC_COORD_AFFINE;
+	sc_mpz_init2(&p->x, n * SC_LIMB_BITS);
+	sc_mpz_init2(&p->y, n * SC_LIMB_BITS);
+	sc_mpz_init2(&p->z, n * SC_LIMB_BITS);
 	p->n = n;
 }
 
-static void point_clear(ecc_point_t *p)
+void point_clear(ecc_point_t *p)
 {
 	sc_mpz_clear(&p->x);
 	sc_mpz_clear(&p->y);
+	sc_mpz_clear(&p->z);
 }
 
-static void point_copy(ecc_point_t *p_out, const ecc_point_t *p_in)
+void point_copy(ecc_point_t *p_out, const ecc_point_t *p_in)
 {
 	sc_mpz_copy(&p_out->x, &p_in->x);
 	sc_mpz_copy(&p_out->y, &p_in->y);
+	sc_mpz_copy(&p_out->z, &p_in->z);
+	p_out->type = p_in->type;
 	p_out->n = p_in->n;
 }
 
-static void point_negate(ecc_point_t *p_inout)
+void point_negate(ecc_point_t *p_inout)
 {
 	sc_mpz_negate(&p_inout->y, &p_inout->y);
 }
 
-static SINT32 point_is_zero(const ecc_point_t *p)
+SINT32 point_is_zero(const ecc_point_t *p)
 {
-	return sc_mpz_is_zero(&p->x) && sc_mpz_is_zero(&p->y);
+	return sc_mpz_is_zero(&p->x) && sc_mpz_is_zero(&p->y) && sc_mpz_is_zero(&p->z);
 }
 
-static void point_double_affine(ecc_metadata_t *metadata, ecc_point_t *point)
+void point_affine_to_projective(ecc_point_t *p)
+{
+	p->type = EC_COORD_PROJECTIVE;
+	sc_mpz_set_ui(&p->z, 1);
+}
+
+void point_projective_to_affine(ecc_point_t *p, sc_mpz_t *tmul, sc_mpz_t *temp, sc_mpz_t *m)
+{
+	p->type = EC_COORD_AFFINE;
+	sc_mpz_invmod(temp, &p->z, m);
+	sc_mpz_mul(tmul, temp, &p->x);
+	sc_mpz_mod(&p->x, tmul, m);
+	sc_mpz_mul(tmul, temp, &p->y);
+	sc_mpz_mod(&p->y, tmul, m);
+}
+
+static ecc_retcode_e point_double_projective(ecc_metadata_t *metadata, ecc_point_t *point)
+{
+	sc_mpz_t *temp, *w, *s, *b, *h, *m, *a;
+	temp          = &metadata->temp;
+	w             = &metadata->x;
+	s             = &metadata->y;
+	b             = &metadata->lambda;
+	h             = &metadata->h;
+	m             = &metadata->m;
+	a             = &metadata->a;
+
+    // w = a * z^2 + 3 * x^2
+	sc_mpz_sqr(temp, &point->z);
+	sc_mpz_mod(w, temp, m);
+	sc_mpz_mul(temp, w, a);
+	sc_mpz_mod(w, temp, m);
+	sc_mpz_sqr(temp, &point->x);
+	sc_mpz_mul_ui(s, temp, 3);
+	sc_mpz_add(w, w, s);
+	sc_mpz_mod(w, w, m);
+
+	// s = y * z
+	sc_mpz_mul(temp, &point->y, &point->z);
+	sc_mpz_mod(s, temp, m);
+
+	// b = x * y * s
+	sc_mpz_mul(temp, &point->x, &point->y);
+	sc_mpz_mod(b, temp, m);
+	sc_mpz_mul(temp, b, s);
+	sc_mpz_mod(b, temp, m);
+
+	// h = w^2 - 8 * b
+	sc_mpz_sqr(temp, w);
+	sc_mpz_mod(h, temp, m);
+	sc_mpz_mul_ui(temp, b, 8);
+	sc_mpz_sub(h, h, temp);
+	sc_mpz_mod(h, h, m);
+
+	// x = 2 * h * s
+	sc_mpz_mul(temp, h, s);
+	sc_mpz_mul_ui(temp, temp, 2);
+	sc_mpz_mod(&point->x, temp, m);
+
+	// y = w*(4*b - h) - 8*y^2*s^2
+	sc_mpz_mul_ui(temp, b, 4);
+	sc_mpz_sub(h, temp, h);
+	sc_mpz_mul(temp, w, h);
+	sc_mpz_mod(w, temp, m);
+	sc_mpz_sqr(temp, s);
+	sc_mpz_mod(h, temp, m);    // s^2
+	sc_mpz_sqr(temp, &point->y);
+	sc_mpz_mul_ui(temp, temp, 8);
+	sc_mpz_mod(w, temp, m);
+	sc_mpz_mul(temp, w, h);
+	sc_mpz_mod(&point->y, temp, m);
+
+	// z = 8 * s^3
+	sc_mpz_mul(temp, h, s);
+	sc_mpz_mul_ui(temp, temp, 8);
+	sc_mpz_mod(&point->z, temp, m);
+
+	return EC_GEOMETRY_OK;
+}
+
+static ecc_retcode_e point_double_affine(ecc_metadata_t *metadata, ecc_point_t *point)
 {
 	sc_mpz_t *lambda, *temp, *x, *y, *m, *a, *m_inv, *order_m;
 	lambda        = &metadata->lambda;
@@ -177,9 +267,77 @@ static void point_double_affine(ecc_metadata_t *metadata, ecc_point_t *point)
 
     // Overwrite the input point X coordinate with it's new value
     sc_mpz_copy(&point->x, x);
+
+    return EC_GEOMETRY_OK;
 }
 
-static void point_add_affine(ecc_metadata_t *metadata, ecc_point_t *p_a, const ecc_point_t *p_b)
+static ecc_retcode_e point_add_projective(ecc_metadata_t *metadata, ecc_point_t *p_a, const ecc_point_t *p_b)
+{
+	sc_mpz_t *temp, *w, *a, *u1, *u2, *v1, *v2, *m;
+	temp   = &metadata->temp;
+	w      = &metadata->w;
+	a      = &metadata->z;
+	u1     = &metadata->x;
+	u2     = &metadata->y;
+	v1     = &metadata->lambda;
+	v2     = &metadata->h;
+	m      = &metadata->m;
+
+	sc_mpz_mul(temp, &p_b->y, &p_a->z);
+	sc_mpz_mod(u1, temp, m);
+	sc_mpz_mul(temp, &p_a->y, &p_b->z);
+	sc_mpz_mod(u2, temp, m);
+	sc_mpz_mul(temp, &p_b->x, &p_a->z);
+	sc_mpz_mod(v1, temp, m);
+	sc_mpz_mul(temp, &p_a->x, &p_b->z);
+	sc_mpz_mod(v2, temp, m);
+
+	if (0 == sc_mpz_cmp(v1, v2)) {
+		if (0 != sc_mpz_cmp(u1, u2)) {
+			return EC_GEOMETRY_INFINITY;
+		}
+		else {
+			return EC_GEOMETRY_DOUBLE;
+		}
+	}
+
+	sc_mpz_sub(u1, u1, u2); // u1 no longer needed
+	sc_mpz_mod(u1, u1, m);
+	sc_mpz_sub(v1, v1, v2); // v1 no longer needed
+	sc_mpz_mod(v1, v1, m);
+	
+	sc_mpz_sqr(temp, v1);
+	sc_mpz_mod(w, temp, m);  // v^2
+	sc_mpz_mul(temp, v2, w);
+	sc_mpz_mod(v2, temp, m);  // v^2 * v2
+	sc_mpz_mul(temp, w, v1);
+	sc_mpz_mod(a, temp, m);  // v^3
+	sc_mpz_mul(temp, &p_a->z, &p_b->z);
+	sc_mpz_mod(w, temp, m);  // w
+	sc_mpz_mul(temp, w, a);
+	sc_mpz_mod(&p_a->z, temp, m);  // z = w * v^3
+	sc_mpz_mul(temp, u2, a);
+	sc_mpz_mod(&p_a->y, temp, m);  // y = v^3 * u2, u2 no longer needed
+	sc_mpz_mul_ui(temp, v2, 2);
+	sc_mpz_add(temp, temp, a); // v^3 + 2 * v^2 * v2
+	sc_mpz_sqr(temp, u1);
+	sc_mpz_mod(u2, temp, m);  // u^2
+	sc_mpz_mul(temp, u1, w);
+	sc_mpz_mod(a, temp, m);  // w * u^2
+	sc_mpz_sub(temp, a, u2);
+	sc_mpz_mod(a, temp, m);  // w * u^2 - v^3 - 2 * v^2 * v2
+	sc_mpz_mul(temp, v1, a);
+	sc_mpz_mod(&p_a->x, temp, m);  // v * a
+	sc_mpz_sub(a, v2, a);
+	sc_mpz_mul(temp, u1, a);
+	sc_mpz_mod(u1, temp, m);  // u * (v^2 * v2 - a)
+	sc_mpz_sub(a, u1, &p_a->y);
+	sc_mpz_mod(&p_a->y, a, m);
+
+	return EC_GEOMETRY_OK;
+}
+
+static ecc_retcode_e point_add_affine(ecc_metadata_t *metadata, ecc_point_t *p_a, const ecc_point_t *p_b)
 {
 	sc_mpz_t *lambda, *temp, *x, *y, *m;
 	lambda = &metadata->lambda;
@@ -210,21 +368,45 @@ static void point_add_affine(ecc_metadata_t *metadata, ecc_point_t *p_a, const e
     sc_mpz_add(y, y, &p_b->y);
     sc_mpz_negate(y, y);
     sc_mpz_mod(&p_a->y, y, m);
+
+    return EC_GEOMETRY_OK;
 }
 
-static void point_double(ecc_metadata_t *metadata, ecc_point_t *point)
+static ecc_retcode_e point_double(ecc_metadata_t *metadata, ecc_point_t *point)
 {
 	// If x and y are zero the result is zero
 	if (point_is_zero(point)) {
-		return;
+		return EC_GEOMETRY_ZERO;
 	}
 
-	point_double_affine(metadata, point);
+	switch (point->type) {
+		case EC_COORD_AFFINE:     return point_double_affine(metadata, point);
+		case EC_COORD_PROJECTIVE: return point_double_projective(metadata, point);
+	}
 }
 
-static void point_add(ecc_metadata_t *metadata, ecc_point_t *p_a, const ecc_point_t *p_b)
+static ecc_retcode_e point_add(ecc_metadata_t *metadata, ecc_point_t *p_a, const ecc_point_t *p_b)
 {
-	point_add_affine(metadata, p_a, p_b);
+	ecc_retcode_e retcode;
+
+	switch (p_a->type) {
+		case EC_COORD_AFFINE:
+		{
+			retcode = point_add_affine(metadata, p_a, p_b);
+			if (EC_GEOMETRY_DOUBLE == retcode) {
+				retcode = point_double_affine(metadata, p_a);
+			}
+		} break;
+		case EC_COORD_PROJECTIVE:
+		{
+			retcode = point_add_projective(metadata, p_a, p_b);
+			if (EC_GEOMETRY_DOUBLE == retcode) {
+				retcode = point_double_projective(metadata, p_a);
+			}
+		} break;
+	}
+
+	return retcode;
 }
 
 static void scalar_point_mult_binary(size_t num_bits, ecc_metadata_t *metadata,
@@ -234,7 +416,7 @@ static void scalar_point_mult_binary(size_t num_bits, ecc_metadata_t *metadata,
 	point_secret_t bit_ctx;
 	ecc_point_t p_dummy;
 
-	point_init(&p_dummy, MAX_ECC_LIMBS);
+	point_init(&p_dummy, metadata->k);
 	point_reset(&p_dummy);
 	point_reset(p_out);
 	point_copy(p_out, p_in);
@@ -248,10 +430,10 @@ static void scalar_point_mult_binary(size_t num_bits, ecc_metadata_t *metadata,
 	// Windowing
 	size_t w = 4;
 	ecc_point_t *p_window = SC_MALLOC(sizeof(ecc_point_t) * (1 << w));
-	point_init(&p_window[0], MAX_ECC_LIMBS);
+	point_init(&p_window[0], metadata->k);
 	point_copy(&p_window[0], p_in);
 	for (i=1; i<(1 << w); i++) {
-		point_init(&p_window[i], MAX_ECC_LIMBS);
+		point_init(&p_window[i], metadata->k);
 		point_copy(&p_window[i], &p_window[i-1]);
 		point_add(metadata, &p_window[i], p_in);
 	}
@@ -302,11 +484,11 @@ static void scalar_point_mult_naf(size_t num_bits, ecc_metadata_t *metadata,
 	point_secret_t bit_ctx;
 	ecc_point_t p_dummy, p_in_minus;
 
-	point_init(&p_dummy, MAX_ECC_LIMBS);
+	point_init(&p_dummy, metadata->k);
 	point_reset(&p_dummy);
 	point_reset(p_out);
 	point_copy(p_out, p_in);
-	point_init(&p_in_minus, MAX_ECC_LIMBS);
+	point_init(&p_in_minus, metadata->k);
 	point_copy(&p_in_minus, p_in);
 	point_negate(&p_in_minus);
 
@@ -394,20 +576,20 @@ SINT32 ecc_diffie_hellman(safecrypto_t *sc, const ecc_point_t *p_base, const sc_
 
 	// Initialise the MP variables
 	metadata.k = num_limbs;
-	sc_mpz_init2(&metadata.lambda, MAX_ECC_BITS);
-	sc_mpz_init2(&metadata.x, MAX_ECC_BITS);
-	sc_mpz_init2(&metadata.y, MAX_ECC_BITS);
-	sc_mpz_init2(&metadata.temp, 2*MAX_ECC_BITS);
-	sc_mpz_init2(&metadata.a, MAX_ECC_BITS);
-	sc_mpz_init2(&metadata.m, MAX_ECC_BITS);
-	sc_mpz_init2(&metadata.m_inv, MAX_ECC_BITS+1);
-	sc_mpz_init2(&metadata.order_m, MAX_ECC_BITS);
-	sc_mpz_init2(&p_result.x, MAX_ECC_BITS);
-	sc_mpz_init2(&p_result.y, MAX_ECC_BITS);
+	point_init(&p_result, num_limbs);
+	sc_mpz_init2(&metadata.lambda, num_bits);
+	sc_mpz_init2(&metadata.x, num_bits);
+	sc_mpz_init2(&metadata.y, num_bits);
+	sc_mpz_init2(&metadata.z, num_bits);
+	sc_mpz_init2(&metadata.h, num_bits);
+	sc_mpz_init2(&metadata.w, num_bits);
+	sc_mpz_init2(&metadata.temp, 2*num_bits);
+	sc_mpz_init2(&metadata.a, num_bits);
+	sc_mpz_init2(&metadata.m, num_bits);
+	sc_mpz_init2(&metadata.m_inv, num_bits+1);
 	sc_mpz_set_str(&metadata.a, 16, sc->ec->params->a);
 	sc_mpz_set_str(&metadata.m, 16, sc->ec->params->p);
 	sc_mpz_set_str(&metadata.m_inv, 16, sc->ec->params->p_inv);
-	sc_mpz_set_str(&metadata.order_m, 16, sc->ec->params->order_m);
 
 	// Perform a scalar point multiplication from the base point using the random secret
 	scalar_point_mult(num_bits, &metadata, p_base, secret, &p_result);
@@ -424,13 +606,14 @@ SINT32 ecc_diffie_hellman(safecrypto_t *sc, const ecc_point_t *p_base, const sc_
 	sc_mpz_clear(&metadata.lambda);
 	sc_mpz_clear(&metadata.x);
 	sc_mpz_clear(&metadata.y);
+	sc_mpz_clear(&metadata.z);
+	sc_mpz_clear(&metadata.h);
+	sc_mpz_clear(&metadata.w);
 	sc_mpz_clear(&metadata.temp);
 	sc_mpz_clear(&metadata.a);
 	sc_mpz_clear(&metadata.m);
 	sc_mpz_clear(&metadata.m_inv);
-	sc_mpz_clear(&metadata.order_m);
-	sc_mpz_clear(&p_result.x);
-	sc_mpz_clear(&p_result.y);
+	point_clear(&p_result);
 
 	return SC_FUNC_SUCCESS;
 }
@@ -453,9 +636,7 @@ SINT32 ecc_diffie_hellman_decapsulate(safecrypto_t *sc, const sc_ulimb_t *secret
 
 	// Convert the input byte stream (public key) to the intermediate coordinate
 	ecc_point_t p_base;
-	p_base.n = num_limbs;
-	sc_mpz_init2(&p_base.x, MAX_ECC_BITS);
-	sc_mpz_init2(&p_base.y, MAX_ECC_BITS);
+	point_init(&p_base, num_limbs);
 	sc_mpz_set_bytes(&p_base.x, from, num_bytes);
 	sc_mpz_set_bytes(&p_base.y, from + num_bytes, num_bytes);
 
@@ -463,8 +644,7 @@ SINT32 ecc_diffie_hellman_decapsulate(safecrypto_t *sc, const sc_ulimb_t *secret
 	// to the final point (shared secret)
 	ecc_diffie_hellman(sc, &p_base, secret, tlen, to, 1);
 
-	sc_mpz_clear(&p_base.x);
-	sc_mpz_clear(&p_base.y);
+	point_clear(&p_base);
 
 	return SC_FUNC_SUCCESS;
 }
@@ -482,14 +662,17 @@ SINT32 ecc_keygen(safecrypto_t *sc)
 	num_limbs = sc->ec->params->num_limbs;
 
 	metadata.k = num_limbs;
-	sc_mpz_init2(&metadata.lambda, MAX_ECC_BITS);
-	sc_mpz_init2(&metadata.x, MAX_ECC_BITS);
-	sc_mpz_init2(&metadata.y, MAX_ECC_BITS);
-	sc_mpz_init2(&metadata.temp, 2*MAX_ECC_BITS);
-	sc_mpz_init2(&metadata.a, MAX_ECC_BITS);
-	sc_mpz_init2(&metadata.m, MAX_ECC_BITS);
-	sc_mpz_init2(&metadata.m_inv, MAX_ECC_BITS+1);
-	sc_mpz_init2(&metadata.order_m, MAX_ECC_BITS);
+	sc_mpz_init2(&metadata.lambda, num_bits);
+	sc_mpz_init2(&metadata.x, num_bits);
+	sc_mpz_init2(&metadata.y, num_bits);
+	sc_mpz_init2(&metadata.z, num_bits);
+	sc_mpz_init2(&metadata.h, num_bits);
+	sc_mpz_init2(&metadata.w, num_bits);
+	sc_mpz_init2(&metadata.temp, 2*num_bits);
+	sc_mpz_init2(&metadata.a, num_bits);
+	sc_mpz_init2(&metadata.m, num_bits);
+	sc_mpz_init2(&metadata.m_inv, num_bits+1);
+	sc_mpz_init2(&metadata.order_m, num_bits + 64);
 	sc_mpz_set_str(&metadata.a, 16, sc->ec->params->a);
 	sc_mpz_set_str(&metadata.m, 16, sc->ec->params->p);
 	sc_mpz_set_str(&metadata.m_inv, 16, sc->ec->params->p_inv);
@@ -519,7 +702,7 @@ SINT32 ecc_keygen(safecrypto_t *sc)
 
 	// Generate the public key as the product of a scalar multiplication
 	// of the base point with k
-	point_init(&p_public, MAX_ECC_LIMBS);
+	point_init(&p_public, metadata.k);
 	scalar_point_mult(num_bits, &metadata, &sc->ec->base, secret, &p_public);
 	sc_mpz_mod(&p_public.x, &p_public.x, &metadata.order_m);
 	sc_mpz_mod(&p_public.y, &p_public.y, &metadata.order_m);
@@ -547,6 +730,9 @@ finish_free:
 	sc_mpz_clear(&metadata.lambda);
 	sc_mpz_clear(&metadata.x);
 	sc_mpz_clear(&metadata.y);
+	sc_mpz_clear(&metadata.z);
+	sc_mpz_clear(&metadata.h);
+	sc_mpz_clear(&metadata.w);
 	sc_mpz_clear(&metadata.temp);
 	sc_mpz_clear(&metadata.a);
 	sc_mpz_clear(&metadata.m);
@@ -575,26 +761,30 @@ SINT32 ecc_sign(safecrypto_t *sc, const UINT8 *m, size_t mlen,
 		return SC_FUNC_FAILURE;
 	}
 
-	sc_mpz_init2(&metadata.lambda, MAX_ECC_BITS);
-	sc_mpz_init2(&metadata.x, MAX_ECC_BITS);
-	sc_mpz_init2(&metadata.y, MAX_ECC_BITS);
-	sc_mpz_init2(&metadata.temp, 2*MAX_ECC_BITS);
-	sc_mpz_init2(&metadata.a, MAX_ECC_BITS);
-	sc_mpz_init2(&metadata.m, MAX_ECC_BITS);
-	sc_mpz_init2(&metadata.m_inv, MAX_ECC_BITS+1);
-	sc_mpz_init2(&metadata.order_m, MAX_ECC_BITS);
+	metadata.k = num_limbs;
+	sc_mpz_init2(&metadata.lambda, num_bits);
+	sc_mpz_init2(&metadata.x, num_bits);
+	sc_mpz_init2(&metadata.y, num_bits);
+	sc_mpz_init2(&metadata.z, num_bits);
+	sc_mpz_init2(&metadata.h, num_bits);
+	sc_mpz_init2(&metadata.w, num_bits);
+	sc_mpz_init2(&metadata.temp, 2*num_bits);
+	sc_mpz_init2(&metadata.a, num_bits);
+	sc_mpz_init2(&metadata.m, num_bits);
+	sc_mpz_init2(&metadata.m_inv, num_bits+1);
+	sc_mpz_init2(&metadata.order_m, num_bits + 64);
 	sc_mpz_set_str(&metadata.a, 16, sc->ec->params->a);
 	sc_mpz_set_str(&metadata.m, 16, sc->ec->params->p);
 	sc_mpz_set_str(&metadata.m_inv, 16, sc->ec->params->p_inv);
 	sc_mpz_set_str(&metadata.order_m, 16, sc->ec->params->order_m);
 
-	sc_mpz_init2(&d, MAX_ECC_BITS);
-	sc_mpz_init2(&e, MAX_ECC_BITS);
-	sc_mpz_init2(&k, MAX_ECC_BITS);
-	sc_mpz_init2(&temp1, 2*MAX_ECC_BITS);
-	sc_mpz_init2(&temp2, MAX_ECC_BITS);
-	point_init(&p_base, MAX_ECC_LIMBS);
-	point_init(&p_result, MAX_ECC_LIMBS);
+	sc_mpz_init2(&d, num_bits);
+	sc_mpz_init2(&e, num_bits);
+	sc_mpz_init2(&k, num_bits);
+	sc_mpz_init2(&temp1, 2*num_bits);
+	sc_mpz_init2(&temp2, num_bits);
+	point_init(&p_base, num_limbs);
+	point_init(&p_result, num_limbs);
 
 	p_base.n = (num_bits + SC_LIMB_BITS - 1) >> SC_LIMB_BITS_SHIFT;
 	sc_mpz_set_str(&p_base.x, 16, sc->ec->params->g_x);
@@ -637,7 +827,8 @@ restart:
 	}
 
 	/*fprintf(stderr, "r = "); sc_mpz_out_str(stderr, 16, &p_result.x); fprintf(stderr, "\n");
-	fprintf(stderr, "s = "); sc_mpz_out_str(stderr, 16, &temp2); fprintf(stderr, "\n");*/
+	fprintf(stderr, "s = "); sc_mpz_out_str(stderr, 16, &temp2); fprintf(stderr, "\n");
+	fprintf(stderr, "bases are %d and %d\n", sc_mpz_sizeinbase(&p_result.x, 16), sc_mpz_sizeinbase(&temp2, 16));*/
 
 	// Pack r and s into the output signature
 	if (0 == *siglen || 0 == *sigret) {
@@ -647,9 +838,21 @@ restart:
 	sc_mpz_get_bytes(*sigret, &p_result.x, num_bytes);
 	sc_mpz_get_bytes(*sigret + num_bytes, &temp2, num_bytes);
 
+	/*for (i=0; i<num_bytes; i++) {
+		fprintf(stderr, "%02x", (int)((*sigret)[num_bytes-1-i]));
+	}
+	fprintf(stderr, "\n");
+	for (i=0; i<num_bytes; i++) {
+		fprintf(stderr, "%02x", (int)((*sigret)[2*num_bytes-1-i]));
+	}
+	fprintf(stderr, "\n");*/
+
 	sc_mpz_clear(&metadata.lambda);
 	sc_mpz_clear(&metadata.x);
 	sc_mpz_clear(&metadata.y);
+	sc_mpz_clear(&metadata.z);
+	sc_mpz_clear(&metadata.h);
+	sc_mpz_clear(&metadata.w);
 	sc_mpz_clear(&metadata.temp);
 	sc_mpz_clear(&metadata.a);
 	sc_mpz_clear(&metadata.m);
@@ -688,32 +891,45 @@ SINT32 ecc_verify(safecrypto_t *sc, const UINT8 *m, size_t mlen,
 	}
 
 	// Configure the curve parameters
-	sc_mpz_init2(&metadata.lambda, MAX_ECC_BITS);
-	sc_mpz_init2(&metadata.x, MAX_ECC_BITS);
-	sc_mpz_init2(&metadata.y, MAX_ECC_BITS);
-	sc_mpz_init2(&metadata.temp, 2*MAX_ECC_BITS);
-	sc_mpz_init2(&metadata.a, MAX_ECC_BITS);
-	sc_mpz_init2(&metadata.m, MAX_ECC_BITS);
-	sc_mpz_init2(&metadata.m_inv, MAX_ECC_BITS+1);
-	sc_mpz_init2(&metadata.order_m, MAX_ECC_BITS);
+	metadata.k = num_limbs;
+	sc_mpz_init2(&metadata.lambda, num_bits);
+	sc_mpz_init2(&metadata.x, num_bits);
+	sc_mpz_init2(&metadata.y, num_bits);
+	sc_mpz_init2(&metadata.z, num_bits);
+	sc_mpz_init2(&metadata.h, num_bits);
+	sc_mpz_init2(&metadata.w, num_bits);
+	sc_mpz_init2(&metadata.temp, 2*num_bits);
+	sc_mpz_init2(&metadata.a, num_bits);
+	sc_mpz_init2(&metadata.m, num_bits);
+	sc_mpz_init2(&metadata.m_inv, num_bits+1);
+	sc_mpz_init2(&metadata.order_m, num_bits + 64);
 	sc_mpz_set_str(&metadata.a, 16, sc->ec->params->a);
 	sc_mpz_set_str(&metadata.m, 16, sc->ec->params->p);
 	sc_mpz_set_str(&metadata.m_inv, 16, sc->ec->params->p_inv);
 	sc_mpz_set_str(&metadata.order_m, 16, sc->ec->params->order_m);
-	sc_mpz_init2(&temp, 2*MAX_ECC_BITS);
-	sc_mpz_init2(&r, MAX_ECC_BITS);
-	sc_mpz_init2(&s, MAX_ECC_BITS);
-	sc_mpz_init2(&w, MAX_ECC_BITS);
-	sc_mpz_init2(&z, MAX_ECC_BITS);
-	point_init(&p_base, MAX_ECC_LIMBS);
-	point_init(&p_public, MAX_ECC_LIMBS);
-	point_init(&p_u1, MAX_ECC_LIMBS);
-	point_init(&p_u2, MAX_ECC_LIMBS);
+	sc_mpz_init2(&temp, 2*num_bits);
+	sc_mpz_init2(&r, num_bits);
+	sc_mpz_init2(&s, num_bits);
+	sc_mpz_init2(&w, num_bits);
+	sc_mpz_init2(&z, num_bits);
+	point_init(&p_base, sc->ec->params->num_limbs);
+	point_init(&p_public, sc->ec->params->num_limbs);
+	point_init(&p_u1, sc->ec->params->num_limbs);
+	point_init(&p_u2, sc->ec->params->num_limbs);
+
+	/*for (i=0; i<num_bytes; i++) {
+		fprintf(stderr, "%02x", (int)(sigbuf[num_bytes-1-i]));
+	}
+	fprintf(stderr, "\n");
+	for (i=0; i<num_bytes; i++) {
+		fprintf(stderr, "%02x", (int)(sigbuf[2*num_bytes-1-i]));
+	}
+	fprintf(stderr, "\n");*/
 
 	sc_mpz_set_bytes(&r, sigbuf, num_bytes);
 	sc_mpz_set_bytes(&s, sigbuf + num_bytes, num_bytes);
-	/*fprintf(stderr, "r = "); sc_mpz_out_str(stderr, 16, &r); fprintf(stderr, "\n");*/
-	/*fprintf(stderr, "s = "); sc_mpz_out_str(stderr, 16, &s); fprintf(stderr, "\n");*/
+	//fprintf(stderr, "r = "); sc_mpz_out_str(stderr, 16, &r); fprintf(stderr, "\n");
+	//fprintf(stderr, "s = "); sc_mpz_out_str(stderr, 16, &s); fprintf(stderr, "\n");
 
 	sc_mpz_set_bytes(&z, m, mlen);
 
@@ -721,7 +937,7 @@ SINT32 ecc_verify(safecrypto_t *sc, const UINT8 *m, size_t mlen,
 	sc_mpz_invmod(&w, &s, &metadata.order_m);
 
 	// Obtain the public key Q in the form of an elliptic curve point
-	p_public.n = sc->ec->params->num_limbs;
+	//p_public.n = sc->ec->params->num_limbs;
 	sc_mpz_set_bytes(&p_public.x, sc->pubkey->key, num_bytes);
 	sc_mpz_set_bytes(&p_public.y, sc->pubkey->key + num_bytes, num_bytes);
 	/*fprintf(stderr, "public x = "); sc_mpz_out_str(stderr, 16, &p_public.x); fprintf(stderr, "\n");
@@ -765,6 +981,9 @@ SINT32 ecc_verify(safecrypto_t *sc, const UINT8 *m, size_t mlen,
 	sc_mpz_clear(&metadata.lambda);
 	sc_mpz_clear(&metadata.x);
 	sc_mpz_clear(&metadata.y);
+	sc_mpz_clear(&metadata.z);
+	sc_mpz_clear(&metadata.h);
+	sc_mpz_clear(&metadata.w);
 	sc_mpz_clear(&metadata.temp);
 	sc_mpz_clear(&metadata.a);
 	sc_mpz_clear(&metadata.m);

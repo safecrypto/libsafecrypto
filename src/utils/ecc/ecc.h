@@ -17,11 +17,28 @@
 #define MAX_ECC_BYTES     ((MAX_ECC_BITS + 7) >> 3)
 
 
+typedef enum ecc_retcode {
+	EC_GEOMETRY_OK = 0,
+	EC_GEOMETRY_ZERO,
+	EC_GEOMETRY_DOUBLE,
+	EC_GEOMETRY_INFINITY,
+} ecc_retcode_e;
+
+typedef enum ecc_point_type {
+	EC_COORD_AFFINE = 0,
+	EC_COORD_PROJECTIVE,
+	EC_COORD_JACOBIAN,
+	EC_COORD_LOPEZ_DAHAB,
+	EC_COORD_CHUDNOVSKY,
+} ecc_point_type_e;
+
 /// AN elliptic curve affine coordinate
 typedef struct _ecc_point_t {
-	sc_mpz_t x;
-	sc_mpz_t y;
-	size_t   n;
+	ecc_point_type_e type;
+	sc_mpz_t         x;
+	sc_mpz_t         y;
+	sc_mpz_t         z;
+	size_t           n;
 } ecc_point_t;
 
 /// The parameters associated with an elliptic curve
@@ -54,6 +71,17 @@ typedef struct _ec_cfg_t {
 	ecc_point_t     base;
 } SC_STRUCT_PACKED ec_cfg_t;
 SC_STRUCT_PACK_END
+
+
+void point_reset(ecc_point_t *p);
+void point_init(ecc_point_t *p, size_t n);
+void point_clear(ecc_point_t *p);
+void point_copy(ecc_point_t *p_out, const ecc_point_t *p_in);
+void point_negate(ecc_point_t *p_inout);
+SINT32 point_is_zero(const ecc_point_t *p);
+void point_affine_to_projective(ecc_point_t *p);
+void point_projective_to_affine(ecc_point_t *p, sc_mpz_t *tmul, sc_mpz_t *temp, sc_mpz_t *m);
+
 
 
 extern SINT32 ecc_diffie_hellman(safecrypto_t *sc, const ecc_point_t *p_base,

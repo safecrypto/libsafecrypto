@@ -113,7 +113,7 @@ int main(void)
         show_progress(0, MAX_ITER);
 
         // Load the private key
-#if 0
+#if 1
         uint8_t tv1_secret[] = {0x7d, 0x7d, 0xc5, 0xf7, 0x1e, 0xb2, 0x9d, 0xda, 0xf8, 0x0d, 0x62, 0x14, 0x63, 0x2e, 0xea, 0xe0,
                                 0x3d, 0x90, 0x58, 0xaf, 0x1f, 0xb6, 0xd2, 0x2e, 0xd8, 0x0b, 0xad, 0xb6, 0x2b, 0xc1, 0xa5, 0x34};
         uint8_t tv1_pubkey[] = {0x70, 0x0c, 0x48, 0xf7, 0x7f, 0x56, 0x58, 0x4c, 0x5c, 0xc6, 0x32, 0xca, 0x65, 0x64, 0x0d, 0xb9,
@@ -138,13 +138,7 @@ int main(void)
             tv1_secret[i] = tv1_secret[31-i];
             tv1_secret[31-i] = temp;
         }
-#if 0
-        for (size_t i=0; i<32; i++) {
-            uint8_t temp = tv1_pubkey[i];
-            tv1_pubkey[i] = tv1_secret[63-i];
-            tv1_pubkey[63-i] = temp;
-        }
-#else
+
         for (size_t i=0; i<16; i++) {
             uint8_t temp = tv1_pubkey[32+i];
             tv1_pubkey[32+i] = tv1_pubkey[32+31-i];
@@ -155,7 +149,7 @@ int main(void)
             tv1_pubkey[i] = tv1_pubkey[31-i];
             tv1_pubkey[31-i] = temp;
         }
-#endif
+
         for (size_t i=0; i<16; i++) {
             uint8_t temp = tv1_shared[i];
             tv1_shared[i] = tv1_shared[31-i];

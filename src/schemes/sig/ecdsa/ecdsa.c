@@ -71,9 +71,7 @@ SINT32 ecdsa_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
                  return SC_FUNC_FAILURE;
     }
 
-    sc->ec->base.n = sc->ec->params->num_limbs;
-    sc_mpz_init2(&sc->ec->base.x, MAX_ECC_BITS);
-    sc_mpz_init2(&sc->ec->base.y, MAX_ECC_BITS);
+    point_init(&sc->ec->base, sc->ec->params->num_limbs);
     sc_mpz_set_str(&sc->ec->base.x, 16, sc->ec->params->g_x);
     sc_mpz_set_str(&sc->ec->base.y, 16, sc->ec->params->g_y);
 
@@ -86,8 +84,7 @@ SINT32 ecdsa_destroy(safecrypto_t *sc)
 {
 	size_t num_limbs = sc->ec->params->num_limbs;
 
-    sc_mpz_clear(&sc->ec->base.x);
-    sc_mpz_clear(&sc->ec->base.y);
+    point_clear(&sc->ec->base);
 
     if (sc->ec) {
         SC_FREE(sc->ec, sizeof(ec_cfg_t));
@@ -143,7 +140,7 @@ SINT32 ecdsa_pubkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len)
 
 SINT32 ecdsa_privkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len)
 {
-    size_t num_limbs, num_bytes;
+    size_t num_limbs;
 
     if (NULL == sc || NULL == key) {
         SC_LOG_ERROR(sc, SC_NULL_POINTER);
@@ -151,7 +148,6 @@ SINT32 ecdsa_privkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len)
     }
 
     num_limbs = sc->ec->params->num_limbs;
-    num_bytes = sc->ec->params->num_bytes;
 
     if (sc->privkey->key) {
         SC_FREE(sc->privkey->key, num_limbs * sizeof(sc_ulimb_t));

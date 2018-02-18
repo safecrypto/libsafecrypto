@@ -65,9 +65,7 @@ SINT32 ecdh_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
                  return SC_FUNC_FAILURE;
     }
 
-    sc->ec->base.n = sc->ec->params->num_limbs;
-    sc_mpz_init2(&sc->ec->base.x, MAX_ECC_BITS);
-    sc_mpz_init2(&sc->ec->base.y, MAX_ECC_BITS);
+    point_init(&sc->ec->base, sc->ec->params->num_limbs);
     sc_mpz_set_str(&sc->ec->base.x, 16, sc->ec->params->g_x);
     sc_mpz_set_str(&sc->ec->base.y, 16, sc->ec->params->g_y);
 
@@ -78,8 +76,7 @@ SINT32 ecdh_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
 
 SINT32 ecdh_destroy(safecrypto_t *sc)
 {
-    sc_mpz_clear(&sc->ec->base.x);
-    sc_mpz_clear(&sc->ec->base.y);
+    point_clear(&sc->ec->base);
 
     if (sc->privkey->key) {
         SC_FREE(sc->privkey->key, sc->ec->params->num_limbs * sizeof(sc_ulimb_t));

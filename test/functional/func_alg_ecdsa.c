@@ -26,7 +26,7 @@
 
 
 #define MIN_PARAM_SET 0
-#define MAX_PARAM_SET 0
+#define MAX_PARAM_SET 3
 #define MAX_ITER      4096
 
 #define USE_FIXED_BUFFERS     1

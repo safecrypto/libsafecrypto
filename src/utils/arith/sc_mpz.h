@@ -97,6 +97,7 @@ void sc_mpz_add(sc_mpz_t *out, const sc_mpz_t *in1, const sc_mpz_t *in2);
 void sc_mpz_add_ui(sc_mpz_t *out, const sc_mpz_t *in1, sc_ulimb_t in2);
 void sc_mpz_sub(sc_mpz_t *out, const sc_mpz_t *in1, const sc_mpz_t *in2);
 void sc_mpz_sub_ui(sc_mpz_t *out, const sc_mpz_t *in1, sc_ulimb_t in2);
+void sc_mpz_sqr(sc_mpz_t *out, const sc_mpz_t *in);
 void sc_mpz_mul(sc_mpz_t *out, const sc_mpz_t *in1, const sc_mpz_t *in2);
 void sc_mpz_mul_scalar(sc_mpz_t *inout, const sc_mpz_t *in);
 void sc_mpz_mul_ui(sc_mpz_t *out, const sc_mpz_t *in1, const sc_ulimb_t in2);

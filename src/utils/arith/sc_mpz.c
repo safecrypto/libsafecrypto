@@ -320,6 +320,11 @@ SINT32 sc_mpz_set_str(sc_mpz_t *out, SINT32 base, const char *str)
     return mpz_set_str(out, str, base);
 }
 
+void sc_mpz_sqr(sc_mpz_t *out, const sc_mpz_t *in)
+{
+    mpz_mul(out, in, in);
+}
+
 void sc_mpz_mul(sc_mpz_t *out, const sc_mpz_t *in1, const sc_mpz_t *in2)
 {
     mpz_mul(out, in1, in2);
