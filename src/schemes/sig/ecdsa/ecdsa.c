@@ -53,6 +53,7 @@ SINT32 ecdsa_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
     if (NULL == sc->ec) {
         return SC_FUNC_FAILURE;
     }
+    sc->ec->coord_type = EC_COORD_JACOBIAN;
 
     // Initialise the SAFEcrypto struct with the specified ECDH parameter set
     switch (set)
@@ -71,7 +72,7 @@ SINT32 ecdsa_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
                  return SC_FUNC_FAILURE;
     }
 
-    point_init(&sc->ec->base, sc->ec->params->num_limbs);
+    point_init(&sc->ec->base, sc->ec->params->num_limbs, sc->ec->coord_type);
     sc_mpz_set_str(&sc->ec->base.x, 16, sc->ec->params->g_x);
     sc_mpz_set_str(&sc->ec->base.y, 16, sc->ec->params->g_y);
 
@@ -82,7 +83,7 @@ SINT32 ecdsa_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
 
 SINT32 ecdsa_destroy(safecrypto_t *sc)
 {
-	size_t num_limbs = sc->ec->params->num_limbs;
+    size_t num_bytes = sc->ec->params->num_bytes;
 
     point_clear(&sc->ec->base);
 
@@ -91,11 +92,11 @@ SINT32 ecdsa_destroy(safecrypto_t *sc)
     }
 
     if (sc->pubkey->key) {
-        SC_FREE(sc->pubkey->key, 2 * num_limbs * sizeof(sc_ulimb_t));
+        SC_FREE(sc->pubkey->key, 2 * num_bytes);
     }
 
     if (sc->privkey->key) {
-        SC_FREE(sc->privkey->key, num_limbs * sizeof(sc_ulimb_t));
+        SC_FREE(sc->privkey->key, num_bytes);
     }
 
     SC_PRINT_DEBUG(sc, "ECDSA algorithm - destroyed");

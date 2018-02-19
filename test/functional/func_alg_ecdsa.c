@@ -25,8 +25,8 @@
 #include <string.h>
 
 
-#define MIN_PARAM_SET 0
-#define MAX_PARAM_SET 3
+#define MIN_PARAM_SET 2
+#define MAX_PARAM_SET 2
 #define MAX_ITER      4096
 
 #define USE_FIXED_BUFFERS     1
@@ -129,10 +129,17 @@ int main(void)
     SC_TIMER_CREATE(verify_timer);
 
     char disp_msg[128];
-    snprintf(disp_msg, 128, "%-20s", "Series Test");
 
     for (i=MIN_PARAM_SET; i<=MAX_PARAM_SET; i++) {
 
+        switch (i)
+        {
+            case 0:  snprintf(disp_msg, 128, "%-20s", "ECDSA 192-bit"); break;
+            case 1:  snprintf(disp_msg, 128, "%-20s", "ECDSA 224-bit"); break;
+            case 2:  snprintf(disp_msg, 128, "%-20s", "ECDSA 256-bit"); break;
+            case 3:  snprintf(disp_msg, 128, "%-20s", "ECDSA 284-bit"); break;
+            default: snprintf(disp_msg, 128, "%-20s", "ECDSA 521-bit"); break;
+        }
         SC_TIMER_RESET(keygen_timer);
         SC_TIMER_RESET(sign_timer);
         SC_TIMER_RESET(verify_timer);

@@ -15,6 +15,7 @@
 #include "safecrypto_error.h"
 
 
+/// A struct used to store intermediate and control variables
 typedef struct ecc_metadata {
 	sc_mpz_t lambda;
 	sc_mpz_t temp;
@@ -28,6 +29,9 @@ typedef struct ecc_metadata {
 	sc_mpz_t order_m;
 	sc_mpz_t a;
 	size_t   k;
+
+	/// The point coordinate system to use
+	ecc_point_type_e coord_type;
 } ecc_metadata_t;
 
 const ec_set_t param_ec_secp192r1 = {
@@ -104,12 +108,15 @@ void point_reset(ecc_point_t *p)
 	sc_mpz_set_ui(&p->z, 0);
 }
 
-void point_init(ecc_point_t *p, size_t n)
+void point_init(ecc_point_t *p, size_t n, ecc_point_type_e type)
 {
-	p->type = EC_COORD_AFFINE;
+	p->type = type;
 	sc_mpz_init2(&p->x, n * SC_LIMB_BITS);
 	sc_mpz_init2(&p->y, n * SC_LIMB_BITS);
 	sc_mpz_init2(&p->z, n * SC_LIMB_BITS);
+	if (EC_COORD_AFFINE != type) {
+		sc_mpz_set_ui(&p->z, 1);
+	}
 	p->n = n;
 }
 
@@ -145,6 +152,12 @@ void point_affine_to_projective(ecc_point_t *p)
 	sc_mpz_set_ui(&p->z, 1);
 }
 
+void point_affine_to_jacobian(ecc_point_t *p)
+{
+	p->type = EC_COORD_JACOBIAN;
+	sc_mpz_set_ui(&p->z, 1);
+}
+
 void point_projective_to_affine(ecc_point_t *p, sc_mpz_t *tmul, sc_mpz_t *temp, sc_mpz_t *m)
 {
 	p->type = EC_COORD_AFFINE;
@@ -153,6 +166,81 @@ void point_projective_to_affine(ecc_point_t *p, sc_mpz_t *tmul, sc_mpz_t *temp, 
 	sc_mpz_mod(&p->x, tmul, m);
 	sc_mpz_mul(tmul, temp, &p->y);
 	sc_mpz_mod(&p->y, tmul, m);
+}
+
+void point_jacobian_to_affine(ecc_point_t *p, sc_mpz_t *tmul, sc_mpz_t *temp, sc_mpz_t *m)
+{
+	p->type = EC_COORD_AFFINE;
+	sc_mpz_invmod(tmul, &p->z, m);
+	sc_mpz_sqr(temp, tmul);
+	sc_mpz_mod(&p->z, temp, m);
+	sc_mpz_mul(temp, &p->z, &p->x);
+	sc_mpz_mod(&p->x, temp, m);
+	sc_mpz_mul(temp, tmul, &p->z);
+	sc_mpz_mod(tmul, temp, m);
+	sc_mpz_mul(temp, tmul, &p->y);
+	sc_mpz_mod(&p->y, temp, m);
+}
+
+static ecc_retcode_e point_double_jacobian(ecc_metadata_t *metadata, ecc_point_t *point)
+{
+	if (0 == sc_mpz_cmp_ui(&point->y, 0)) {
+		return EC_GEOMETRY_INFINITY;
+	}
+
+	sc_mpz_t *temp, *w, *s, *b, *h, *m, *a;
+	temp          = &metadata->temp;
+	w             = &metadata->x;
+	s             = &metadata->y;
+	b             = &metadata->lambda;
+	h             = &metadata->h;
+	m             = &metadata->m;
+	a             = &metadata->a;
+
+	// s = 4 * x * y^2
+	sc_mpz_sqr(temp, &point->y);
+	sc_mpz_mod(b, temp, m);           // y^2
+	sc_mpz_mul(temp, &point->x, b);
+	sc_mpz_mul_ui(temp, temp, 4);
+	sc_mpz_mod(s, temp, m);
+
+	// h = 3 * x^2 + a * z^4
+	sc_mpz_sqr(temp, &point->z);
+	sc_mpz_mod(h, temp, m);           // z^2
+	sc_mpz_sqr(temp, h);
+	sc_mpz_mod(h, temp, m);           // z^4
+	sc_mpz_mul(temp, h, a);
+	sc_mpz_mod(h, temp, m);           // a * z^4
+	sc_mpz_sqr(temp, &point->x);
+	sc_mpz_mul_ui(temp, temp, 3);
+	sc_mpz_mod(temp, temp, m);        // 3 * x^2
+	sc_mpz_add(temp, temp, h);
+	sc_mpz_mod(h, temp, m);           // 3 * x^2 + a * z^4
+
+	// z' = 2 * y * z
+	sc_mpz_mul(temp, &point->y, &point->z);
+	sc_mpz_mul_ui(temp, temp, 2);
+	sc_mpz_mod(&point->z, temp, m);
+
+	// x' = h^2 - 2 * s
+	sc_mpz_sqr(temp, h);
+	sc_mpz_mod(temp, temp, m);
+	sc_mpz_mul_ui(w, s, 2);
+	sc_mpz_sub(temp, temp, w);
+	sc_mpz_mod(&point->x, temp, m);
+
+	// y' = h * (s - x') - 8 * y^4
+	sc_mpz_sqr(temp, b);
+	sc_mpz_mul_ui(temp, temp, 8);
+	sc_mpz_mod(w, temp, m);
+	sc_mpz_sub(temp, s, &point->x);
+	sc_mpz_mod(s, temp, m);
+	sc_mpz_mul(temp, s, h);
+	sc_mpz_mod(s, temp, m);
+	sc_mpz_sub(s, s, w);
+	sc_mpz_mod(&point->y, s, m);
+
+	return EC_GEOMETRY_OK;
 }
 
 static ecc_retcode_e point_double_projective(ecc_metadata_t *metadata, ecc_point_t *point)
@@ -173,6 +261,7 @@ static ecc_retcode_e point_double_projective(ecc_metadata_t *metadata, ecc_point
 	sc_mpz_mod(w, temp, m);
 	sc_mpz_sqr(temp, &point->x);
 	sc_mpz_mul_ui(s, temp, 3);
+	//sc_mpz_mod(s, s, m);
 	sc_mpz_add(w, w, s);
 	sc_mpz_mod(w, w, m);
 
@@ -207,8 +296,10 @@ static ecc_retcode_e point_double_projective(ecc_metadata_t *metadata, ecc_point
 	sc_mpz_mod(h, temp, m);    // s^2
 	sc_mpz_sqr(temp, &point->y);
 	sc_mpz_mul_ui(temp, temp, 8);
-	sc_mpz_mod(w, temp, m);
-	sc_mpz_mul(temp, w, h);
+	sc_mpz_mod(b, temp, m);
+	sc_mpz_mul(temp, b, h);
+	sc_mpz_mod(b, temp, m);
+	sc_mpz_sub(temp, w, b);
 	sc_mpz_mod(&point->y, temp, m);
 
 	// z = 8 * s^3
@@ -271,6 +362,91 @@ static ecc_retcode_e point_double_affine(ecc_metadata_t *metadata, ecc_point_t *
     return EC_GEOMETRY_OK;
 }
 
+static ecc_retcode_e point_add_jacobian(ecc_metadata_t *metadata, ecc_point_t *p_a, const ecc_point_t *p_b)
+{
+	sc_mpz_t *temp, *w, *a, *u1, *u2, *v1, *v2, *m;
+	temp   = &metadata->temp;
+	w      = &metadata->w;
+	a      = &metadata->z;
+	u1     = &metadata->x;
+	u2     = &metadata->y;
+	v1     = &metadata->lambda;
+	v2     = &metadata->h;
+	m      = &metadata->m;
+
+	// u1 = x1 * z2^2
+    sc_mpz_sqr(temp, &p_b->z);
+    sc_mpz_mod(w, temp, m);
+	sc_mpz_mul(temp, &p_a->x, w);
+	sc_mpz_mod(u1, temp, m);
+    
+    // u2 = x2 * z1^2
+    sc_mpz_sqr(temp, &p_a->z);
+    sc_mpz_mod(a, temp, m);
+	sc_mpz_mul(temp, &p_b->x, a);
+	sc_mpz_mod(u2, temp, m);
+
+	// v1 = y1 * z2^3
+    sc_mpz_mul(temp, w, &p_b->z);
+    sc_mpz_mod(w, temp, m);
+	sc_mpz_mul(temp, &p_a->y, w);
+	sc_mpz_mod(v1, temp, m);
+    
+    // v2 = y2 * z1^3
+    sc_mpz_mul(temp, a, &p_a->z);
+    sc_mpz_mod(a, temp, m);
+	sc_mpz_mul(temp, &p_b->y, a);
+	sc_mpz_mod(v2, temp, m);
+
+	if (0 == sc_mpz_cmp(u1, u2)) {
+		if (0 != sc_mpz_cmp(v1, v2)) {
+			return EC_GEOMETRY_INFINITY;
+		}
+		else {
+			return EC_GEOMETRY_DOUBLE;
+		}
+	}
+
+	// u2 = u2 - u1, v2 = v2 - v1
+	sc_mpz_sub(u2, u2, u1);
+	sc_mpz_mod(u2, u2, m);
+	sc_mpz_sub(v2, v2, v1);
+	sc_mpz_mod(v2, v2, m);
+
+	// z' = u2 * z1 * z2
+	sc_mpz_mul(temp, &p_a->z, &p_b->z);
+	sc_mpz_mod(w, temp, m);
+	sc_mpz_mul(temp, u2, w);
+	sc_mpz_mod(&p_a->z, temp, m);
+
+	// x' = v2^2 - u2^3 - 2 * u1 * u2^2
+    sc_mpz_sqr(temp, v2);
+    sc_mpz_mod(&p_a->x, temp, m); // x = v2^2
+    sc_mpz_sqr(temp, u2);
+    sc_mpz_mod(w, temp, m);  // u2^2
+    sc_mpz_mul(temp, w, u2);
+    sc_mpz_mod(a, temp, m);  // u2^3
+    sc_mpz_sub(temp, &p_a->x, a);
+    sc_mpz_mod(&p_a->x, temp, m); // x = v2^2 - u2^3
+    sc_mpz_mul(temp, w, u1);
+    sc_mpz_mod(&p_a->y, temp, m); // y = u1 * u2^2
+    sc_mpz_mul_ui(temp, &p_a->y, 2);
+    sc_mpz_sub(temp, &p_a->x, temp);
+    sc_mpz_mod(&p_a->x, temp, m);
+
+	// y' = v2 * (u1 * u2^2 - x') - v1 * u2^3
+	sc_mpz_sub(temp, &p_a->y, &p_a->x);
+	sc_mpz_mod(w, temp, m);
+	sc_mpz_mul(temp, w, v2);
+	sc_mpz_mod(w, temp, m);
+	sc_mpz_mul(temp, a, v1);
+	sc_mpz_mod(a, temp, m);
+    sc_mpz_sub(temp, w, a);
+    sc_mpz_mod(&p_a->y, temp, m);
+
+	return EC_GEOMETRY_OK;
+}
+
 static ecc_retcode_e point_add_projective(ecc_metadata_t *metadata, ecc_point_t *p_a, const ecc_point_t *p_b)
 {
 	sc_mpz_t *temp, *w, *a, *u1, *u2, *v1, *v2, *m;
@@ -314,15 +490,17 @@ static ecc_retcode_e point_add_projective(ecc_metadata_t *metadata, ecc_point_t 
 	sc_mpz_mod(a, temp, m);  // v^3
 	sc_mpz_mul(temp, &p_a->z, &p_b->z);
 	sc_mpz_mod(w, temp, m);  // w
+
 	sc_mpz_mul(temp, w, a);
 	sc_mpz_mod(&p_a->z, temp, m);  // z = w * v^3
 	sc_mpz_mul(temp, u2, a);
 	sc_mpz_mod(&p_a->y, temp, m);  // y = v^3 * u2, u2 no longer needed
 	sc_mpz_mul_ui(temp, v2, 2);
-	sc_mpz_add(temp, temp, a); // v^3 + 2 * v^2 * v2
+	sc_mpz_add(temp, temp, a);
+	sc_mpz_mod(u2, temp, m);  // v^3 + 2 * v^2 * v2
 	sc_mpz_sqr(temp, u1);
-	sc_mpz_mod(u2, temp, m);  // u^2
-	sc_mpz_mul(temp, u1, w);
+	sc_mpz_mod(a, temp, m);  // u^2
+	sc_mpz_mul(temp, a, w);
 	sc_mpz_mod(a, temp, m);  // w * u^2
 	sc_mpz_sub(temp, a, u2);
 	sc_mpz_mod(a, temp, m);  // w * u^2 - v^3 - 2 * v^2 * v2
@@ -382,6 +560,7 @@ static ecc_retcode_e point_double(ecc_metadata_t *metadata, ecc_point_t *point)
 	switch (point->type) {
 		case EC_COORD_AFFINE:     return point_double_affine(metadata, point);
 		case EC_COORD_PROJECTIVE: return point_double_projective(metadata, point);
+		case EC_COORD_JACOBIAN:   return point_double_jacobian(metadata, point);
 	}
 }
 
@@ -404,6 +583,13 @@ static ecc_retcode_e point_add(ecc_metadata_t *metadata, ecc_point_t *p_a, const
 				retcode = point_double_projective(metadata, p_a);
 			}
 		} break;
+		case EC_COORD_JACOBIAN:
+		{
+			retcode = point_add_jacobian(metadata, p_a, p_b);
+			if (EC_GEOMETRY_DOUBLE == retcode) {
+				retcode = point_double_jacobian(metadata, p_a);
+			}
+		} break;
 	}
 
 	return retcode;
@@ -416,7 +602,7 @@ static void scalar_point_mult_binary(size_t num_bits, ecc_metadata_t *metadata,
 	point_secret_t bit_ctx;
 	ecc_point_t p_dummy;
 
-	point_init(&p_dummy, metadata->k);
+	point_init(&p_dummy, metadata->k, metadata->coord_type);
 	point_reset(&p_dummy);
 	point_reset(p_out);
 	point_copy(p_out, p_in);
@@ -428,15 +614,15 @@ static void scalar_point_mult_binary(size_t num_bits, ecc_metadata_t *metadata,
 	fprintf(stderr, "secret: %016llX %016llX %016llX %016llX\n", secret[3], secret[2], secret[1], secret[0]);*/
 
 	// Windowing
-	size_t w = 4;
+	/*size_t w = 4;
 	ecc_point_t *p_window = SC_MALLOC(sizeof(ecc_point_t) * (1 << w));
-	point_init(&p_window[0], metadata->k);
+	point_init(&p_window[0], metadata->k, metadata->coord_type);
 	point_copy(&p_window[0], p_in);
 	for (i=1; i<(1 << w); i++) {
-		point_init(&p_window[i], metadata->k);
+		point_init(&p_window[i], metadata->k, metadata->coord_type);
 		point_copy(&p_window[i], &p_window[i-1]);
 		point_add(metadata, &p_window[i], p_in);
-	}
+	}*/
 
 	num_bits = secret_bits_init(ECC_K_BINARY, &bit_ctx, secret, num_bits);
 	secret_bits_pull(&bit_ctx);
@@ -467,10 +653,10 @@ static void scalar_point_mult_binary(size_t num_bits, ecc_metadata_t *metadata,
 
 	point_clear(&p_dummy);
 
-	for (i=0; i<(1 << w); i++) {
+	/*for (i=0; i<(1 << w); i++) {
 		point_clear(&p_window[i]);
 	}
-	SC_FREE(p_window, sizeof(ecc_point_t) * (1 << w));
+	SC_FREE(p_window, sizeof(ecc_point_t) * (1 << w));*/
 
 	//fprintf(stderr, "result x: "); sc_mpz_out_str(stderr, 16, &p_out->x); fprintf(stderr, "\n");
 	//fprintf(stderr, "       y: "); sc_mpz_out_str(stderr, 16, &p_out->y); fprintf(stderr, "\n");
@@ -484,11 +670,11 @@ static void scalar_point_mult_naf(size_t num_bits, ecc_metadata_t *metadata,
 	point_secret_t bit_ctx;
 	ecc_point_t p_dummy, p_in_minus;
 
-	point_init(&p_dummy, metadata->k);
+	point_init(&p_dummy, metadata->k, metadata->coord_type);
 	point_reset(&p_dummy);
 	point_reset(p_out);
 	point_copy(p_out, p_in);
-	point_init(&p_in_minus, metadata->k);
+	point_init(&p_in_minus, metadata->k, metadata->coord_type);
 	point_copy(&p_in_minus, p_in);
 	point_negate(&p_in_minus);
 
@@ -500,10 +686,10 @@ static void scalar_point_mult_naf(size_t num_bits, ecc_metadata_t *metadata,
 	// Windowing
 	/*size_t w = 4;
 	ecc_point_t *p_window = SC_MALLOC(sizeof(ecc_point_t) * (1 << w));
-	point_init(&p_window[0], MAX_ECC_LIMBS);
+	point_init(&p_window[0], MAX_ECC_LIMBS, metadata->coord_type);
 	point_copy(&p_window[0], p_in);
 	for (i=1; i<(1 << w); i++) {
-		point_init(&p_window[i], MAX_ECC_LIMBS);
+		point_init(&p_window[i], MAX_ECC_LIMBS, metadata->coord_type);
 		point_copy(&p_window[i], &p_window[i-1]);
 		point_add(metadata, &p_window[i], p_in);
 	}*/
@@ -555,6 +741,61 @@ static void scalar_point_mult(size_t num_bits, ecc_metadata_t *metadata,
 #else
 	scalar_point_mult_naf(num_bits, metadata, p_in, secret, p_out);
 #endif
+
+	// Ensure that the output is an affine coordinate
+	switch (p_out->type)
+	{
+		case EC_COORD_PROJECTIVE: point_projective_to_affine(p_out, &metadata->lambda, &metadata->temp, &metadata->m); break;
+		case EC_COORD_JACOBIAN:   point_jacobian_to_affine(p_out, &metadata->lambda, &metadata->temp, &metadata->m); break;
+		default:;
+	}
+}
+
+static void metadata_init(safecrypto_t *sc, ecc_metadata_t *metadata, SINT32 is_ecdsa)
+{
+	// Obtain common array lengths
+	size_t num_bits  = sc->ec->params->num_bits;
+	size_t num_limbs = sc->ec->params->num_limbs;
+
+	// Initialise the MP variables
+	metadata->k = num_limbs;
+	metadata->coord_type = sc->ec->coord_type;
+	sc_mpz_init2(&metadata->lambda, num_bits);
+	sc_mpz_init2(&metadata->x, num_bits);
+	sc_mpz_init2(&metadata->y, num_bits);
+	sc_mpz_init2(&metadata->z, num_bits);
+	sc_mpz_init2(&metadata->h, num_bits);
+	sc_mpz_init2(&metadata->w, num_bits);
+	sc_mpz_init2(&metadata->temp, 2*num_bits);
+	sc_mpz_init2(&metadata->a, num_bits);
+	sc_mpz_init2(&metadata->m, num_bits);
+	sc_mpz_init2(&metadata->m_inv, num_bits+1);
+	sc_mpz_set_str(&metadata->a, 16, sc->ec->params->a);
+	sc_mpz_set_str(&metadata->m, 16, sc->ec->params->p);
+	sc_mpz_set_str(&metadata->m_inv, 16, sc->ec->params->p_inv);
+
+	if (is_ecdsa) {
+		sc_mpz_init2(&metadata->order_m, num_bits + 64);
+		sc_mpz_set_str(&metadata->order_m, 16, sc->ec->params->order_m);
+	}
+}
+
+static void metadata_clear(ecc_metadata_t *metadata, SINT32 is_ecdsa)
+{
+	sc_mpz_clear(&metadata->lambda);
+	sc_mpz_clear(&metadata->x);
+	sc_mpz_clear(&metadata->y);
+	sc_mpz_clear(&metadata->z);
+	sc_mpz_clear(&metadata->h);
+	sc_mpz_clear(&metadata->w);
+	sc_mpz_clear(&metadata->temp);
+	sc_mpz_clear(&metadata->a);
+	sc_mpz_clear(&metadata->m);
+	sc_mpz_clear(&metadata->m_inv);
+
+	if (is_ecdsa) {
+		sc_mpz_clear(&metadata->order_m);
+	}
 }
 
 SINT32 ecc_diffie_hellman(safecrypto_t *sc, const ecc_point_t *p_base, const sc_ulimb_t *secret, size_t *tlen, UINT8 **to, SINT32 final_flag)
@@ -575,21 +816,8 @@ SINT32 ecc_diffie_hellman(safecrypto_t *sc, const ecc_point_t *p_base, const sc_
 	num_limbs = sc->ec->params->num_limbs;
 
 	// Initialise the MP variables
-	metadata.k = num_limbs;
-	point_init(&p_result, num_limbs);
-	sc_mpz_init2(&metadata.lambda, num_bits);
-	sc_mpz_init2(&metadata.x, num_bits);
-	sc_mpz_init2(&metadata.y, num_bits);
-	sc_mpz_init2(&metadata.z, num_bits);
-	sc_mpz_init2(&metadata.h, num_bits);
-	sc_mpz_init2(&metadata.w, num_bits);
-	sc_mpz_init2(&metadata.temp, 2*num_bits);
-	sc_mpz_init2(&metadata.a, num_bits);
-	sc_mpz_init2(&metadata.m, num_bits);
-	sc_mpz_init2(&metadata.m_inv, num_bits+1);
-	sc_mpz_set_str(&metadata.a, 16, sc->ec->params->a);
-	sc_mpz_set_str(&metadata.m, 16, sc->ec->params->p);
-	sc_mpz_set_str(&metadata.m_inv, 16, sc->ec->params->p_inv);
+	metadata_init(sc, &metadata, 0);
+	point_init(&p_result, num_limbs, metadata.coord_type);
 
 	// Perform a scalar point multiplication from the base point using the random secret
 	scalar_point_mult(num_bits, &metadata, p_base, secret, &p_result);
@@ -603,16 +831,7 @@ SINT32 ecc_diffie_hellman(safecrypto_t *sc, const ecc_point_t *p_base, const sc_
 	}
 
 	// Free resources associated with the MP variables
-	sc_mpz_clear(&metadata.lambda);
-	sc_mpz_clear(&metadata.x);
-	sc_mpz_clear(&metadata.y);
-	sc_mpz_clear(&metadata.z);
-	sc_mpz_clear(&metadata.h);
-	sc_mpz_clear(&metadata.w);
-	sc_mpz_clear(&metadata.temp);
-	sc_mpz_clear(&metadata.a);
-	sc_mpz_clear(&metadata.m);
-	sc_mpz_clear(&metadata.m_inv);
+	metadata_clear(&metadata, 0);
 	point_clear(&p_result);
 
 	return SC_FUNC_SUCCESS;
@@ -636,7 +855,7 @@ SINT32 ecc_diffie_hellman_decapsulate(safecrypto_t *sc, const sc_ulimb_t *secret
 
 	// Convert the input byte stream (public key) to the intermediate coordinate
 	ecc_point_t p_base;
-	point_init(&p_base, num_limbs);
+	point_init(&p_base, num_limbs, sc->ec->coord_type);
 	sc_mpz_set_bytes(&p_base.x, from, num_bytes);
 	sc_mpz_set_bytes(&p_base.y, from + num_bytes, num_bytes);
 
@@ -661,26 +880,11 @@ SINT32 ecc_keygen(safecrypto_t *sc)
 	num_bytes = sc->ec->params->num_bytes;
 	num_limbs = sc->ec->params->num_limbs;
 
-	metadata.k = num_limbs;
-	sc_mpz_init2(&metadata.lambda, num_bits);
-	sc_mpz_init2(&metadata.x, num_bits);
-	sc_mpz_init2(&metadata.y, num_bits);
-	sc_mpz_init2(&metadata.z, num_bits);
-	sc_mpz_init2(&metadata.h, num_bits);
-	sc_mpz_init2(&metadata.w, num_bits);
-	sc_mpz_init2(&metadata.temp, 2*num_bits);
-	sc_mpz_init2(&metadata.a, num_bits);
-	sc_mpz_init2(&metadata.m, num_bits);
-	sc_mpz_init2(&metadata.m_inv, num_bits+1);
-	sc_mpz_init2(&metadata.order_m, num_bits + 64);
-	sc_mpz_set_str(&metadata.a, 16, sc->ec->params->a);
-	sc_mpz_set_str(&metadata.m, 16, sc->ec->params->p);
-	sc_mpz_set_str(&metadata.m_inv, 16, sc->ec->params->p_inv);
-	sc_mpz_set_str(&metadata.order_m, 16, sc->ec->params->order_m);
+	metadata_init(sc, &metadata, 1);
 
 	// Allocate memory for the private key
     if (NULL == sc->privkey->key) {
-        sc->privkey->key = SC_MALLOC(sizeof(sc_ulimb_t) * num_limbs);
+        sc->privkey->key = SC_MALLOC(num_bytes);
         if (NULL == sc->privkey->key) {
             SC_LOG_ERROR(sc, SC_NULL_POINTER);
             goto finish_free;
@@ -689,20 +893,12 @@ SINT32 ecc_keygen(safecrypto_t *sc)
 	secret = sc->privkey->key;
 
 	// Generate a secret key as a random number
-	/*fprintf(stderr, "private key = ");
-	for (size_t q=0; q<32; q++) {
-		fprintf(stderr, "%02X", ((UINT8*)sc->privkey->key)[q]);
-		if (7 == (q & 0x7)) {
-			fprintf(stderr, " ");
-		}
-	}
-	fprintf(stderr, "\n");*/
 	prng_mem(sc->prng_ctx[0], (UINT8*)secret, num_bytes);
 	//fprintf(stderr, "private key = %016lX %016lX %016lX %016lX\n", secret[3], secret[2], secret[1], secret[0]);
 
 	// Generate the public key as the product of a scalar multiplication
 	// of the base point with k
-	point_init(&p_public, metadata.k);
+	point_init(&p_public, metadata.k, metadata.coord_type);
 	scalar_point_mult(num_bits, &metadata, &sc->ec->base, secret, &p_public);
 	sc_mpz_mod(&p_public.x, &p_public.x, &metadata.order_m);
 	sc_mpz_mod(&p_public.y, &p_public.y, &metadata.order_m);
@@ -711,7 +907,7 @@ SINT32 ecc_keygen(safecrypto_t *sc)
 
 	// Allocate memory for the public key
     if (NULL == sc->pubkey->key) {
-        sc->pubkey->key = SC_MALLOC(sizeof(sc_ulimb_t) * 2 * num_limbs);
+        sc->pubkey->key = SC_MALLOC(2 * num_bytes);
         if (NULL == sc->pubkey->key) {
             SC_LOG_ERROR(sc, SC_NULL_POINTER);
             goto finish_free;
@@ -727,17 +923,7 @@ SINT32 ecc_keygen(safecrypto_t *sc)
 finish_free:
 	// Free resources
 	point_clear(&p_public);
-	sc_mpz_clear(&metadata.lambda);
-	sc_mpz_clear(&metadata.x);
-	sc_mpz_clear(&metadata.y);
-	sc_mpz_clear(&metadata.z);
-	sc_mpz_clear(&metadata.h);
-	sc_mpz_clear(&metadata.w);
-	sc_mpz_clear(&metadata.temp);
-	sc_mpz_clear(&metadata.a);
-	sc_mpz_clear(&metadata.m);
-	sc_mpz_clear(&metadata.m_inv);
-	sc_mpz_clear(&metadata.order_m);
+	metadata_clear(&metadata, 1);
 
 	return retval;
 }
@@ -761,36 +947,21 @@ SINT32 ecc_sign(safecrypto_t *sc, const UINT8 *m, size_t mlen,
 		return SC_FUNC_FAILURE;
 	}
 
-	metadata.k = num_limbs;
-	sc_mpz_init2(&metadata.lambda, num_bits);
-	sc_mpz_init2(&metadata.x, num_bits);
-	sc_mpz_init2(&metadata.y, num_bits);
-	sc_mpz_init2(&metadata.z, num_bits);
-	sc_mpz_init2(&metadata.h, num_bits);
-	sc_mpz_init2(&metadata.w, num_bits);
-	sc_mpz_init2(&metadata.temp, 2*num_bits);
-	sc_mpz_init2(&metadata.a, num_bits);
-	sc_mpz_init2(&metadata.m, num_bits);
-	sc_mpz_init2(&metadata.m_inv, num_bits+1);
-	sc_mpz_init2(&metadata.order_m, num_bits + 64);
-	sc_mpz_set_str(&metadata.a, 16, sc->ec->params->a);
-	sc_mpz_set_str(&metadata.m, 16, sc->ec->params->p);
-	sc_mpz_set_str(&metadata.m_inv, 16, sc->ec->params->p_inv);
-	sc_mpz_set_str(&metadata.order_m, 16, sc->ec->params->order_m);
+	metadata_init(sc, &metadata, 1);
 
 	sc_mpz_init2(&d, num_bits);
 	sc_mpz_init2(&e, num_bits);
 	sc_mpz_init2(&k, num_bits);
 	sc_mpz_init2(&temp1, 2*num_bits);
 	sc_mpz_init2(&temp2, num_bits);
-	point_init(&p_base, num_limbs);
-	point_init(&p_result, num_limbs);
+	point_init(&p_base, num_limbs, metadata.coord_type);
+	point_init(&p_result, num_limbs, metadata.coord_type);
 
 	p_base.n = (num_bits + SC_LIMB_BITS - 1) >> SC_LIMB_BITS_SHIFT;
 	sc_mpz_set_str(&p_base.x, 16, sc->ec->params->g_x);
 	sc_mpz_set_str(&p_base.y, 16, sc->ec->params->g_y);
 
-	sc_mpz_set_limbs(&d, (sc_ulimb_t*) sc->privkey->key, num_limbs);
+	sc_mpz_set_bytes(&d, (uint8_t*) sc->privkey->key, num_bytes);
 	sc_mpz_set_bytes(&e, m, mlen);
 
 	/*fprintf(stderr, "base x      = "); sc_mpz_out_str(stderr, 16, &p_base.x); fprintf(stderr, "\n");
@@ -801,7 +972,7 @@ SINT32 ecc_sign(safecrypto_t *sc, const UINT8 *m, size_t mlen,
 restart:
 	// Generate a random secret k
 	prng_mem(sc->prng_ctx[0], (UINT8*)secret, num_bytes);
-	sc_mpz_set_limbs(&k, secret, num_limbs);
+	sc_mpz_set_bytes(&k, (UINT8*)secret, num_bytes);
 	//fprintf(stderr, "k           = "); sc_mpz_out_str(stderr, 16, &k); fprintf(stderr, "\n");
 
 	// Perform a scalar point multiplication from the base point using the random secret k
@@ -826,9 +997,9 @@ restart:
 		goto restart;
 	}
 
-	fprintf(stderr, "r = "); sc_mpz_out_str(stderr, 16, &p_result.x); fprintf(stderr, "\n");
+	/*fprintf(stderr, "r = "); sc_mpz_out_str(stderr, 16, &p_result.x); fprintf(stderr, "\n");
 	fprintf(stderr, "s = "); sc_mpz_out_str(stderr, 16, &temp2); fprintf(stderr, "\n");
-	fprintf(stderr, "bases are %d and %d\n", sc_mpz_sizeinbase(&p_result.x, 16), sc_mpz_sizeinbase(&temp2, 16));
+	fprintf(stderr, "bases are %d and %d\n", sc_mpz_sizeinbase(&p_result.x, 16), sc_mpz_sizeinbase(&temp2, 16));*/
 
 	// Pack r and s into the output signature
 	if (0 == *siglen || 0 == *sigret) {
@@ -847,18 +1018,7 @@ restart:
 	}
 	fprintf(stderr, "\n");*/
 
-	sc_mpz_clear(&metadata.lambda);
-	sc_mpz_clear(&metadata.x);
-	sc_mpz_clear(&metadata.y);
-	sc_mpz_clear(&metadata.z);
-	sc_mpz_clear(&metadata.h);
-	sc_mpz_clear(&metadata.w);
-	sc_mpz_clear(&metadata.temp);
-	sc_mpz_clear(&metadata.a);
-	sc_mpz_clear(&metadata.m);
-	sc_mpz_clear(&metadata.m_inv);
-	sc_mpz_clear(&metadata.order_m);
-
+	metadata_clear(&metadata, 1);
 	sc_mpz_clear(&d);
 	sc_mpz_clear(&e);
 	sc_mpz_clear(&k);
@@ -891,31 +1051,16 @@ SINT32 ecc_verify(safecrypto_t *sc, const UINT8 *m, size_t mlen,
 	}
 
 	// Configure the curve parameters
-	metadata.k = num_limbs;
-	sc_mpz_init2(&metadata.lambda, num_bits);
-	sc_mpz_init2(&metadata.x, num_bits);
-	sc_mpz_init2(&metadata.y, num_bits);
-	sc_mpz_init2(&metadata.z, num_bits);
-	sc_mpz_init2(&metadata.h, num_bits);
-	sc_mpz_init2(&metadata.w, num_bits);
-	sc_mpz_init2(&metadata.temp, 2*num_bits);
-	sc_mpz_init2(&metadata.a, num_bits);
-	sc_mpz_init2(&metadata.m, num_bits);
-	sc_mpz_init2(&metadata.m_inv, num_bits+1);
-	sc_mpz_init2(&metadata.order_m, num_bits + 64);
-	sc_mpz_set_str(&metadata.a, 16, sc->ec->params->a);
-	sc_mpz_set_str(&metadata.m, 16, sc->ec->params->p);
-	sc_mpz_set_str(&metadata.m_inv, 16, sc->ec->params->p_inv);
-	sc_mpz_set_str(&metadata.order_m, 16, sc->ec->params->order_m);
+	metadata_init(sc, &metadata, 1);
 	sc_mpz_init2(&temp, 2*num_bits);
 	sc_mpz_init2(&r, num_bits);
 	sc_mpz_init2(&s, num_bits);
 	sc_mpz_init2(&w, num_bits);
 	sc_mpz_init2(&z, num_bits);
-	point_init(&p_base, sc->ec->params->num_limbs);
-	point_init(&p_public, sc->ec->params->num_limbs);
-	point_init(&p_u1, sc->ec->params->num_limbs);
-	point_init(&p_u2, sc->ec->params->num_limbs);
+	point_init(&p_base, sc->ec->params->num_limbs, metadata.coord_type);
+	point_init(&p_public, sc->ec->params->num_limbs, metadata.coord_type);
+	point_init(&p_u1, sc->ec->params->num_limbs, metadata.coord_type);
+	point_init(&p_u2, sc->ec->params->num_limbs, metadata.coord_type);
 
 	/*for (i=0; i<num_bytes; i++) {
 		fprintf(stderr, "%02x", (int)(sigbuf[num_bytes-1-i]));
@@ -928,8 +1073,8 @@ SINT32 ecc_verify(safecrypto_t *sc, const UINT8 *m, size_t mlen,
 
 	sc_mpz_set_bytes(&r, sigbuf, num_bytes);
 	sc_mpz_set_bytes(&s, sigbuf + num_bytes, num_bytes);
-	//fprintf(stderr, "r = "); sc_mpz_out_str(stderr, 16, &r); fprintf(stderr, "\n");
-	//fprintf(stderr, "s = "); sc_mpz_out_str(stderr, 16, &s); fprintf(stderr, "\n");
+	/*fprintf(stderr, "r = "); sc_mpz_out_str(stderr, 16, &r); fprintf(stderr, "\n");
+	fprintf(stderr, "s = "); sc_mpz_out_str(stderr, 16, &s); fprintf(stderr, "\n");*/
 
 	sc_mpz_set_bytes(&z, m, mlen);
 
@@ -966,8 +1111,8 @@ SINT32 ecc_verify(safecrypto_t *sc, const UINT8 *m, size_t mlen,
 	fprintf(stderr, "u2 x = "); sc_mpz_out_str(stderr, 16, &p_u2.x); fprintf(stderr, "\n");
 	fprintf(stderr, "u2 y = "); sc_mpz_out_str(stderr, 16, &p_u2.y); fprintf(stderr, "\n");*/
 	point_add(&metadata, &p_u1, &p_u2);
-	fprintf(stderr, "u1 x = "); sc_mpz_out_str(stderr, 16, &p_u1.x); fprintf(stderr, "\n");
-	fprintf(stderr, "u1 y = "); sc_mpz_out_str(stderr, 16, &p_u1.y); fprintf(stderr, "\n");
+	/*fprintf(stderr, "u1 x = "); sc_mpz_out_str(stderr, 16, &p_u1.x); fprintf(stderr, "\n");
+	fprintf(stderr, "u1 y = "); sc_mpz_out_str(stderr, 16, &p_u1.y); fprintf(stderr, "\n");*/
 
 	// Validate the signature
 	if (0 == sc_mpz_cmp(&p_u1.x, &r)) {
@@ -978,17 +1123,7 @@ SINT32 ecc_verify(safecrypto_t *sc, const UINT8 *m, size_t mlen,
 	}
 
 	// Free memory resources
-	sc_mpz_clear(&metadata.lambda);
-	sc_mpz_clear(&metadata.x);
-	sc_mpz_clear(&metadata.y);
-	sc_mpz_clear(&metadata.z);
-	sc_mpz_clear(&metadata.h);
-	sc_mpz_clear(&metadata.w);
-	sc_mpz_clear(&metadata.temp);
-	sc_mpz_clear(&metadata.a);
-	sc_mpz_clear(&metadata.m);
-	sc_mpz_clear(&metadata.m_inv);
-	sc_mpz_clear(&metadata.order_m);
+	metadata_clear(&metadata, 1);
 	sc_mpz_clear(&temp);
 	sc_mpz_clear(&r);
 	sc_mpz_clear(&s);

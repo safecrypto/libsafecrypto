@@ -28,7 +28,7 @@ START_TEST(test_ecc_zero_double)
     sc_mpz_set_str(&metadata.a, 16, param_ec_secp256r1.a);
     sc_mpz_set_str(&metadata.m, 16, param_ec_secp256r1.p);
 
-    point_init(&p_base, (256 + SC_LIMB_BITS - 1) >> SC_LIMB_BITS_SHIFT);
+    point_init(&p_base, (256 + SC_LIMB_BITS - 1) >> SC_LIMB_BITS_SHIFT, EC_COORD_AFFINE);
 
     point_double(&metadata, &p_base);
     ck_assert_int_eq(1, point_is_zero(&p_base));
@@ -42,7 +42,7 @@ START_TEST(test_ecc_zero_double)
 }
 END_TEST
 
-START_TEST(test_ecc_double_basic_secp256r1)
+START_TEST(test_ecc_double_basic_secp256r1_affine)
 {
     const char *tv_m_1_x = "6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296";
     const char *tv_m_1_y = "4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5";
@@ -74,7 +74,7 @@ START_TEST(test_ecc_double_basic_secp256r1)
     sc_mpz_set_str(&metadata.order_m, 16, param_ec_secp256r1.order_m);
 
     // Set the point to the above test vector
-    point_init(&p_a, (256 + SC_LIMB_BITS - 1) >> SC_LIMB_BITS_SHIFT);
+    point_init(&p_a, (256 + SC_LIMB_BITS - 1) >> SC_LIMB_BITS_SHIFT, EC_COORD_AFFINE);
     sc_mpz_set_str(&p_a.x, 16, tv_m_1_x);
     sc_mpz_set_str(&p_a.y, 16, tv_m_1_y);
 
@@ -100,7 +100,7 @@ START_TEST(test_ecc_double_basic_secp256r1)
 }
 END_TEST
 
-START_TEST(test_ecc_add_basic_secp256r1)
+START_TEST(test_ecc_add_basic_secp256r1_affine)
 {
     const char *tv_m_1_x = "6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296";
     const char *tv_m_1_y = "4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5";
@@ -130,8 +130,8 @@ START_TEST(test_ecc_add_basic_secp256r1)
     sc_mpz_set_str(&metadata.m, 16, param_ec_secp256r1.p);
 
     // Set the two points to the above test vectors
-    point_init(&p_a, (256 + SC_LIMB_BITS - 1) >> SC_LIMB_BITS_SHIFT);
-    point_init(&p_b, (256 + SC_LIMB_BITS - 1) >> SC_LIMB_BITS_SHIFT);
+    point_init(&p_a, (256 + SC_LIMB_BITS - 1) >> SC_LIMB_BITS_SHIFT, EC_COORD_AFFINE);
+    point_init(&p_b, (256 + SC_LIMB_BITS - 1) >> SC_LIMB_BITS_SHIFT, EC_COORD_AFFINE);
     sc_mpz_set_str(&p_a.x, 16, tv_m_1_x);
     sc_mpz_set_str(&p_a.y, 16, tv_m_1_y);
     sc_mpz_set_str(&p_b.x, 16, tv_m_2_x);
@@ -139,6 +139,248 @@ START_TEST(test_ecc_add_basic_secp256r1)
 
     // Add the two points and overwrite p_a
     point_add(&metadata, &p_a, &p_b);
+
+    // Compare the result to the known result
+    sc_mpz_out_str(stream, 16, &p_a.x);
+    ck_assert_str_eq(result, tv_m_3_x);
+    fflush(stream);
+    sc_mpz_out_str(stream, 16, &p_a.y);
+    ck_assert_str_eq(result, tv_m_3_y);
+
+    sc_mpz_clear(&metadata.lambda);
+    sc_mpz_clear(&metadata.x);
+    sc_mpz_clear(&metadata.y);
+    sc_mpz_clear(&metadata.temp);
+    sc_mpz_clear(&metadata.a);
+    sc_mpz_clear(&metadata.m);
+}
+END_TEST
+
+START_TEST(test_ecc_double_basic_secp256r1_projective)
+{
+    const char *tv_m_1_x = "6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296";
+    const char *tv_m_1_y = "4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5";
+    const char *tv_m_2_x = "7cf27b188d034f7e8a52380304b51ac3c08969e277f21b35a60b48fc47669978";
+    const char *tv_m_2_y = "7775510db8ed040293d9ac69f7430dbba7dade63ce982299e04b79d227873d1";
+
+    // Manipulate stdout to redirect to a char array for testing
+    char result[8192];
+    FILE *stream;
+    stream = freopen("/dev/null", "a", stdout);
+    ck_assert_ptr_ne(stream, NULL);
+    setbuf(stream, result);
+
+    // Set the curve parameters a and prime (modulus)
+    ecc_point_t p_a;
+    ecc_metadata_t metadata;
+    metadata.k = (256 + SC_LIMB_BITS - 1) >> SC_LIMB_BITS_SHIFT;
+    sc_mpz_init2(&metadata.a, MAX_ECC_BITS);
+    sc_mpz_init2(&metadata.m, MAX_ECC_BITS);
+    sc_mpz_init2(&metadata.m_inv, MAX_ECC_BITS+1);
+    sc_mpz_init2(&metadata.order_m, MAX_ECC_BITS);
+    sc_mpz_init2(&metadata.lambda, MAX_ECC_BITS);
+    sc_mpz_init2(&metadata.x, MAX_ECC_BITS);
+    sc_mpz_init2(&metadata.y, MAX_ECC_BITS);
+    sc_mpz_init2(&metadata.temp, 2*MAX_ECC_BITS);
+    sc_mpz_set_str(&metadata.a, 16, param_ec_secp256r1.a);
+    sc_mpz_set_str(&metadata.m, 16, param_ec_secp256r1.p);
+    sc_mpz_set_str(&metadata.m_inv, 16, param_ec_secp256r1.p_inv);
+    sc_mpz_set_str(&metadata.order_m, 16, param_ec_secp256r1.order_m);
+
+    // Set the point to the above test vector
+    point_init(&p_a, (256 + SC_LIMB_BITS - 1) >> SC_LIMB_BITS_SHIFT, EC_COORD_PROJECTIVE);
+    sc_mpz_set_str(&p_a.x, 16, tv_m_1_x);
+    sc_mpz_set_str(&p_a.y, 16, tv_m_1_y);
+
+    // Double the point and overwrite p_a
+    point_double(&metadata, &p_a);
+
+    // Translate to an affine coordinate
+    point_projective_to_affine(&p_a, &metadata.lambda, &metadata.temp, &metadata.m);
+
+    // Compare the result to the known result
+    sc_mpz_out_str(stream, 16, &p_a.x);
+    ck_assert_str_eq(result, tv_m_2_x);
+    fflush(stream);
+    memset(result, 0, 8192);
+    sc_mpz_out_str(stream, 16, &p_a.y);
+    ck_assert_str_eq(result, tv_m_2_y);
+
+    sc_mpz_clear(&metadata.lambda);
+    sc_mpz_clear(&metadata.x);
+    sc_mpz_clear(&metadata.y);
+    sc_mpz_clear(&metadata.temp);
+    sc_mpz_clear(&metadata.a);
+    sc_mpz_clear(&metadata.m);
+    sc_mpz_clear(&metadata.m_inv);
+    sc_mpz_clear(&metadata.order_m);
+}
+END_TEST
+
+START_TEST(test_ecc_add_basic_secp256r1_projective)
+{
+    const char *tv_m_1_x = "6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296";
+    const char *tv_m_1_y = "4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5";
+    const char *tv_m_2_x = "7cf27b188d034f7e8a52380304b51ac3c08969e277f21b35a60b48fc47669978";
+    const char *tv_m_2_y = "7775510db8ed040293d9ac69f7430dbba7dade63ce982299e04b79d227873d1";
+    const char *tv_m_3_x = "5ecbe4d1a6330a44c8f7ef951d4bf165e6c6b721efada985fb41661bc6e7fd6c";
+    const char *tv_m_3_y = "8734640c4998ff7e374b06ce1a64a2ecd82ab036384fb83d9a79b127a27d5032";
+
+    ecc_point_t p_a, p_b;
+    ecc_metadata_t metadata;
+
+    // Manipulate stdout to redirect to a char array for testing
+    char result[8192];
+    FILE *stream;
+    stream = freopen("/dev/null", "a", stdout);
+    ck_assert_ptr_ne(stream, NULL);
+    setbuf(stream, result);
+
+    // Set the curve parameters a and prime (modulus)
+    sc_mpz_init2(&metadata.a, MAX_ECC_BITS);
+    sc_mpz_init2(&metadata.m, MAX_ECC_BITS);
+    sc_mpz_init2(&metadata.lambda, MAX_ECC_BITS);
+    sc_mpz_init2(&metadata.x, MAX_ECC_BITS);
+    sc_mpz_init2(&metadata.y, MAX_ECC_BITS);
+    sc_mpz_init2(&metadata.temp, 2*MAX_ECC_BITS);
+    sc_mpz_set_str(&metadata.a, 16, param_ec_secp256r1.a);
+    sc_mpz_set_str(&metadata.m, 16, param_ec_secp256r1.p);
+
+    // Set the two points to the above test vectors
+    point_init(&p_a, (256 + SC_LIMB_BITS - 1) >> SC_LIMB_BITS_SHIFT, EC_COORD_PROJECTIVE);
+    point_init(&p_b, (256 + SC_LIMB_BITS - 1) >> SC_LIMB_BITS_SHIFT, EC_COORD_PROJECTIVE);
+    sc_mpz_set_str(&p_a.x, 16, tv_m_1_x);
+    sc_mpz_set_str(&p_a.y, 16, tv_m_1_y);
+    sc_mpz_set_str(&p_b.x, 16, tv_m_2_x);
+    sc_mpz_set_str(&p_b.y, 16, tv_m_2_y);
+
+    // Add the two points and overwrite p_a
+    point_add(&metadata, &p_a, &p_b);
+
+    // Translate to an affine coordinate
+    point_projective_to_affine(&p_a, &metadata.lambda, &metadata.temp, &metadata.m);
+
+    // Compare the result to the known result
+    sc_mpz_out_str(stream, 16, &p_a.x);
+    ck_assert_str_eq(result, tv_m_3_x);
+    fflush(stream);
+    sc_mpz_out_str(stream, 16, &p_a.y);
+    ck_assert_str_eq(result, tv_m_3_y);
+
+    sc_mpz_clear(&metadata.lambda);
+    sc_mpz_clear(&metadata.x);
+    sc_mpz_clear(&metadata.y);
+    sc_mpz_clear(&metadata.temp);
+    sc_mpz_clear(&metadata.a);
+    sc_mpz_clear(&metadata.m);
+}
+END_TEST
+
+START_TEST(test_ecc_double_basic_secp256r1_jacobian)
+{
+    const char *tv_m_1_x = "6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296";
+    const char *tv_m_1_y = "4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5";
+    const char *tv_m_2_x = "7cf27b188d034f7e8a52380304b51ac3c08969e277f21b35a60b48fc47669978";
+    const char *tv_m_2_y = "7775510db8ed040293d9ac69f7430dbba7dade63ce982299e04b79d227873d1";
+
+    // Manipulate stdout to redirect to a char array for testing
+    char result[8192];
+    FILE *stream;
+    stream = freopen("/dev/null", "a", stdout);
+    ck_assert_ptr_ne(stream, NULL);
+    setbuf(stream, result);
+
+    // Set the curve parameters a and prime (modulus)
+    ecc_point_t p_a;
+    ecc_metadata_t metadata;
+    metadata.k = (256 + SC_LIMB_BITS - 1) >> SC_LIMB_BITS_SHIFT;
+    sc_mpz_init2(&metadata.a, MAX_ECC_BITS);
+    sc_mpz_init2(&metadata.m, MAX_ECC_BITS);
+    sc_mpz_init2(&metadata.m_inv, MAX_ECC_BITS+1);
+    sc_mpz_init2(&metadata.order_m, MAX_ECC_BITS);
+    sc_mpz_init2(&metadata.lambda, MAX_ECC_BITS);
+    sc_mpz_init2(&metadata.x, MAX_ECC_BITS);
+    sc_mpz_init2(&metadata.y, MAX_ECC_BITS);
+    sc_mpz_init2(&metadata.temp, 2*MAX_ECC_BITS);
+    sc_mpz_set_str(&metadata.a, 16, param_ec_secp256r1.a);
+    sc_mpz_set_str(&metadata.m, 16, param_ec_secp256r1.p);
+    sc_mpz_set_str(&metadata.m_inv, 16, param_ec_secp256r1.p_inv);
+    sc_mpz_set_str(&metadata.order_m, 16, param_ec_secp256r1.order_m);
+
+    // Set the point to the above test vector
+    point_init(&p_a, (256 + SC_LIMB_BITS - 1) >> SC_LIMB_BITS_SHIFT, EC_COORD_JACOBIAN);
+    sc_mpz_set_str(&p_a.x, 16, tv_m_1_x);
+    sc_mpz_set_str(&p_a.y, 16, tv_m_1_y);
+
+    // Double the point and overwrite p_a
+    point_double(&metadata, &p_a);
+
+    // Translate to an affine coordinate
+    point_jacobian_to_affine(&p_a, &metadata.lambda, &metadata.temp, &metadata.m);
+
+    // Compare the result to the known result
+    fflush(stream);
+    memset(result, 0, 8192);
+    sc_mpz_out_str(stream, 16, &p_a.x);
+    ck_assert_str_eq(result, tv_m_2_x);
+    fflush(stream);
+    memset(result, 0, 8192);
+    sc_mpz_out_str(stream, 16, &p_a.y);
+    ck_assert_str_eq(result, tv_m_2_y);
+
+    sc_mpz_clear(&metadata.lambda);
+    sc_mpz_clear(&metadata.x);
+    sc_mpz_clear(&metadata.y);
+    sc_mpz_clear(&metadata.temp);
+    sc_mpz_clear(&metadata.a);
+    sc_mpz_clear(&metadata.m);
+    sc_mpz_clear(&metadata.m_inv);
+    sc_mpz_clear(&metadata.order_m);
+}
+END_TEST
+
+START_TEST(test_ecc_add_basic_secp256r1_jacobian)
+{
+    const char *tv_m_1_x = "6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296";
+    const char *tv_m_1_y = "4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5";
+    const char *tv_m_2_x = "7cf27b188d034f7e8a52380304b51ac3c08969e277f21b35a60b48fc47669978";
+    const char *tv_m_2_y = "7775510db8ed040293d9ac69f7430dbba7dade63ce982299e04b79d227873d1";
+    const char *tv_m_3_x = "5ecbe4d1a6330a44c8f7ef951d4bf165e6c6b721efada985fb41661bc6e7fd6c";
+    const char *tv_m_3_y = "8734640c4998ff7e374b06ce1a64a2ecd82ab036384fb83d9a79b127a27d5032";
+
+    ecc_point_t p_a, p_b;
+    ecc_metadata_t metadata;
+
+    // Manipulate stdout to redirect to a char array for testing
+    char result[8192];
+    FILE *stream;
+    stream = freopen("/dev/null", "a", stdout);
+    ck_assert_ptr_ne(stream, NULL);
+    setbuf(stream, result);
+
+    // Set the curve parameters a and prime (modulus)
+    sc_mpz_init2(&metadata.a, MAX_ECC_BITS);
+    sc_mpz_init2(&metadata.m, MAX_ECC_BITS);
+    sc_mpz_init2(&metadata.lambda, MAX_ECC_BITS);
+    sc_mpz_init2(&metadata.x, MAX_ECC_BITS);
+    sc_mpz_init2(&metadata.y, MAX_ECC_BITS);
+    sc_mpz_init2(&metadata.temp, 2*MAX_ECC_BITS);
+    sc_mpz_set_str(&metadata.a, 16, param_ec_secp256r1.a);
+    sc_mpz_set_str(&metadata.m, 16, param_ec_secp256r1.p);
+
+    // Set the two points to the above test vectors
+    point_init(&p_a, (256 + SC_LIMB_BITS - 1) >> SC_LIMB_BITS_SHIFT, EC_COORD_JACOBIAN);
+    point_init(&p_b, (256 + SC_LIMB_BITS - 1) >> SC_LIMB_BITS_SHIFT, EC_COORD_JACOBIAN);
+    sc_mpz_set_str(&p_a.x, 16, tv_m_1_x);
+    sc_mpz_set_str(&p_a.y, 16, tv_m_1_y);
+    sc_mpz_set_str(&p_b.x, 16, tv_m_2_x);
+    sc_mpz_set_str(&p_b.y, 16, tv_m_2_y);
+
+    // Add the two points and overwrite p_a
+    point_add(&metadata, &p_a, &p_b);
+
+    // Translate to an affine coordinate
+    point_jacobian_to_affine(&p_a, &metadata.lambda, &metadata.temp, &metadata.m);
 
     // Compare the result to the known result
     sc_mpz_out_str(stream, 16, &p_a.x);
@@ -182,8 +424,8 @@ START_TEST(test_ecc_mul_basic_secp192r1)
     sc_mpz_set_str(&metadata.a, 16, param_ec_secp192r1.a);
     sc_mpz_set_str(&metadata.m, 16, param_ec_secp192r1.p);
 
-    point_init(&point, (192+SC_LIMB_BITS-1) >> SC_LIMB_BITS_SHIFT);
-    point_init(&p_base, (192+SC_LIMB_BITS-1) >> SC_LIMB_BITS_SHIFT);
+    point_init(&point, (192+SC_LIMB_BITS-1) >> SC_LIMB_BITS_SHIFT, EC_COORD_AFFINE);
+    point_init(&p_base, (192+SC_LIMB_BITS-1) >> SC_LIMB_BITS_SHIFT, EC_COORD_AFFINE);
     sc_mpz_set_str(&p_base.x, 16, tv_m_1_x);
     sc_mpz_set_str(&p_base.y, 16, tv_m_1_y);
 
@@ -244,8 +486,8 @@ START_TEST(test_ecc_mul_basic_secp224r1)
     sc_mpz_set_str(&metadata.a, 16, param_ec_secp224r1.a);
     sc_mpz_set_str(&metadata.m, 16, param_ec_secp224r1.p);
 
-    point_init(&point, (224+SC_LIMB_BITS-1) >> SC_LIMB_BITS_SHIFT);
-    point_init(&p_base, (224+SC_LIMB_BITS-1) >> SC_LIMB_BITS_SHIFT);
+    point_init(&point, (224+SC_LIMB_BITS-1) >> SC_LIMB_BITS_SHIFT, EC_COORD_AFFINE);
+    point_init(&p_base, (224+SC_LIMB_BITS-1) >> SC_LIMB_BITS_SHIFT, EC_COORD_AFFINE);
     sc_mpz_set_str(&p_base.x, 16, tv_m_1_x);
     sc_mpz_set_str(&p_base.y, 16, tv_m_1_y);
 
@@ -306,8 +548,8 @@ START_TEST(test_ecc_mul_basic_secp256r1)
     sc_mpz_set_str(&metadata.a, 16, param_ec_secp256r1.a);
     sc_mpz_set_str(&metadata.m, 16, param_ec_secp256r1.p);
 
-    point_init(&point, (256 + SC_LIMB_BITS - 1) >> SC_LIMB_BITS_SHIFT);
-    point_init(&p_base, (256 + SC_LIMB_BITS - 1) >> SC_LIMB_BITS_SHIFT);
+    point_init(&point, (256 + SC_LIMB_BITS - 1) >> SC_LIMB_BITS_SHIFT, EC_COORD_AFFINE);
+    point_init(&p_base, (256 + SC_LIMB_BITS - 1) >> SC_LIMB_BITS_SHIFT, EC_COORD_AFFINE);
     sc_mpz_set_str(&p_base.x, 16, tv_m_1_x);
     sc_mpz_set_str(&p_base.y, 16, tv_m_1_y);
 
@@ -368,8 +610,8 @@ START_TEST(test_ecc_mul_basic_secp384r1)
     sc_mpz_set_str(&metadata.a, 16, param_ec_secp384r1.a);
     sc_mpz_set_str(&metadata.m, 16, param_ec_secp384r1.p);
 
-    point_init(&point, (384 + SC_LIMB_BITS - 1) >> SC_LIMB_BITS_SHIFT);
-    point_init(&p_base, (384 + SC_LIMB_BITS - 1) >> SC_LIMB_BITS_SHIFT);
+    point_init(&point, (384 + SC_LIMB_BITS - 1) >> SC_LIMB_BITS_SHIFT, EC_COORD_AFFINE);
+    point_init(&p_base, (384 + SC_LIMB_BITS - 1) >> SC_LIMB_BITS_SHIFT, EC_COORD_AFFINE);
     sc_mpz_set_str(&p_base.x, 16, tv_m_1_x);
     sc_mpz_set_str(&p_base.y, 16, tv_m_1_y);
 
@@ -438,8 +680,8 @@ START_TEST(test_ecc_mul_basic_secp521r1)
     sc_mpz_set_str(&metadata.a, 16, param_ec_secp521r1.a);
     sc_mpz_set_str(&metadata.m, 16, param_ec_secp521r1.p);
 
-    point_init(&point, 9);
-    point_init(&p_base, 9);
+    point_init(&point, 9, EC_COORD_AFFINE);
+    point_init(&p_base, 9, EC_COORD_AFFINE);
     sc_mpz_set_str(&p_base.x, 16, tv_m_1_x);
     sc_mpz_set_str(&p_base.y, 16, tv_m_1_y);
 
@@ -545,8 +787,12 @@ Suite *entropy_suite(void)
     /* Test cases */
     tc_core = tcase_create("CORE");
     tcase_add_test(tc_core, test_ecc_zero_double);
-    tcase_add_test(tc_core, test_ecc_double_basic_secp256r1);
-    tcase_add_test(tc_core, test_ecc_add_basic_secp256r1);
+    tcase_add_test(tc_core, test_ecc_double_basic_secp256r1_affine);
+    tcase_add_test(tc_core, test_ecc_add_basic_secp256r1_affine);
+    tcase_add_test(tc_core, test_ecc_double_basic_secp256r1_projective);
+    tcase_add_test(tc_core, test_ecc_add_basic_secp256r1_projective);
+    tcase_add_test(tc_core, test_ecc_double_basic_secp256r1_jacobian);
+    tcase_add_test(tc_core, test_ecc_add_basic_secp256r1_jacobian);
     tcase_add_test(tc_core, test_ecc_mul_basic_secp192r1);
     tcase_add_test(tc_core, test_ecc_mul_basic_secp224r1);
     tcase_add_test(tc_core, test_ecc_mul_basic_secp256r1);

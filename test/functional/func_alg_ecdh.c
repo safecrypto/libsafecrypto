@@ -205,9 +205,9 @@ int main(void)
         }
 
         double elapsed = SC_TIMER_GET_ELAPSED(init_timer);
-        printf("Init time:   %f (%f per sec)\n", elapsed, (double)MAX_ITER / elapsed);
+        printf("Init time:   %f (%f per sec)\n", elapsed, 2 * (double)MAX_ITER / elapsed);
         elapsed = SC_TIMER_GET_ELAPSED(final_timer);
-        printf("Final time:  %f (%f per sec)\n\n", elapsed, (double)MAX_ITER / elapsed);
+        printf("Final time:  %f (%f per sec)\n\n", elapsed, 2 * (double)MAX_ITER / elapsed);
     }
 
 #if USE_FIXED_BUFFERS
