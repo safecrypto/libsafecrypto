@@ -826,9 +826,9 @@ restart:
 		goto restart;
 	}
 
-	/*fprintf(stderr, "r = "); sc_mpz_out_str(stderr, 16, &p_result.x); fprintf(stderr, "\n");
+	fprintf(stderr, "r = "); sc_mpz_out_str(stderr, 16, &p_result.x); fprintf(stderr, "\n");
 	fprintf(stderr, "s = "); sc_mpz_out_str(stderr, 16, &temp2); fprintf(stderr, "\n");
-	fprintf(stderr, "bases are %d and %d\n", sc_mpz_sizeinbase(&p_result.x, 16), sc_mpz_sizeinbase(&temp2, 16));*/
+	fprintf(stderr, "bases are %d and %d\n", sc_mpz_sizeinbase(&p_result.x, 16), sc_mpz_sizeinbase(&temp2, 16));
 
 	// Pack r and s into the output signature
 	if (0 == *siglen || 0 == *sigret) {
@@ -966,8 +966,8 @@ SINT32 ecc_verify(safecrypto_t *sc, const UINT8 *m, size_t mlen,
 	fprintf(stderr, "u2 x = "); sc_mpz_out_str(stderr, 16, &p_u2.x); fprintf(stderr, "\n");
 	fprintf(stderr, "u2 y = "); sc_mpz_out_str(stderr, 16, &p_u2.y); fprintf(stderr, "\n");*/
 	point_add(&metadata, &p_u1, &p_u2);
-	/*fprintf(stderr, "u1 x = "); sc_mpz_out_str(stderr, 16, &p_u1.x); fprintf(stderr, "\n");
-	fprintf(stderr, "u1 y = "); sc_mpz_out_str(stderr, 16, &p_u1.y); fprintf(stderr, "\n");*/
+	fprintf(stderr, "u1 x = "); sc_mpz_out_str(stderr, 16, &p_u1.x); fprintf(stderr, "\n");
+	fprintf(stderr, "u1 y = "); sc_mpz_out_str(stderr, 16, &p_u1.y); fprintf(stderr, "\n");
 
 	// Validate the signature
 	if (0 == sc_mpz_cmp(&p_u1.x, &r)) {
