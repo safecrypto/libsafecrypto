@@ -48,6 +48,7 @@ SINT32 ecdh_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
     if (NULL == sc->ec) {
         return SC_FUNC_FAILURE;
     }
+    sc->ec->coord_type = EC_COORD_JACOBIAN;
 
     // Initialise the SAFEcrypto struct with the specified ECDH parameter set
     switch (set)
@@ -66,7 +67,7 @@ SINT32 ecdh_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
                  return SC_FUNC_FAILURE;
     }
 
-    point_init(&sc->ec->base, sc->ec->params->num_limbs);
+    point_init(&sc->ec->base, sc->ec->params->num_limbs, sc->ec->coord_type);
     sc_mpz_set_str(&sc->ec->base.x, 16, sc->ec->params->g_x);
     sc_mpz_set_str(&sc->ec->base.y, 16, sc->ec->params->g_y);
 

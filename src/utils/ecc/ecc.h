@@ -67,14 +67,15 @@ extern const ec_set_t param_ec_secp521r1;
 /// A struct used to define the parameters of the selected curve
 SC_STRUCT_PACK_START
 typedef struct _ec_cfg_t {
-    const ec_set_t *params;
-	ecc_point_t     base;
+    const ec_set_t   *params;
+	ecc_point_t       base;
+	ecc_point_type_e  coord_type;
 } SC_STRUCT_PACKED ec_cfg_t;
 SC_STRUCT_PACK_END
 
 
 void point_reset(ecc_point_t *p);
-void point_init(ecc_point_t *p, size_t n);
+void point_init(ecc_point_t *p, size_t n, ecc_point_type_e type);
 void point_clear(ecc_point_t *p);
 void point_copy(ecc_point_t *p_out, const ecc_point_t *p_in);
 void point_negate(ecc_point_t *p_inout);
