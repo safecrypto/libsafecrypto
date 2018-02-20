@@ -81,7 +81,7 @@ SINT32 ecdh_destroy(safecrypto_t *sc)
     point_clear(&sc->ec->base);
 
     if (sc->privkey->key) {
-        SC_FREE(sc->privkey->key, sc->ec->params->num_limbs * sizeof(sc_ulimb_t));
+        SC_FREE(sc->privkey->key, sc->ec->params->num_bytes);
         sc->privkey->len = 0;
     }
 
@@ -107,10 +107,10 @@ SINT32 ecdh_privkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len)
     num_bytes = sc->ec->params->num_bytes;
 
     if (sc->privkey->key) {
-        SC_FREE(sc->privkey->key, num_limbs * sizeof(sc_ulimb_t));
+        SC_FREE(sc->privkey->key, num_bytes);
     }
     if (NULL == sc->privkey->key) {
-        sc->privkey->key = SC_MALLOC(num_limbs * sizeof(sc_ulimb_t));
+        sc->privkey->key = SC_MALLOC(num_bytes);
         if (NULL == sc->privkey->key) {
             SC_LOG_ERROR(sc, SC_NULL_POINTER);
             return SC_FUNC_FAILURE;
@@ -165,7 +165,7 @@ SINT32 ecdh_diffie_hellman_init(safecrypto_t *sc, size_t *tlen, UINT8 **to)
 
     // Allocate key pair memory
     if (NULL == sc->privkey->key) {
-        sc->privkey->key = SC_MALLOC(num_limbs * sizeof(sc_ulimb_t));
+        sc->privkey->key = SC_MALLOC(num_bytes);
         if (NULL == sc->privkey->key) {
             SC_LOG_ERROR(sc, SC_NULL_POINTER);
             return SC_FUNC_FAILURE;

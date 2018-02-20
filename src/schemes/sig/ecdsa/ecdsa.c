@@ -122,10 +122,10 @@ SINT32 ecdsa_pubkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len)
     num_bytes = sc->ec->params->num_bytes;
 
     if (sc->pubkey->key) {
-        SC_FREE(sc->pubkey->key, 2 * num_limbs * sizeof(sc_ulimb_t));
+        SC_FREE(sc->pubkey->key, 2 * num_bytes);
     }
     if (NULL == sc->pubkey->key) {
-        sc->pubkey->key = SC_MALLOC(2 * num_limbs * sizeof(sc_ulimb_t));
+        sc->pubkey->key = SC_MALLOC(2 * num_bytes);
         if (NULL == sc->pubkey->key) {
             SC_LOG_ERROR(sc, SC_NULL_POINTER);
             return SC_FUNC_FAILURE;
@@ -141,20 +141,20 @@ SINT32 ecdsa_pubkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len)
 
 SINT32 ecdsa_privkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len)
 {
-    size_t num_limbs;
+    size_t num_bytes;
 
     if (NULL == sc || NULL == key) {
         SC_LOG_ERROR(sc, SC_NULL_POINTER);
         return SC_FUNC_FAILURE;
     }
 
-    num_limbs = sc->ec->params->num_limbs;
+    num_bytes = sc->ec->params->num_bytes;
 
     if (sc->privkey->key) {
-        SC_FREE(sc->privkey->key, num_limbs * sizeof(sc_ulimb_t));
+        SC_FREE(sc->privkey->key, num_bytes);
     }
     if (NULL == sc->privkey->key) {
-        sc->privkey->key = SC_MALLOC(num_limbs * sizeof(sc_ulimb_t));
+        sc->privkey->key = SC_MALLOC(num_bytes);
         if (NULL == sc->privkey->key) {
             SC_LOG_ERROR(sc, SC_NULL_POINTER);
             return SC_FUNC_FAILURE;
