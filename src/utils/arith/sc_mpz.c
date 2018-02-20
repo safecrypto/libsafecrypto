@@ -75,14 +75,24 @@ DOUBLE sc_mpz_get_d(const sc_mpz_t *in)
 SINT32 sc_mpz_get_bytes(UINT8 *out, const sc_mpz_t *in, size_t n)
 {
     sc_ulimb_t *limbs;
+    SINT32 in_used;
 
     if (NULL == in || NULL == out) {
         return SC_FUNC_FAILURE;
     }
 
-    if ((SC_LIMB_BITS * sc_mpz_get_size(in)) < (8*n)) {
-        n = sizeof(sc_ulimb_t) * sc_mpz_get_size(in);
+    // Ensure that the most significant bytes of the output byte array are zeroed
+    in_used = sc_mpz_get_size(in);
+    if ((SC_LIMB_BYTES * in_used) < n) {
+        n = n - SC_LIMB_BYTES * in_used;
+        while (n--) {
+            out[SC_LIMB_BYTES * in_used + n] = 0;
+        }
+        n = sizeof(sc_ulimb_t) * in_used;
+
     }
+
+    // Obtain a pointer to the limbs and copy them to the output
     limbs = sc_mpz_get_limbs(in);
 #if SC_LIMB_BITS == 64
     SC_LITTLE_ENDIAN_64_COPY(out, 0, limbs, n);

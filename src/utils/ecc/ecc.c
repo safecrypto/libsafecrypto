@@ -890,11 +890,15 @@ SINT32 ecc_keygen(safecrypto_t *sc)
             goto finish_free;
         }
     }
-	secret = sc->privkey->key;
+	secret = (sc_ulimb_t*) sc->privkey->key;
 
-	// Generate a secret key as a random number
-	prng_mem(sc->prng_ctx[0], (UINT8*)secret, num_bytes);
-	//fprintf(stderr, "private key = %016lX %016lX %016lX %016lX\n", secret[3], secret[2], secret[1], secret[0]);
+	// Generate a secret key as a random number that is less than the order of the curve
+	do {
+		prng_mem(sc->prng_ctx[0], (UINT8*)secret, num_bytes);
+    	secret[num_limbs-1] &= SC_LIMB_MASK >> (num_limbs*SC_LIMB_BITS - num_bits);
+    	sc_mpz_set_limbs(&metadata.temp, secret, num_limbs);
+    } while (1 != sc_mpz_cmp(&metadata.order_m, &metadata.temp));
+	//fprintf(stderr, "private  = "); sc_mpz_out_str(stderr, 16, &metadata.temp); fprintf(stderr, "\n");
 
 	// Generate the public key as the product of a scalar multiplication
 	// of the base point with k
@@ -902,8 +906,8 @@ SINT32 ecc_keygen(safecrypto_t *sc)
 	scalar_point_mult(num_bits, &metadata, &sc->ec->base, secret, &p_public);
 	sc_mpz_mod(&p_public.x, &p_public.x, &metadata.order_m);
 	sc_mpz_mod(&p_public.y, &p_public.y, &metadata.order_m);
-	/*fprintf(stderr, "public x = "); sc_mpz_out_str(stderr, 16, &p_public.x); fprintf(stderr, "\n");
-	fprintf(stderr, "public y = "); sc_mpz_out_str(stderr, 16, &p_public.y); fprintf(stderr, "\n");*/
+	//fprintf(stderr, "public x = "); sc_mpz_out_str(stderr, 16, &p_public.x); fprintf(stderr, "\n");
+	//fprintf(stderr, "public y = "); sc_mpz_out_str(stderr, 16, &p_public.y); fprintf(stderr, "\n");
 
 	// Allocate memory for the public key
     if (NULL == sc->pubkey->key) {
@@ -957,7 +961,7 @@ SINT32 ecc_sign(safecrypto_t *sc, const UINT8 *m, size_t mlen,
 	point_init(&p_base, num_limbs, metadata.coord_type);
 	point_init(&p_result, num_limbs, metadata.coord_type);
 
-	p_base.n = (num_bits + SC_LIMB_BITS - 1) >> SC_LIMB_BITS_SHIFT;
+	p_base.n = num_limbs;
 	sc_mpz_set_str(&p_base.x, 16, sc->ec->params->g_x);
 	sc_mpz_set_str(&p_base.y, 16, sc->ec->params->g_y);
 
@@ -972,6 +976,7 @@ SINT32 ecc_sign(safecrypto_t *sc, const UINT8 *m, size_t mlen,
 restart:
 	// Generate a random secret k
 	prng_mem(sc->prng_ctx[0], (UINT8*)secret, num_bytes);
+    secret[num_limbs-1] &= SC_LIMB_MASK >> (num_limbs*SC_LIMB_BITS - num_bits);
 	sc_mpz_set_bytes(&k, (UINT8*)secret, num_bytes);
 	//fprintf(stderr, "k           = "); sc_mpz_out_str(stderr, 16, &k); fprintf(stderr, "\n");
 
@@ -1062,6 +1067,8 @@ SINT32 ecc_verify(safecrypto_t *sc, const UINT8 *m, size_t mlen,
 	point_init(&p_u1, sc->ec->params->num_limbs, metadata.coord_type);
 	point_init(&p_u2, sc->ec->params->num_limbs, metadata.coord_type);
 
+	/// @todo Add option of Shamir's trick
+
 	/*for (i=0; i<num_bytes; i++) {
 		fprintf(stderr, "%02x", (int)(sigbuf[num_bytes-1-i]));
 	}
@@ -1097,12 +1104,14 @@ SINT32 ecc_verify(safecrypto_t *sc, const UINT8 *m, size_t mlen,
 	sc_mpz_mul(&temp, &w, &z);
 	sc_mpz_mod(&temp, &temp, &metadata.order_m);
 	secret = sc_mpz_get_limbs(&temp);
+	secret[num_limbs-1] &= SC_LIMB_MASK >> (num_limbs*SC_LIMB_BITS - num_bits);
 	scalar_point_mult(num_bits, &metadata, &p_base, secret, &p_u1);
 
 	// u2 = w * r * Q
 	sc_mpz_mul(&temp, &w, &r);
 	sc_mpz_mod(&temp, &temp, &metadata.order_m);
 	secret = sc_mpz_get_limbs(&temp);
+	secret[num_limbs-1] &= SC_LIMB_MASK >> (num_limbs*SC_LIMB_BITS - num_bits);
 	scalar_point_mult(num_bits, &metadata, &p_public, secret, &p_u2);
 
 	// Point addition to obtain the signature point on the curve
@@ -1110,7 +1119,7 @@ SINT32 ecc_verify(safecrypto_t *sc, const UINT8 *m, size_t mlen,
 	fprintf(stderr, "u1 y = "); sc_mpz_out_str(stderr, 16, &p_u1.y); fprintf(stderr, "\n");
 	fprintf(stderr, "u2 x = "); sc_mpz_out_str(stderr, 16, &p_u2.x); fprintf(stderr, "\n");
 	fprintf(stderr, "u2 y = "); sc_mpz_out_str(stderr, 16, &p_u2.y); fprintf(stderr, "\n");*/
-	point_add(&metadata, &p_u1, &p_u2);
+	point_add_affine(&metadata, &p_u1, &p_u2);
 	/*fprintf(stderr, "u1 x = "); sc_mpz_out_str(stderr, 16, &p_u1.x); fprintf(stderr, "\n");
 	fprintf(stderr, "u1 y = "); sc_mpz_out_str(stderr, 16, &p_u1.y); fprintf(stderr, "\n");*/
 
