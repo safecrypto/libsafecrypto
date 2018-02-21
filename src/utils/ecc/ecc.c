@@ -895,7 +895,6 @@ SINT32 ecc_keygen(safecrypto_t *sc)
 	// Generate a secret key as a random number that is less than the order of the curve
 	do {
 		prng_mem(sc->prng_ctx[0], (UINT8*)secret, num_bytes);
-    	secret[num_limbs-1] &= SC_LIMB_MASK >> (num_limbs*SC_LIMB_BITS - num_bits);
     	sc_mpz_set_bytes(&metadata.temp, (UINT8*)secret, num_bytes);
     } while (1 != sc_mpz_cmp(&metadata.order_m, &metadata.temp));
 	//fprintf(stderr, "private  = "); sc_mpz_out_str(stderr, 16, &metadata.temp); fprintf(stderr, "\n");
