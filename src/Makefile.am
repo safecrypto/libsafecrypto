@@ -92,6 +92,10 @@ if WITH_DLP_IBE
 OPTIONAL_LIBS           += schemes/ibe/dlp/libibe.la
 endif WITH_DLP_IBE
 
+if WITH_FALCON_SIG
+OPTIONAL_LIBS           += schemes/sig/falcon/libfalcon.la
+endif WITH_FALCON_SIG
+
 # Add references to algorithm libraries here
 __top_builddir__libs_libsafecrypto_la_LIBADD  = $(DEFAULT_LIBS) $(OPTIONAL_LIBS)
 
