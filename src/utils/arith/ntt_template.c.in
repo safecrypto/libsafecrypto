@@ -113,9 +113,7 @@ inline SINT32 NTT_FUNC_NAME(ntt32_modn)(SINT32 x, const ntt_params_t *p)
     high = x >> 24;
     low  = x & 0xFFFFFF;
     x    = low - high - (high << 10) - (high << 11) - (high << 15);
-    if (x < 0) {
-        x += 16813057;
-    }
+    x += 16813057 * ((UINT32)x >> 31);
     return (SINT32) x;
 #elif defined(_ENABLE_SOLINAS_134348801)
     SINT64 high, low;
@@ -128,9 +126,7 @@ inline SINT32 NTT_FUNC_NAME(ntt32_modn)(SINT32 x, const ntt_params_t *p)
     high = x >> 27;
     low  = x & 0x7FFFFFF;
     x    = low - high - (high << 17);
-    if (x < 0) {
-        x += 134348801;
-    }
+    x += 134348801 * ((UINT32)x >> 31);
     return (SINT32) x;
 #else
     // Multiply by the inverse of q, truncate towards zero and then multiply
@@ -208,9 +204,7 @@ inline SINT32 NTT_FUNC_NAME(ntt32_muln)(SINT32 x, SINT32 y, const ntt_params_t *
     high = x64 >> 24;
     low  = x64 & 0xFFFFFF;
     x    = low - high - (high << 10) - (high << 11) - (high << 15);
-    if (x64 < 0) {
-        x64 += 16813057;
-    }
+    x   += 16813057 * ((UINT64)x >> 63);
     return (SINT32) x64;
 #elif defined(_ENABLE_SOLINAS_134348801)
     SINT64 high, low;
@@ -224,9 +218,7 @@ inline SINT32 NTT_FUNC_NAME(ntt32_muln)(SINT32 x, SINT32 y, const ntt_params_t *
     high = x64 >> 27;
     low  = x64 & 0x7FFFFFF;
     x64  = low - high - (high << 17);
-    if (x64 < 0) {
-        x64 += 134348801;
-    }
+    x   += 134348801 * ((UINT64)x >> 63);
     return (SINT32) x64;
 #else
 #if 0
@@ -304,9 +296,7 @@ inline SINT32 NTT_FUNC_NAME(ntt32_sqrn)(SINT32 x, const ntt_params_t *p)
     high = x64 >> 24;
     low  = x64 & 0xFFFFFF;
     x64  = low - high - (high << 10) - (high << 11) - (high << 15);
-    if (x64 < 0) {
-        x64 += 16813057;
-    }
+    x64 += 16813057 * ((UINT64)x >> 63);
     return (SINT32) x64;
 #elif defined(_ENABLE_SOLINAS_134348801)
     SINT64 high, low;
@@ -320,9 +310,7 @@ inline SINT32 NTT_FUNC_NAME(ntt32_sqrn)(SINT32 x, const ntt_params_t *p)
     high = x64 >> 27;
     low  = x64 & 0x7FFFFFF;
     x64  = low - high - (high << 17);
-    if (x64 < 0) {
-        x64 += 134348801;
-    }
+    x64 += 134348801 * ((UINT64)x >> 63);
     return (SINT32) x64;
 #else
 #if 0
@@ -1074,18 +1062,32 @@ void NTT_FUNC_NAME(ntt32_large_inv_ntt_16)(SINT32 *v, const ntt_params_t *p,
 
 SINT32 NTT_FUNC_NAME(ntt32_pwr)(SINT32 x, SINT32 e, const ntt_params_t *p)
 {
-    SINT32 y;
+    SINT32 temp, y;
+    UINT32 cond;
 
     y = 1;
-    if (e & 1)
+#if 1
+    cond = (UINT32)(e & 1) - 1;
+    y = (~cond & x) | (cond & y);
+#else
+    if (e & 1) {
         y = x;
+    }
+#endif
 
     e >>= 1;
 
     while (e > 0) {
         x = NTT_FUNC_NAME(ntt32_sqrn)(x, p);
-        if (e & 1)
+#if 1
+        temp = NTT_FUNC_NAME(ntt32_muln)(x, y, p);
+        cond = (UINT32)(e & 1) - 1;
+        y = (~cond & temp) | (cond & y);
+#else
+        if (e & 1) {
             y = NTT_FUNC_NAME(ntt32_muln)(x, y, p);
+        }
+#endif
         e >>= 1;
     }
 
@@ -1292,12 +1294,17 @@ void NTT_FUNC_NAME(ntt32_normalize_32)(SINT32 *v, size_t n, const ntt_params_t *
 #else
         SINT32 x = NTT_FUNC_NAME(ntt32_modn)(v[i], p);
 #endif
+#if 1
+        x += q * ((UINT32)x >> 31);
+        x -= q * sc_const_time_u32_lessthan(q, x + 1);
+#else
         if (x >= q) {
             x -= q;
         }
         if (x < 0) {
             x += q;
         }
+#endif
         v[i] = x;
     }
 #endif
@@ -1359,12 +1366,17 @@ void NTT_FUNC_NAME(ntt32_normalize_16)(SINT16 *v, size_t n, const ntt_params_t *
 #else
         SINT16 x = NTT_FUNC_NAME(ntt32_modn)(v[i], p);
 #endif
+#if 1
+        x += q * ((UINT16)x >> 15);
+        x -= q * sc_const_time_u32_lessthan(q, x + 1);
+#else
         if (x >= q) {
             x -= q;
         }
         if (x < 0) {
             x += q;
         }
+#endif
         v[i] = x;
     }
 #endif
@@ -1377,8 +1389,17 @@ inline static sc_slimb_t barrett_reduction(sc_slimb_big_t a, SINT32 m, SINT32 k,
 {
     sc_slimb_big_t t = ((a * m) >> k);
     sc_slimb_big_t c = a - t * q;
-    if (q <= c)
+#if 1
+#if 64 == SC_LIMB_BITS
+    c -= q * sc_const_time_u64_lessthan(q, c + 1);
+#else
+    c -= q * sc_const_time_u32_lessthan(q, c + 1);
+#endif
+#else
+    if (q <= c) {
         c -= q;
+    }
+#endif
     return c;
 }
 #endif
@@ -1427,9 +1448,7 @@ inline sc_slimb_t NTT_FUNC_NAME(ntt_modn)(sc_slimb_t x, const ntt_params_t *p)
     high = x >> 24;
     low  = x & 0xFFFFFF;
     x    = low - high - (high << 10) - (high << 11) - (high << 15);
-    if (x < 0) {
-        x += 16813057;
-    }
+    x   += 16813057 * ((sc_ulimb_t)x >> (SC_LIMB_BITS-1));
     return (sc_slimb_t) x;
 #elif defined(_ENABLE_SOLINAS_134348801)
     sc_slimb_big_t high, low;
@@ -1442,9 +1461,7 @@ inline sc_slimb_t NTT_FUNC_NAME(ntt_modn)(sc_slimb_t x, const ntt_params_t *p)
     high = x >> 27;
     low  = x & 0x7FFFFFF;
     x    = low - high - (high << 17);
-    if (x < 0) {
-        x += 134348801;
-    }
+    x   += 134348801 * ((sc_ulimb_t)x >> (SC_LIMB_BITS-1));
     return (sc_slimb_t) x;
 #else
     // Multiply by the inverse of q, truncate towards zero and then multiply
@@ -1503,10 +1520,8 @@ inline sc_slimb_t NTT_FUNC_NAME(ntt_muln)(sc_slimb_t x, sc_slimb_t y, const ntt_
     high = x >> 24;
     low  = x & 0xFFFFFF;
     x    = low - high - (high << 10) - (high << 11) - (high << 15);
-    if (x < 0) {
-        x += 16813057;
-    }
-    return (sc_slimb_t) x64;
+    x   += 16813057 * ((sc_ulimb_t)x >> (SC_LIMB_BITS-1));
+    return (sc_slimb_t) x;
 #elif defined(_ENABLE_SOLINAS_134348801)
     sc_slimb_big_t high, low;
     sc_slimb_big_t x64 = (sc_slimb_big_t) x * (sc_slimb_big_t) y;
@@ -1519,9 +1534,7 @@ inline sc_slimb_t NTT_FUNC_NAME(ntt_muln)(sc_slimb_t x, sc_slimb_t y, const ntt_
     high = x64 >> 27;
     low  = x64 & 0x7FFFFFF;
     x64  = low - high - (high << 17);
-    if (x64 < 0) {
-        x64 += 134348801;
-    }
+    x64 += 134348801 * ((sc_ulimb_t)x64 >> (SC_LIMB_BITS-1));
     return (sc_slimb_t) x64;
 #else
     sc_slimb_big_t prod = (sc_slimb_big_t) x * (sc_slimb_big_t) y;
@@ -1578,10 +1591,8 @@ inline sc_slimb_t NTT_FUNC_NAME(ntt_sqrn)(sc_slimb_t x, const ntt_params_t *p)
     high = x >> 24;
     low  = x & 0xFFFFFF;
     x    = low - high - (high << 10) - (high << 11) - (high << 15);
-    if (x < 0) {
-        x += 16813057;
-    }
-    return (sc_slimb_t) x64;
+    x   += 16813057 * ((sc_ulimb_t)x >> (SC_LIMB_BITS-1));
+    return (sc_slimb_t) x;
 #elif defined(_ENABLE_SOLINAS_134348801)
     sc_slimb_big_t high, low;
     sc_slimb_big_t x64 = (sc_slimb_big_t) x * (sc_slimb_big_t) x;
@@ -1594,9 +1605,7 @@ inline sc_slimb_t NTT_FUNC_NAME(ntt_sqrn)(sc_slimb_t x, const ntt_params_t *p)
     high = x64 >> 27;
     low  = x64 & 0x7FFFFFF;
     x64  = low - high - (high << 17);
-    if (x64 < 0) {
-        x64 += 134348801;
-    }
+    x64 += 134348801 * ((sc_ulimb_t)x64 >> (SC_LIMB_BITS-1));
     return (sc_slimb_t) x64;
 #else
     sc_slimb_big_t prod = (sc_slimb_big_t) x * (sc_slimb_big_t) x;
@@ -2010,18 +2019,32 @@ void NTT_FUNC_NAME(ntt_large_inv_ntt_16)(sc_slimb_t *v, const ntt_params_t *p,
 
 sc_slimb_t NTT_FUNC_NAME(ntt_pwr)(sc_slimb_t x, sc_slimb_t e, const ntt_params_t *p)
 {
-    sc_slimb_t y;
+    sc_slimb_t temp, y;
+    sc_ulimb_t cond;
 
     y = 1;
-    if (e & 1)
+#if 1
+    cond = (sc_ulimb_t)(e & 1) - 1;
+    y = (~cond & x) | (cond & y);
+#else
+    if (e & 1) {
         y = x;
+    }
+#endif
 
     e >>= 1;
 
     while (e > 0) {
         x = NTT_FUNC_NAME(ntt_sqrn)(x, p);
-        if (e & 1)
+#if 1
+        temp = NTT_FUNC_NAME(ntt_muln)(x, y, p);
+        cond = (sc_ulimb_t)(e & 1) - 1;
+        y = (~cond & temp) | (cond & y);
+#else
+        if (e & 1) {
             y = NTT_FUNC_NAME(ntt_muln)(x, y, p);
+        }
+#endif
         e >>= 1;
     }
 
@@ -2092,8 +2115,18 @@ void NTT_FUNC_NAME(ntt_normalize)(sc_slimb_t *v, size_t n, const ntt_params_t *p
 #else
         sc_slimb_t x = NTT_FUNC_NAME(ntt_modn)(v[i], p);
 #endif
-        if (x < 0)
+#if 1
+        x += q * ((sc_ulimb_t)x >> (SC_LIMB_BITS - 1));
+#if 64 == SC_LIMB_BITS
+        x -= q * sc_const_time_u64_lessthan(q, x);
+#else
+        x -= q * sc_const_time_u32_lessthan(q, x);
+#endif
+#else
+        if (x < 0) {
             x += q;
+        }
+#endif
         v[i] = x;
     }
 }

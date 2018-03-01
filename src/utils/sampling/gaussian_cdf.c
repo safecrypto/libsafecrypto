@@ -143,9 +143,9 @@ static UINT32 binary_search_128(u128_t x, const u128_t *l, size_t n)
     a = 0;
     while (st > 0) {
         UINT32 b = a + st;
-        if (sc_const_time_u32_lessthan(b, n) & compare_ge_prec(x.w, (sc_ulimb_t *)l[b].w, 128)) {
-            a = b;
-        }
+        UINT32 cond = sc_const_time_u32_lessthan(b, n) & compare_ge_prec(x.w, (sc_ulimb_t *)l[b].w, 128);
+        cond--;
+        a = (cond & a) | (~cond & b);
         st >>= 1;
     }
     return a;
@@ -162,9 +162,9 @@ static UINT32 binary_search_192(u192_t x, const u192_t *l, size_t n)
     a = 0;
     while (st > 0) {
         UINT32 b = a + st;
-        if (sc_const_time_u32_lessthan(b, n) & compare_ge_prec(x.w, (sc_ulimb_t *)l[b].w, 192)) {
-            a = b;
-        }
+        UINT32 cond = sc_const_time_u32_lessthan(b, n) & compare_ge_prec(x.w, (sc_ulimb_t *)l[b].w, 192);
+        cond--;
+        a = (cond & a) | (~cond & b);
         st >>= 1;
     }
     return a;
@@ -181,9 +181,9 @@ static UINT32 binary_search_256(u256_t x, const u256_t *l, size_t n)
     a = 0;
     while (st > 0) {
         UINT32 b = a + st;
-        if (sc_const_time_u32_lessthan(b, n) & compare_ge_prec(x.w, (sc_ulimb_t *)l[b].w, 256)) {
-            a = b;
-        }
+        UINT32 cond = sc_const_time_u32_lessthan(b, n) & compare_ge_prec(x.w, (sc_ulimb_t *)l[b].w, 256);
+        cond--;
+        a = (cond & a) | (~cond & b);
         st >>= 1;
     }
     return a;
