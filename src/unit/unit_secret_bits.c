@@ -21,38 +21,38 @@ START_TEST(test_secret_bits_init_binary)
     point_secret_t bit_ctx;
     sc_ulimb_t secret[2] = {0};
 
-    bits = secret_bits_init(coding, NULL, secret, 0);
+    bits = secret_bits_init(coding, NULL, secret, NULL, 0);
     ck_assert_uint_eq(bits, 0);
 
-    bits = secret_bits_init(coding, &bit_ctx, secret, 0);
+    bits = secret_bits_init(coding, &bit_ctx, secret, NULL, 0);
     ck_assert_uint_eq(bits, 0);
 
-    bits = secret_bits_init(coding, &bit_ctx, secret, 1);
+    bits = secret_bits_init(coding, &bit_ctx, secret, NULL, 1);
     ck_assert_uint_eq(bits, 0);
 
     secret[0] = 2;
-    bits = secret_bits_init(coding, &bit_ctx, secret, 1);
+    bits = secret_bits_init(coding, &bit_ctx, secret, NULL, 1);
     ck_assert_uint_eq(bits, 0);
 
     secret[0] = 4;
-    bits = secret_bits_init(coding, &bit_ctx, secret, 3);
+    bits = secret_bits_init(coding, &bit_ctx, secret, NULL, 3);
     ck_assert_uint_eq(bits, 3);
 
     secret[0] = SC_LIMB_HIGHBIT;
-    bits = secret_bits_init(coding, &bit_ctx, secret, SC_LIMB_BITS);
+    bits = secret_bits_init(coding, &bit_ctx, secret, NULL, SC_LIMB_BITS);
     ck_assert_uint_eq(bits, SC_LIMB_BITS);
 
     secret[1] = SC_LIMB_HIGHBIT2;
-    bits = secret_bits_init(coding, &bit_ctx, secret, SC_LIMB_BITS + SC_LIMB_BITS2 - 1);
+    bits = secret_bits_init(coding, &bit_ctx, secret, NULL, SC_LIMB_BITS + SC_LIMB_BITS2 - 1);
     ck_assert_uint_eq(bits, SC_LIMB_BITS);
-    bits = secret_bits_init(coding, &bit_ctx, secret, SC_LIMB_BITS + SC_LIMB_BITS2);
+    bits = secret_bits_init(coding, &bit_ctx, secret, NULL, SC_LIMB_BITS + SC_LIMB_BITS2);
     ck_assert_uint_eq(bits, SC_LIMB_BITS + SC_LIMB_BITS2);
 
     secret[0] = SC_LIMB_MASK;
     secret[1] = SC_LIMB_MASK_LOW;
-    bits = secret_bits_init(coding, &bit_ctx, secret, SC_LIMB_BITS + SC_LIMB_BITS2 - 1);
+    bits = secret_bits_init(coding, &bit_ctx, secret, NULL, SC_LIMB_BITS + SC_LIMB_BITS2 - 1);
     ck_assert_uint_eq(bits, SC_LIMB_BITS + SC_LIMB_BITS2 - 1);
-    bits = secret_bits_init(coding, &bit_ctx, secret, SC_LIMB_BITS + SC_LIMB_BITS2);
+    bits = secret_bits_init(coding, &bit_ctx, secret, NULL, SC_LIMB_BITS + SC_LIMB_BITS2);
     ck_assert_uint_eq(bits, SC_LIMB_BITS + SC_LIMB_BITS2);
 }
 END_TEST
@@ -64,37 +64,37 @@ START_TEST(test_secret_bits_init_naf)
     point_secret_t bit_ctx;
     sc_ulimb_t secret[3] = {0};
 
-    bits = secret_bits_init(coding, NULL, secret, 0);
+    bits = secret_bits_init(coding, NULL, secret, NULL, 0);
     ck_assert_uint_eq(bits, 0);
 
-    bits = secret_bits_init(coding, &bit_ctx, secret, 1);
+    bits = secret_bits_init(coding, &bit_ctx, secret, NULL, 1);
     ck_assert_uint_eq(bits, 0);
 
     secret[0] = 2;
-    bits = secret_bits_init(coding, &bit_ctx, secret, 1);
+    bits = secret_bits_init(coding, &bit_ctx, secret, NULL, 1);
     ck_assert_uint_eq(bits, 0);
 
     secret[0] = 4;
-    bits = secret_bits_init(coding, &bit_ctx, secret, 3);
+    bits = secret_bits_init(coding, &bit_ctx, secret, NULL, 3);
     ck_assert_uint_eq(bits, 3);
 
     secret[0] = 12;
-    bits = secret_bits_init(coding, &bit_ctx, secret, 3);
+    bits = secret_bits_init(coding, &bit_ctx, secret, NULL, 3);
     ck_assert_uint_eq(bits, 3);
 
     secret[0] = 0xFFFF;
-    bits = secret_bits_init(coding, &bit_ctx, secret, 16);
+    bits = secret_bits_init(coding, &bit_ctx, secret, NULL, 16);
     ck_assert_uint_eq(bits, 17);
 
     secret[0] = SC_LIMB_MASK;
     secret[1] = SC_LIMB_MASK_LOW;
-    bits = secret_bits_init(coding, &bit_ctx, secret, SC_LIMB_BITS + SC_LIMB_BITS2);
+    bits = secret_bits_init(coding, &bit_ctx, secret, NULL, SC_LIMB_BITS + SC_LIMB_BITS2);
     ck_assert_uint_eq(bits, SC_LIMB_BITS + SC_LIMB_BITS2 + 1);
 
     secret[0] = SC_LIMB_MASK;
     secret[1] = SC_LIMB_MASK;
     secret[2] = SC_LIMB_MASK;
-    bits = secret_bits_init(coding, &bit_ctx, secret, 3*SC_LIMB_BITS);
+    bits = secret_bits_init(coding, &bit_ctx, secret, NULL, 3*SC_LIMB_BITS);
     ck_assert_uint_eq(bits, 3*SC_LIMB_BITS + 1);
 }
 END_TEST
@@ -109,7 +109,7 @@ START_TEST(test_secret_bits_naf)
 
     secret[0] = SC_LIMB_MASK;
     secret[1] = SC_LIMB_MASK_LOW;
-    bits = secret_bits_init(coding, &bit_ctx, secret, SC_LIMB_BITS + SC_LIMB_BITS2);
+    bits = secret_bits_init(coding, &bit_ctx, secret, NULL, SC_LIMB_BITS + SC_LIMB_BITS2);
     ck_assert_uint_eq(bits, SC_LIMB_BITS + SC_LIMB_BITS2 + 1);
 
     data = secret_bits_pull(&bit_ctx);
@@ -135,7 +135,7 @@ START_TEST(test_secret_bits_naf_2)
     secret[1] = SC_LIMB_MASK;
     secret[2] = SC_LIMB_MASK;
     secret[3] = SC_LIMB_MASK;
-    bits = secret_bits_init(coding, &bit_ctx, secret, 4*SC_LIMB_BITS);
+    bits = secret_bits_init(coding, &bit_ctx, secret, NULL, 4*SC_LIMB_BITS);
     ck_assert_uint_eq(bits, 4*SC_LIMB_BITS + 1);
 
     data = secret_bits_pull(&bit_ctx);
@@ -161,7 +161,7 @@ START_TEST(test_secret_bits_naf_3)
     secret[1] = SC_LIMB_MASK;
     secret[2] = 0;
     secret[3] = SC_LIMB_MASK;
-    bits = secret_bits_init(coding, &bit_ctx, secret, 4*SC_LIMB_BITS);
+    bits = secret_bits_init(coding, &bit_ctx, secret, NULL, 4*SC_LIMB_BITS);
     ck_assert_uint_eq(bits, 4*SC_LIMB_BITS + 1);
 
     data = secret_bits_pull(&bit_ctx);
@@ -196,7 +196,7 @@ START_TEST(test_secret_bits_naf_4)
     sc_ulimb_t secret[2] = {0};
 
     secret[0] = 0xacb;
-    bits = secret_bits_init(coding, &bit_ctx, secret, 12);
+    bits = secret_bits_init(coding, &bit_ctx, secret, NULL, 12);
     ck_assert_uint_eq(bits, 13);
 
     data = secret_bits_pull(&bit_ctx);

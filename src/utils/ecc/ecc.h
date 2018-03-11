@@ -106,7 +106,9 @@ void point_projective_to_affine(ecc_point_t *p, sc_mpz_t *tmul, sc_mpz_t *temp, 
 void scalar_point_mult(size_t num_bits, ecc_metadata_t *metadata,
     const ecc_point_t *p_in, const sc_ulimb_t *secret, ecc_point_t *p_out);
 void scalar_point_mult_shamir(size_t num_bits, ecc_metadata_t *metadata,
-    const ecc_point_t *p_in, const sc_ulimb_t *secret1, const sc_ulimb_t *secret2, ecc_point_t *p_out);
+    const ecc_point_t *p_in1, const sc_ulimb_t *secret1,
+    const ecc_point_t *p_in2, const sc_ulimb_t *secret2,
+    ecc_point_t *p_out);
 
 
 extern SINT32 ecc_diffie_hellman(safecrypto_t *sc, const ecc_point_t *p_base,

@@ -83,24 +83,32 @@ static SINT32 naf(const sc_ulimb_t *secret, size_t num_bits, sc_ulimb_t *recoded
 static UINT32 secret_bits_peek(point_secret_t *bit_ctx)
 {
 	UINT32 bit;
-	sc_ulimb_t word, shift;
+	sc_ulimb_t word1, word2, shift;
 
 	// Peek ahead at the bit(s) to be pulled depending upon the coding mode
 	if (ECC_K_BINARY == bit_ctx->coding) {
-		word  = bit_ctx->secret[bit_ctx->index];
+		word1 = bit_ctx->secret1[bit_ctx->index];
 		shift = bit_ctx->shift;
-		bit   = (word >> shift) & 0x1;
+		bit   = (word1 >> shift) & 0x1;
+	}
+	else if (ECC_K_BINARY_DUAL == bit_ctx->coding) {
+		word1 = bit_ctx->secret1[bit_ctx->index];
+		word2 = bit_ctx->secret2[bit_ctx->index];
+		shift = bit_ctx->shift;
+		bit   = (word1 >> shift) & 0x1;
+		bit  |= ((word2 >> shift) & 0x1) << 1;
 	}
 	else {
-		word  = bit_ctx->recoded[bit_ctx->index];
+		word1 = bit_ctx->recoded[bit_ctx->index];
 		shift = bit_ctx->shift;
-		bit   = (word >> shift) & 0x3;
+		bit   = (word1 >> shift) & 0x3;
 	}
 
 	return bit;
 }
 
-size_t secret_bits_init(ecc_k_coding_e coding, point_secret_t *bit_ctx, const sc_ulimb_t *secret, size_t num_bits)
+size_t secret_bits_init(ecc_k_coding_e coding, point_secret_t *bit_ctx,
+	const sc_ulimb_t *secret1, const sc_ulimb_t *secret2, size_t num_bits)
 {
 	sc_ulimb_t is_naf    = (coding & ECC_K_CODING_NAF_BIT) >> ECC_K_CODING_NAF_BIT_SHIFT;
 	size_t     max_scale = is_naf + 1;
@@ -110,15 +118,16 @@ size_t secret_bits_init(ecc_k_coding_e coding, point_secret_t *bit_ctx, const sc
 
 	// Recoding of the secret value to non-adjacent form
 	if (ECC_K_NAF_2 == coding) {
-		num_bits += naf(secret, num_bits, bit_ctx->recoded);
+		num_bits += naf(secret1, num_bits, bit_ctx->recoded);
 	}
 
 	// Initialise the scalar variables
-	bit_ctx->secret = secret;
-	bit_ctx->max    = num_bits;
-	bit_ctx->index  = (max_scale*bit_ctx->max - 1) >> SC_LIMB_BITS_SHIFT;
-	bit_ctx->shift  = ((max_scale*bit_ctx->max & SC_LIMB_BITS_MASK) - 1) & (SC_LIMB_BITS_MASK ^ is_naf);
-	bit_ctx->coding = coding;
+	bit_ctx->secret1 = secret1;
+	bit_ctx->secret2 = secret2;
+	bit_ctx->max     = num_bits;
+	bit_ctx->index   = (max_scale*bit_ctx->max - 1) >> SC_LIMB_BITS_SHIFT;
+	bit_ctx->shift   = ((max_scale*bit_ctx->max & SC_LIMB_BITS_MASK) - 1) & (SC_LIMB_BITS_MASK ^ is_naf);
+	bit_ctx->coding  = coding;
 
 	// Skim through the scalar value until the first bit/window to be pulled by the user will be non-zero
 	while (num_bits && bit_ctx->index >= 0 && 0 == secret_bits_peek(bit_ctx)) {
@@ -136,9 +145,31 @@ static UINT32 secret_bits_pull_binary(point_secret_t *bit_ctx)
 	sc_ulimb_t word, shift;
 
 	// Obtain the bit from the secret
-	word  = bit_ctx->secret[bit_ctx->index];
+	word  = bit_ctx->secret1[bit_ctx->index];
 	shift = bit_ctx->shift;
 	bit   = (word >> shift) & 0x1;
+
+	// Decrement the index if shift reaches 0
+	bit_ctx->index -= !(((shift | (~shift + 1)) >> (SC_LIMB_BITS - 1)) & 1);
+
+	// Decrement the shift and reset to SC_LIMB_BITS_MASK when it wraps around
+	shift--;
+	bit_ctx->shift = shift & SC_LIMB_BITS_MASK;
+
+	return bit;
+}
+
+static UINT32 secret_bits_pull_binary_dual(point_secret_t *bit_ctx)
+{
+	UINT32 bit;
+	sc_ulimb_t word1, word2, shift;
+
+	// Obtain the bit from the secret
+	word1 = bit_ctx->secret1[bit_ctx->index];
+	word2 = bit_ctx->secret2[bit_ctx->index];
+	shift = bit_ctx->shift;
+	bit   = (word1 >> shift) & 0x1;
+	bit  |= ((word2 >> shift) & 0x1) << 1;
 
 	// Decrement the index if shift reaches 0
 	bit_ctx->index -= !(((shift | (~shift + 1)) >> (SC_LIMB_BITS - 1)) & 1);
@@ -179,6 +210,9 @@ UINT32 secret_bits_pull(point_secret_t *bit_ctx)
 	// Obtain the bit depending upon the coding mode
 	if (ECC_K_BINARY == bit_ctx->coding) {
 		bit = secret_bits_pull_binary(bit_ctx);
+	}
+	else if (ECC_K_BINARY_DUAL == bit_ctx->coding) {
+		bit = secret_bits_pull_binary_dual(bit_ctx);
 	}
 	else {
 		bit = secret_bits_pull_naf(bit_ctx);;
