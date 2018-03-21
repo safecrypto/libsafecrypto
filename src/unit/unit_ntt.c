@@ -431,7 +431,7 @@ START_TEST(test_ntt32_8399873_inv_512)
     ntt.inv_q_dbl = 1.0f / ntt.q_dbl;
     ntt.inv_q_flt = 1.0f / (FLOAT)ntt.u.ntt32.q;
 
-    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM,
+    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_AES_CTR_DRBG,
         SC_PRNG_THREADING_NONE, 0x00100000);
     prng_init(prng_ctx, NULL, 0);
 
@@ -510,7 +510,7 @@ START_TEST(test_ntt32_12289_inv_1024_fp)
     ntt.inv_q_dbl = 1.0f / ntt.q_dbl;
     ntt.inv_q_flt = 1.0f / (FLOAT)ntt.u.ntt32.q;
 
-    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM,
+    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_AES_CTR_DRBG,
         SC_PRNG_THREADING_NONE, 0x00100000);
     prng_init(prng_ctx, NULL, 0);
 
@@ -588,7 +588,7 @@ START_TEST(test_ntt32_12289_inv_1024_barrett)
     ntt.q_dbl = ntt.u.ntt32.q;
     ntt.inv_q_dbl = 1.0f / ntt.q_dbl;
 
-    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM,
+    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_AES_CTR_DRBG,
         SC_PRNG_THREADING_NONE, 0x00100000);
     prng_init(prng_ctx, NULL, 0);
 
@@ -666,7 +666,7 @@ START_TEST(test_ntt32_12289_inv_512_barrett)
     ntt.q_dbl = ntt.u.ntt32.q;
     ntt.inv_q_dbl = 1.0f / ntt.q_dbl;
 
-    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM,
+    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_AES_CTR_DRBG,
         SC_PRNG_THREADING_NONE, 0x00100000);
     prng_init(prng_ctx, NULL, 0);
 
@@ -744,7 +744,7 @@ START_TEST(test_ntt32_7681_inv_256_barrett)
     ntt.q_dbl = ntt.u.ntt32.q;
     ntt.inv_q_dbl = 1.0f / ntt.q_dbl;
 
-    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM,
+    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_AES_CTR_DRBG,
         SC_PRNG_THREADING_NONE, 0x00100000);
     prng_init(prng_ctx, NULL, 0);
 
@@ -820,7 +820,7 @@ START_TEST(test_mixed_ntt32_12289)
     ntt.u.ntt32.k = 30;
     ntt.u.ntt32.m = (1 << ntt.u.ntt32.k) / q;
 
-    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM,
+    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_AES_CTR_DRBG,
         SC_PRNG_THREADING_NONE, 0x00100000);
     prng_init(prng_ctx, NULL, 0);
 
@@ -867,7 +867,7 @@ START_TEST(test_mixed_ntt32_7681)
     ntt.u.ntt32.k = 30;
     ntt.u.ntt32.m = (1 << ntt.u.ntt32.k) / q;
 
-    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM,
+    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_AES_CTR_DRBG,
         SC_PRNG_THREADING_NONE, 0x00100000);
     prng_init(prng_ctx, NULL, 0);
 
@@ -914,7 +914,7 @@ START_TEST(test_rev_ntt32_7681)
     ntt.u.ntt32.k = 30;
     ntt.u.ntt32.m = (1 << ntt.u.ntt32.k) / q;
 
-    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM,
+    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_AES_CTR_DRBG,
         SC_PRNG_THREADING_NONE, 0x00100000);
     prng_init(prng_ctx, NULL, 0);
 
@@ -972,7 +972,7 @@ START_TEST(test_rev_ntt32_12289)
     ntt.u.ntt32.k = 30;
     ntt.u.ntt32.m = (1 << ntt.u.ntt32.k) / q;
 
-    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM,
+    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_AES_CTR_DRBG,
         SC_PRNG_THREADING_NONE, 0x00100000);
     prng_init(prng_ctx, NULL, 0);
 
@@ -1030,7 +1030,7 @@ START_TEST(test_ntt32_fwd_inv_512)
     ntt.u.ntt32.k = 30;
     ntt.u.ntt32.m = (1 << ntt.u.ntt32.k) / q;
 
-    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM,
+    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_AES_CTR_DRBG,
         SC_PRNG_THREADING_NONE, 0x00100000);
     prng_init(prng_ctx, NULL, 0);
 
@@ -1104,7 +1104,7 @@ START_TEST(test_ntt32_fwd_inv_1024)
     ntt.u.ntt32.k = 30;
     ntt.u.ntt32.m = (1 << ntt.u.ntt32.k) / q;
 
-    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM,
+    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_AES_CTR_DRBG,
         SC_PRNG_THREADING_NONE, 0x00100000);
     prng_init(prng_ctx, NULL, 0);
 
@@ -1180,7 +1180,7 @@ START_TEST(test_ntt_8399873_inv_512)
     ntt.q_dbl = ntt.u.nttlimb.q;
     ntt.inv_q_dbl = 1.0f / ntt.q_dbl;
 
-    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM,
+    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_AES_CTR_DRBG,
         SC_PRNG_THREADING_NONE, 0x00100000);
     prng_init(prng_ctx, NULL, 0);
 
@@ -1295,7 +1295,7 @@ START_TEST(test_roots_of_unity)
     }
     fprintf(stderr, "\n");*/
 
-    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM,
+    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_AES_CTR_DRBG,
         SC_PRNG_THREADING_NONE, 0x00100000);
     prng_init(prng_ctx, NULL, 0);
 
@@ -1393,7 +1393,7 @@ START_TEST(test_roots_of_unity_2)
     }
     fprintf(stderr, "\n");*/
 
-    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM,
+    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_AES_CTR_DRBG,
         SC_PRNG_THREADING_NONE, 0x00100000);
     prng_init(prng_ctx, NULL, 0);
 
@@ -1474,7 +1474,7 @@ START_TEST(test_roots_of_unity_3)
     r = SC_MALLOC(sizeof(SINT16) * n);
     roots_of_unity_s16(w, r, n, q, 0);
 
-    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM,
+    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_AES_CTR_DRBG,
         SC_PRNG_THREADING_NONE, 0x00100000);
     prng_init(prng_ctx, NULL, 0);
 

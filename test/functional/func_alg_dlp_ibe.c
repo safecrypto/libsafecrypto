@@ -77,7 +77,7 @@ int main(void)
     int32_t i, j, k, l;
     uint8_t message[32768];
     size_t length;
-    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM,
+    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_AES_CTR_DRBG,
         SC_PRNG_THREADING_NONE, 0x00100000);
     prng_init(prng_ctx, NULL, 0);
     SINT32 retval;

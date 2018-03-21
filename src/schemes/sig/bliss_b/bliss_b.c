@@ -1228,11 +1228,11 @@ restart:
     SC_PRINT_KEYS(sc, SC_LEVEL_DEBUG, 16);
 
     // Clear the temporary memory used for generation
-    SC_MEMZERO(t, sc->temp_size);
+    SC_MEMZERO(t, 5 * n * sizeof(SINT32));
     return SC_FUNC_SUCCESS;
 
 finish_free:
-    SC_MEMZERO(t, sc->temp_size);
+    SC_MEMZERO(t, 5 * n * sizeof(SINT32));
     return SC_FUNC_FAILURE;
 }
 
@@ -1647,7 +1647,7 @@ SINT32 bliss_b_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
     SC_PRINT_DEBUG(sc, "SUCCESS!\n");
     SC_PRINT_1D_INT16(sc, SC_LEVEL_DEBUG, "v", z, n);
     SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Oracle", my_idx, kappa);
-    SC_MEMZERO(t, sc->temp_size);
+    SC_MEMZERO(t, (3 * n + 2) * sizeof(SINT32));
     return SC_FUNC_SUCCESS;
 
 verification_failure:
@@ -1656,7 +1656,7 @@ verification_failure:
     SC_PRINT_DEBUG(sc, "Verification failed\n");
 oracle_failure:
 verification_early_failure:
-    SC_MEMZERO(t, sc->temp_size);
+    SC_MEMZERO(t, (3 * n + 2) * sizeof(SINT32));
 
     sc->stats.sig_num_unverified++;
 
