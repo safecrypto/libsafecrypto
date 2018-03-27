@@ -782,23 +782,28 @@ static void scalar_point_mult_naf_shamir(size_t num_bits, ecc_metadata_t *metada
         const ecc_point_t *p_temp = p_in1;
         p_in1 = p_in2;
         p_in2 = p_temp;
+        num_bits  ^= num_bits2;
+        num_bits2 ^= num_bits;
+        num_bits  ^= num_bits2;
+
+        fprintf(stderr, "Swapped\n");
     }
 
+    fprintf(stderr, "%zu %zu %d %d\n", num_bits, num_bits2, bit1, bit2);
+
+    point_copy(&p_in3, p_in1);
+    point_add_affine(metadata, &p_in3, p_in2);
     point_copy(&p_in_minus1, p_in1);
     point_negate(&p_in_minus1);
     point_copy(&p_in_minus2, p_in2);
-    point_negate(&p_in_minus1);
-    point_copy(&p_in_minus3, &p_in_minus1);
-    point_add_affine(metadata, &p_in_minus3, &p_in_minus2);
-    point_reset(&p_in3);
-    point_copy(&p_in3, p_in1);
-    point_add_affine(metadata, &p_in3, p_in2);
+    point_negate(&p_in_minus2);
+    point_copy(&p_in_minus3, &p_in3);
+    point_negate(&p_in_minus3);
     point_copy(&p_in_p1m2, p_in1);
     point_add_affine(metadata, &p_in_p1m2, &p_in_minus2);
     point_copy(&p_in_p2m1, p_in2);
     point_add_affine(metadata, &p_in_p2m1, &p_in_minus1);
 
-    num_bits--;
     if (num_bits == num_bits2) {
         point_copy(p_out, &p_in3);
     }
@@ -830,6 +835,9 @@ static void scalar_point_mult_naf_shamir(size_t num_bits, ecc_metadata_t *metada
         }
     }
 
+    num_bits--;
+    num_bits2--;
+
     for (i=num_bits; i--;) {
         // Point doubling
         point_double(metadata, p_out);
@@ -855,9 +863,27 @@ static void scalar_point_mult_naf_shamir(size_t num_bits, ecc_metadata_t *metada
             p_temp2 = (intptr_t) p_in2 ^ (((intptr_t) p_in2 ^ (intptr_t) &p_in_minus2) & mask);
 
             // Point addition
-            point_add(metadata, (ecc_point_t *) p_temp, (ecc_point_t *) p_temp2);
+            if (ECC_K_IS_LOW == bit1 && ECC_K_IS_HIGH == bit2)
+                point_add(metadata, p_out, p_in2);
+            else if (ECC_K_IS_LOW == bit1 && ECC_K_IS_MINUS_ONE == bit2)
+                point_add(metadata, p_out, &p_in_minus2);
+            else if (ECC_K_IS_HIGH == bit1 && ECC_K_IS_LOW == bit2)
+                point_add(metadata, p_out, p_in1);
+            else if (ECC_K_IS_HIGH == bit1 && ECC_K_IS_HIGH == bit2)
+                point_add(metadata, p_out, &p_in3);
+            else if (ECC_K_IS_HIGH == bit1 && ECC_K_IS_MINUS_ONE == bit2)
+                point_add(metadata, p_out, &p_in_p1m2);
+            else if (ECC_K_IS_MINUS_ONE == bit1 && ECC_K_IS_HIGH == bit2)
+                point_add(metadata, p_out, &p_in_p2m1);
+            else if (ECC_K_IS_MINUS_ONE == bit1 && ECC_K_IS_MINUS_ONE == bit2)
+                point_add(metadata, p_out, &p_in_minus3);
+            else if (ECC_K_IS_MINUS_ONE == bit1 && ECC_K_IS_LOW == bit2)
+                point_add(metadata, p_out, &p_in_minus1);
         }
     }
+
+    fprintf(stderr, "result x: "); sc_mpz_out_str(stderr, 16, &p_out->x); fprintf(stderr, "\n");
+    fprintf(stderr, "       y: "); sc_mpz_out_str(stderr, 16, &p_out->y); fprintf(stderr, "\n");
 
     point_clear(&p_dummy);
     point_clear(&p_in_minus1);
