@@ -340,7 +340,7 @@ static safecrypto_t * init_safecrypto(sc_scheme_e scheme, const UINT32 *flags)
     safecrypto_prng_threading_e prng_mt_enabled = SC_PRNG_THREADING_NONE;
     size_t seed_period = 0x00100000;
 
-    safecrypto_prng_e type = SC_PRNG_SYSTEM;
+    safecrypto_prng_e type = SC_PRNG_AES_CTR_DRBG;
     if (num_flag_words > 1) {
         if (flags[1] & SC_FLAG_1_CSPRNG_AES_CTR_DRBG) {
             type = SC_PRNG_AES_CTR_DRBG;

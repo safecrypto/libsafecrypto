@@ -149,8 +149,13 @@ SINT32 barrett_reduction_32(/*should be UINT64*/SINT64 a, SINT32 m, SINT32 k, SI
 {
     SINT64 t = (((SINT64)a * (SINT64)m) >> k);
     SINT64 c = a - t * (SINT64)q;
+#if 1
+    c += q * ((UINT32)c >> 31);
+    c -= q * sc_const_time_u32_lessthan(q, c + 1);
+#else
     if (c >= q)
         c -= q;
+#endif
     return c;
 }
 
@@ -233,8 +238,12 @@ void ntt32_mult_scalar_generic(SINT32 *v, const ntt_params_t *p,
 
     for (i=p->n; i--;) {
         SINT32 x = ntt_table->muln_32(t[i], c, p);
+#if 1
+        x += q * sc_const_time_u32_lessthan(x, 0);
+#else
         if (x < 0)
             x += q;
+#endif
         v[i] = x;
     }
 #endif
@@ -267,11 +276,20 @@ void inverse_shuffle_32(SINT32 *v, size_t n)
     for (i = 1; i < n-1; i++) {       // 00..0 and 11..1 remain same
         UINT32 r = sc_bit_reverse_32(i);
         r >>= bits;
+#if 1
+        {
+            UINT32 gte = sc_const_time_u32_lessthan(i, r) - 1;
+            SINT32 x = (gte & v[r]) | (~gte & v[i]);
+            v[i] = (gte & v[i]) | (~gte & v[r]);
+            v[r] = x;
+        }
+#else
         if (i < r) {
             SINT32 x = v[i];
             v[i] = v[r];
             v[r] = x;
         }
+#endif
     }
 #else
 #ifdef HAVE___BUILTIN_CTZ
@@ -281,11 +299,20 @@ void inverse_shuffle_32(SINT32 *v, size_t n)
     UINT32 bits = sc_ctz_32(n) - 1;
     j = n >> 1;
     for (i = 1; i < (size_t)n - 1;) {       // 00..0 and 11..1 remain same
+#if 1
+        {
+            UINT32 gte = sc_const_time_u32_lessthan(i, j) - 1;
+            SINT32 x = (gte & v[j]) | (~gte & v[i]);
+            v[i] = (gte & v[i]) | (~gte & v[j]);
+            v[j] = x;
+        }
+#else
         if (i < j) {
             SINT32 x = v[i];
             v[i] = v[j];
             v[j] = x;
         }
+#endif
         UINT32 mask = i++;
         mask ^= i;
         UINT32 len = sc_ctz_32(i);
@@ -298,11 +325,20 @@ void inverse_shuffle_32(SINT32 *v, size_t n)
     // This is the fallback method that also increments the MSB's
     j = n >> 1;
     for (i = 1; i < n - 1; i++) {       // 00..0 and 11..1 remain same
+#if 1
+        {
+            UINT32 gte = sc_const_time_u32_lessthan(i, j) - 1;
+            SINT32 x = (gte & v[j]) | (~gte & v[i]);
+            v[i] = (gte & v[i]) | (~gte & v[j]);
+            v[j] = x;
+        }
+#else
         if (i < j) {
             SINT32 x = v[i];
             v[i] = v[j];
             v[j] = x;
         }
+#endif
         k = n;
         do {
             k >>= 1;
@@ -336,10 +372,15 @@ void ntt32_flip_generic(SINT32 *v, const ntt_params_t *p)
 
     for (i=p->n; i--;) {
         SINT32 x = v[i];
+#if 1
+        x += q * ((UINT32)x >> 31);                     // Guarantees x is positive
+        x -= q * sc_const_time_u32_lessthan(q, x + 1);  // q is always positive
+#else
         if (x < 0)
             x += q;
         if (x >= q)
             x -= q;
+#endif
         v[i] = x;
     }
 }
@@ -442,10 +483,19 @@ void ntt_flip_generic(sc_slimb_t *v, const ntt_params_t *p)
 
     for (i=p->n; i--;) {
         sc_slimb_t x = v[i];
+#if 1
+        x += q * ((sc_ulimb_t)x >> (SC_LIMB_BITS - 1));  // Guarantees x is positive
+#if 64 == SC_LIMB_BITS
+        x -= q * sc_const_time_u64_lessthan(q, x + 1);   // q is always positive
+#else
+        x -= q * sc_const_time_u32_lessthan(q, x + 1);   // q is always positive
+#endif
+#else
         if (x < 0)
             x += q;
         if (x >= q)
             x -= q;
+#endif
         v[i] = x;
     }
 }
@@ -477,11 +527,24 @@ void inverse_shuffle(sc_slimb_t *v, size_t n)
     for (i = 1; i < n-1; i++) {       // 00..0 and 11..1 remain same
         UINT32 r = sc_bit_reverse_32(i);
         r >>= bits;
+#if 1
+        {
+#if 64 == SC_LIMB_BITS
+            sc_ulimb_t gte = sc_const_time_u64_lessthan(i, r) - 1;
+#else
+            sc_ulimb_t gte = sc_const_time_u32_lessthan(i, r) - 1;
+#endif
+            sc_slimb_t x = (gte & v[r]) | (~gte & v[i]);
+            v[i] = (gte & v[i]) | (~gte & v[r]);
+            v[r] = x;
+        }
+#else
         if (i < r) {
             sc_slimb_t x = v[i];
             v[i] = v[r];
             v[r] = x;
         }
+#endif
     }
 #else
 #ifdef HAVE___BUILTIN_CTZ
@@ -492,11 +555,24 @@ void inverse_shuffle(sc_slimb_t *v, size_t n)
     UINT32 bits = sc_ctz_32(n) - 1;
     j = n >> 1;
     for (i = 1; i < (size_t)n - 1;) {       // 00..0 and 11..1 remain same
+#if 1
+        {
+#if 64 == SC_LIMB_BITS
+            sc_ulimb_t gte = sc_const_time_u64_lessthan(i, j) - 1;
+#else
+            sc_ulimb_t gte = sc_const_time_u32_lessthan(i, j) - 1;
+#endif
+            sc_slimb_t x = (gte & v[j]) | (~gte & v[i]);
+            v[i] = (gte & v[i]) | (~gte & v[j]);
+            v[j] = x;
+        }
+#else
         if (i < j) {
             sc_slimb_t x = v[i];
             v[i] = v[j];
             v[j] = x;
         }
+#endif
         UINT32 mask = i++;
         mask ^= i;
         UINT32 len = sc_ctz_32(i);
@@ -509,11 +585,24 @@ void inverse_shuffle(sc_slimb_t *v, size_t n)
     // This is the fallback method that also increments the MSB's
     j = n >> 1;
     for (i = 1; i < n - 1; i++) {       // 00..0 and 11..1 remain same
+#if 1
+        {
+#if 64 == SC_LIMB_BITS
+            sc_ulimb_t gte = sc_const_time_u64_lessthan(i, j) - 1;
+#else
+            sc_ulimb_t gte = sc_const_time_u32_lessthan(i, j) - 1;
+#endif
+            sc_slimb_t x = (gte & v[j]) | (~gte & v[i]);
+            v[i] = (gte & v[i]) | (~gte & v[j]);
+            v[j] = x;
+        }
+#else
         if (i < j) {
             sc_slimb_t x = v[i];
             v[i] = v[j];
             v[j] = x;
         }
+#endif
         k = n;
         do {
             k >>= 1;

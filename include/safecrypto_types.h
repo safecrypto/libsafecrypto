@@ -235,8 +235,7 @@ GENERATE_ENUM_NAMES(sc_xof_names, XOF_LIST, SC_XOF_MAX);
 
 /// An enum defining the various types of CSPRNG
 typedef enum safecrypto_prng {
-    SC_PRNG_SYSTEM = 0,
-    SC_PRNG_AES_CTR_DRBG,
+    SC_PRNG_AES_CTR_DRBG = 0,
     SC_PRNG_AES_CTR,
     SC_PRNG_CHACHA,
     SC_PRNG_SALSA,

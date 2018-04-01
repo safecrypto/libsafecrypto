@@ -272,7 +272,7 @@ START_TEST(test_compress_decompress)
     SINT32 q_bits = 13;
     SINT32 thresh = (q + (q>>1)) >> (d + 1);
 
-    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM,
+    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_AES_CTR_DRBG,
         SC_PRNG_THREADING_NONE, 0x00100000);
     prng_init(prng_ctx, NULL, 0);
 

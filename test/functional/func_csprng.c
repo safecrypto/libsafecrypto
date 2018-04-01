@@ -32,9 +32,9 @@
 #define NUM_CSPRNG      1
 #else
 #ifdef _ENABLE_CSPRNG_FILE
-#define NUM_CSPRNG      14
-#else
 #define NUM_CSPRNG      13
+#else
+#define NUM_CSPRNG      12
 #endif
 #endif
 
@@ -137,40 +137,36 @@ int main(void)
                 SC_PRNG_THREADING_NONE, reseed_period); strcpy(msg, "KISS");
                 prng_init(prng_ctx, NULL, 0);
                 break;
-            case 5: prng_ctx = prng_create(source, SC_PRNG_SYSTEM,
-                SC_PRNG_THREADING_NONE, reseed_period); strcpy(msg, "SYSTEM");
-                prng_init(prng_ctx, NULL, 0);
-                break;
-            case 6: prng_ctx = prng_create(source, SC_PRNG_HASH_DRBG_SHA2_256,
+            case 5: prng_ctx = prng_create(source, SC_PRNG_HASH_DRBG_SHA2_256,
                 SC_PRNG_THREADING_NONE, reseed_period); strcpy(msg, "HASH-DRBG-SHA-256");
                 prng_init(prng_ctx, nonce, 8);
                 break;
-            case 7: prng_ctx = prng_create(source, SC_PRNG_HASH_DRBG_SHA2_512,
+            case 6: prng_ctx = prng_create(source, SC_PRNG_HASH_DRBG_SHA2_512,
                 SC_PRNG_THREADING_NONE, reseed_period); strcpy(msg, "HASH-DRBG-SHA-512");
                 prng_init(prng_ctx, nonce, 16);
                 break;
-            case 8: prng_ctx = prng_create(source, SC_PRNG_HASH_DRBG_SHA3_256,
+            case 7: prng_ctx = prng_create(source, SC_PRNG_HASH_DRBG_SHA3_256,
                 SC_PRNG_THREADING_NONE, reseed_period); strcpy(msg, "HASH-DRBG-SHA3-256");
                 prng_init(prng_ctx, nonce, 8);
                 break;
-            case 9: prng_ctx = prng_create(source, SC_PRNG_HASH_DRBG_SHA3_512,
+            case 8: prng_ctx = prng_create(source, SC_PRNG_HASH_DRBG_SHA3_512,
                 SC_PRNG_THREADING_NONE, reseed_period); strcpy(msg, "HASH-DRBG-SHA3-512");
                 prng_init(prng_ctx, nonce, 16);
                 break;
-            case 10: prng_ctx = prng_create(source, SC_PRNG_HASH_DRBG_BLAKE2_256,
+            case 9: prng_ctx = prng_create(source, SC_PRNG_HASH_DRBG_BLAKE2_256,
                 SC_PRNG_THREADING_NONE, reseed_period); strcpy(msg, "HASH-DRBG-BLAKE2-256");
                 prng_init(prng_ctx, nonce, 8);
                 break;
-            case 11: prng_ctx = prng_create(source, SC_PRNG_HASH_DRBG_BLAKE2_512,
+            case 10: prng_ctx = prng_create(source, SC_PRNG_HASH_DRBG_BLAKE2_512,
                 SC_PRNG_THREADING_NONE, reseed_period); strcpy(msg, "HASH-DRBG-BLAKE2-512");
                 prng_init(prng_ctx, nonce, 16);
                 break;
-            case 12: prng_ctx = prng_create(source, SC_PRNG_HASH_DRBG_WHIRLPOOL_512,
+            case 11: prng_ctx = prng_create(source, SC_PRNG_HASH_DRBG_WHIRLPOOL_512,
                 SC_PRNG_THREADING_NONE, reseed_period); strcpy(msg, "HASH-DRBG-WHIRLPOOL-512");
                 prng_init(prng_ctx, nonce, 16);
                 break;
 #ifdef _ENABLE_CSPRNG_FILE
-            case 13: prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_FILE,
+            case 12: prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_FILE,
                 SC_PRNG_THREADING_NONE, reseed_period);   strcpy(msg, "FILE");
                 break;
 #endif

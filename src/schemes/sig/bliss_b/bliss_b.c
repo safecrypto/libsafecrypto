@@ -846,6 +846,7 @@ SINT32 bliss_b_privkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len)
     SINT16 *pubkey = (SINT16 *) sc->pubkey->key;
     for (i=n; i--;) {
         pubkey[i] = g[i];
+        pubkey[i+n] = g[i]; // copy the public key to the 'B' version too
     }
 
     SC_MEMZERO(f, 2 * n * sizeof(SINT16));
@@ -889,7 +890,7 @@ SINT32 bliss_b_pubkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
     sc->coding_pub_key.type = SC_ENTROPY_NONE;
 
     // Create a bit packer to compress the public key
-    SINT16 *pubkey = (SINT16 *) sc->pubkey->key;
+    SINT16 *pubkey = ((SINT16 *) sc->pubkey->key) + n;  // get the public key from the 'B' location
     sc_packer_t *packer = utils_entropy.pack_create(sc, &sc->coding_pub_key,
         n * q_bits, NULL, 0, key, key_len);
     if (NULL == packer) {
@@ -1441,14 +1442,14 @@ SINT32 bliss_b_sign(safecrypto_t *sc, const UINT8 *m, size_t m_len,
 
         SC_PRINT_1D_UINT8(sc, SC_LEVEL_DEBUG, "Compressed signature", *sigret, *siglen);
 
-        SC_MEMZERO(sc->temp, ( 6 * n + kappa ) * sizeof(SINT32));
+        SC_MEMZERO(sc->temp, sc->temp_size);
         return SC_FUNC_SUCCESS;
     }
 
     if (0 == *siglen) {
         SC_FREE(*sigret, (2 * n + kappa) * sizeof(SINT32));
     }
-    SC_MEMZERO(sc->temp, ( 6 * n + kappa ) * sizeof(SINT32));
+    SC_MEMZERO(sc->temp, sc->temp_size);
     return SC_FUNC_FAILURE;
 }
 
@@ -1646,7 +1647,7 @@ SINT32 bliss_b_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
     SC_PRINT_DEBUG(sc, "SUCCESS!\n");
     SC_PRINT_1D_INT16(sc, SC_LEVEL_DEBUG, "v", z, n);
     SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Oracle", my_idx, kappa);
-    SC_MEMZERO(t, (3 * n + 2 * kappa) * sizeof(SINT32));
+    SC_MEMZERO(t, (3 * n + 2) * sizeof(SINT32));
     return SC_FUNC_SUCCESS;
 
 verification_failure:
@@ -1655,7 +1656,7 @@ verification_failure:
     SC_PRINT_DEBUG(sc, "Verification failed\n");
 oracle_failure:
 verification_early_failure:
-    SC_MEMZERO(t, (3 * n + 2 * kappa) * sizeof(SINT32));
+    SC_MEMZERO(t, (3 * n + 2) * sizeof(SINT32));
 
     sc->stats.sig_num_unverified++;
 
