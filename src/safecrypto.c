@@ -54,6 +54,12 @@
 #ifndef DISABLE_IBE_DLP
 #include "schemes/ibe/dlp/dlp_ibe.h"
 #endif
+#ifndef DISABLE_ECDH
+#include "schemes/dh/ecdh/ecdh.h"
+#endif
+#ifndef DISABLE_ECDSA
+#include "schemes/sig/ecdsa/ecdsa.h"
+#endif
 
 #include <string.h>
 
@@ -199,6 +205,26 @@ static safecrypto_alg_t safecrypto_algorithms[] = {
       dlp_ibe_set_key_coding, dlp_ibe_get_key_coding,
       dlp_ibe_pubkey_load, dlp_ibe_privkey_load, dlp_ibe_pubkey_encode, dlp_ibe_privkey_encode,
       NULL, NULL, dlp_ibe_secret_key, dlp_ibe_extract, dlp_ibe_encrypt, NULL, dlp_ibe_decrypt, NULL, NULL, NULL, NULL, NULL, NULL, dlp_ibe_stats },
+#endif
+#if defined(DISABLE_DH) || defined(DISABLE_ECDH)
+    { SC_SCHEME_DH_ECDH, NULL, NULL, NULL, NULL, NULL,
+      NULL, NULL, NULL, NULL,
+      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
+#else
+    { SC_SCHEME_DH_ECDH, ecdh_create, ecdh_destroy, NULL,
+      NULL, NULL,
+      NULL, ecdh_privkey_load, NULL, ecdh_privkey_encode,
+      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, ecdh_diffie_hellman_init, ecdh_diffie_hellman_final, ecdh_stats },
+#endif
+#if defined(DISABLE_SIG) || defined(DISABLE_SIG_ECDSA)
+    { SC_SCHEME_SIG_ECDSA, NULL, NULL, NULL, NULL, NULL,
+      NULL, NULL, NULL, NULL,
+      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
+#else
+    { SC_SCHEME_SIG_ECDSA, ecdsa_create, ecdsa_destroy, ecdsa_keygen,
+      NULL, NULL,
+      ecdsa_pubkey_load, ecdsa_privkey_load, ecdsa_pubkey_encode, ecdsa_privkey_encode,
+      NULL, NULL, NULL, NULL, NULL, NULL, NULL, ecdsa_sign, ecdsa_verify, NULL, NULL, NULL, NULL, ecdsa_stats },
 #endif
 };
 
@@ -1234,6 +1260,11 @@ sc_hash_e safecrypto_hash_type(safecrypto_hash_t *hash)
 size_t safecrypto_hash_length(safecrypto_hash_t *hash)
 {
     return hash_length(hash);
+}
+
+safecrypto_hash_t * safecrypto_hash_make_copy(safecrypto_hash_t *hash)
+{
+    return hash_make_copy(hash);
 }
 
 SINT32 safecrypto_hash_init(safecrypto_hash_t *hash)

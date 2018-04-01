@@ -17,6 +17,15 @@
 
 #include "sha2_safecrypto.h"
 
+
+SINT32 sc_sha2_make_copy(void *c, void *c_copy)
+{
+	sha2_ctx *S      = (sha2_ctx *) c;
+	sha2_ctx *S_copy = (sha2_ctx *) c_copy;
+	*S_copy = *S;
+	return SC_FUNC_SUCCESS;
+}
+
 SINT32 sc_sha2_init(void *c, SINT32 outlen)
 {
 	sha2_ctx *S = (sha2_ctx *) c;

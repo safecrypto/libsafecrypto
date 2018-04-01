@@ -38,6 +38,7 @@ typedef struct whirlpool_ctx
 
 /* hash functions */
 
+SINT32 whirlpool_make_copy(void *ctx, void *ctx_copy);
 SINT32 whirlpool_init(void* ctx, SINT32 mdlen);
 SINT32 whirlpool_update(void* ctx, const void* msg, size_t size);
 SINT32 whirlpool_final(void* ctx, void* result);
