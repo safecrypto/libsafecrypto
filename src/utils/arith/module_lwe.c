@@ -132,6 +132,68 @@ void decompose_g(SINT32 *t1, SINT32 *t0, const SINT32 *in, size_t n,
     }
 }
 
+void collision_resistant_hash(const UINT8 *a, size_t a_size, const UINT8 *b, size_t b_size, UINT8 *hash)
+{
+    utils_crypto_xof_t *xof = utils_crypto_xof_create(SC_XOF_SHAKE256);
+
+    // Initialise the XOF
+    xof_init(xof);
+
+    // Absorb the input data to configure the state
+    xof_absorb(xof, a, a_size);
+    xof_absorb(xof, b, b_size);
+    xof_final(xof);
+
+    // Create 48 bytes of output data
+    xof_squeeze(xof, hash, 48);
+
+    // Destroy the XOF
+    utils_crypto_xof_destroy(xof);
+}
+
+void expand_mask(const SINT32 *K, const SINT32 *mu, SINT32 kappa, SINT32 gamma_1, size_t l, SINT32 *y)
+{
+    size_t i, j = 0;
+    UINT8 kappa_bytes[2] = {kappa >> 8, kappa & 0xFF};
+
+    utils_crypto_xof_t *xof = utils_crypto_xof_create(SC_XOF_SHAKE256);
+
+    // Initialise the XOF
+    xof_init(xof);
+
+    // Absorb the input data to configure the state
+    xof_absorb(xof, mu, 48);
+    xof_absorb(xof, K, 32);
+    xof_absorb(xof, kappa_bytes, 2);
+    xof_final(xof);
+
+    while (j < 256) {
+        UINT8 seed[5];
+        UINT32 samples[2];
+        UINT32 cond;
+
+        // Create 5 bytes from which two 20-bit samples are generated
+        xof_squeeze(xof, seed, 5);
+        samples[0] = (((UINT32)seed[2] & 0xF) << 16) | ((UINT32)seed[1] << 8) | ((UINT32)seed[0]);
+        samples[1] = ((UINT32)seed[2] << 12) | ((UINT32)seed[1] << 4) | ((UINT32)seed[2] >> 4);
+
+        // Overwrite the current output index with a sample, incrementing the output index only if
+        // the value lies within the range 0 to 2^20 - 1
+        cond = (samples[0] - 0x100000) >> 31;
+        y[j] = samples[0];
+        j   += cond;
+        if (256 == j) {
+            break;
+        }
+        cond = (samples[1] - 0x100000) >> 31;
+        y[j] = samples[1];
+        j   += cond;
+    }
+
+    // Destroy the XOF
+    utils_crypto_xof_destroy(xof);
+}
+
 // Uniform sampling of an mx1 matrix with coefficients of -eta to +eta
 void uniform_rand_sample_csprng(prng_ctx_t *csprng, SINT32 q, SINT32 eta, UINT32 bits,
     SINT32 *s, size_t n, size_t m)

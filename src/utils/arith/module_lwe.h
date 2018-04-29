@@ -146,6 +146,10 @@ void decompose(SINT32 *t1, SINT32 *t0, const SINT32 *in, size_t n,
 void decompose_g(SINT32 *t1, SINT32 *t0, const SINT32 *in, size_t n,
     size_t k, const ntt_params_t *alpha, SINT32 q);
 
+void collision_resistant_hash(const UINT8 *a, size_t a_size, const UINT8 *b, size_t b_size, UINT8 *hash);
+
+void expand_mask(const SINT32 *K, const SINT32 *mu, SINT32 kappa, SINT32 gamma_1, size_t l, SINT32 *y);
+
 void uniform_rand_sample_csprng(prng_ctx_t *csprng, SINT32 q, SINT32 eta, UINT32 bits,
     SINT32 *s, size_t n, size_t m);
 
