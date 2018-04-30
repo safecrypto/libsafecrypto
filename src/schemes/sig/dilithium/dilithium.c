@@ -1326,6 +1326,18 @@ static void sparse_mul_mod_q_ring(SINT32 *r, const SINT32 *a, const SINT32 *b_sp
     }
 }
 
+static SINT32 check_hint_ones(const SINT32 *h, size_t k, size_t n)
+{
+    size_t i;
+    SINT32 sum = 0;
+
+    for (i=0; i<k*n; i++) {
+        sum += h[i];
+    }
+
+    return sum;
+}
+
 SINT32 dilithium_sign(safecrypto_t *sc, const UINT8 *m, size_t m_len,
     UINT8 **sigret, size_t *siglen)
 {
@@ -1734,6 +1746,103 @@ restart:
 
     sc_ntt->center_32(z, l*n, ntt);
 
+
+#if defined(USE_DETERMINISTIC_DILITHIUM) && defined(USE_DILITHIUM_COUNTERMEASURE_VERIFY_IN_SIGNATURE)
+    if (SC_SCHEME_SIG_DILITHIUM == sc->scheme) {
+        size_t j;
+        SINT32 not_equal;
+
+        // Obtain mu from rho, t1 and the message
+        collision_resistant_hash_t1(sc, r, t1, n, k, q_bits - d, mu);
+        SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "rho", r, 32);
+        SC_PRINT_1D_INT32_HEX(sc, SC_LEVEL_DEBUG, "t1", t1, n*k);
+        SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "tr", mu, 48);
+        collision_resistant_hash_message(mu, m, m_len, mu);
+        SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "m", m, m_len);
+        SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "Verify mu", mu, 48);
+
+        // Verify that the norm of z is less than or equal to gamma_1 - beta
+        if (check_norm_inf(z, n, l, q, gamma_1 - beta)) {
+            SC_PRINT_DEBUG(sc, "||z|| is >= gamma_1 - beta\n");
+            SC_LOG_ERROR(sc, SC_ERROR);
+            goto finish_free;
+        }
+
+        // Verify that the number of ones in the hint is <= omega
+        if (check_hint_ones(h, k, n) > sc->dilithium->params->omega) {
+            goto finish_free;
+        }
+
+        // Create a CSPRNG and generate the kx1 matrix w = A*z mod q
+        SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "Verify r", r, 32);
+#ifdef DILITHIUM_USE_CSPRNG_SAM
+        csprng = create_csprng(sc, r, 32);
+#else
+        xof = sc->xof;
+        xof_init(xof);
+        xof_absorb(xof, r, 32);
+        xof_final(xof);
+#endif
+#ifdef DILITHIUM_USE_CSPRNG_SAM
+        create_rand_product_32_csprng(csprng,
+#else
+        create_rand_product_32_xof(xof,
+#endif
+            q, q_bits, w, z, n, k, l, ct0, wcs2,
+            RND_PRD_DISABLE_OVERWRITE, RND_PRD_NOT_TRANSPOSED,
+            ntt_w, ntt_r, sc_poly, sc_ntt, ntt);
+#ifdef DILITHIUM_USE_CSPRNG_SAM
+        prng_destroy(csprng);
+        csprng = NULL;
+#endif
+        sc_ntt->normalize_32(y, l*n, ntt);
+        SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "y (AFTER create_rand_product())", z, l * n);
+        SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Verify w = A*z", w, k*n);
+
+        // Calculate c * t1 . 2^d
+#ifndef DILITHIUM_USE_SPARSE_MULTIPLIER
+        sc_ntt->fwd_ntt_32_32(ntt_c, ntt, c, ntt_w);
+#endif
+        for (i=0; i<k; i++) {
+            for (j=n; j--;) {
+                t0[n*i + j] = t1[j + n*i] << d;
+            }
+#ifdef DILITHIUM_USE_SPARSE_MULTIPLIER
+            sparse_mul_mod_q_ring(t0 + n*i, t0 + n*i, c, n, ntt, n>>1, temp);
+#else
+            sc_ntt->fwd_ntt_32_32(temp, ntt, t0 + n*i, ntt_w);
+            sc_ntt->mul_32_pointwise(temp, ntt, ntt_c, temp);
+            sc_ntt->inv_ntt_32_32(t0 + n*i, ntt, temp, ntt_w, ntt_r);
+#endif
+        }
+        SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Verify c*t1.2^d", t0, k*n);
+
+        // A*z - c*t1.2^d mod q
+        sc_poly->sub_32(t0, k*n, w, t0);
+        sc_ntt->normalize_32(t0, k*n, ntt);
+        SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Verify A*z - c*t1.2^d", t0, k*n);
+        SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Verify hint", h, k*n);
+
+        // Use the signature hint to recreate w1 from A*z - c*t1.2^d
+        use_hint(w1_bytes, h, t0, n, k, ntt, ntt_alpha);
+        SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "Verify w1", w1_bytes, k*n);
+
+        // Calculate H(mu, w1) such that a sparse polynomial with 60
+        // coefficients have the values 1 or -1
+        h_function_deterministic(sc, temp, mu, w1_bytes, n, k);
+
+        // Check the output of the H function against the received value
+        // in the signature
+        not_equal = sc_poly->cmp_not_equal_32(temp, c, n);
+        if (not_equal) {
+            SC_LOG_ERROR(sc, SC_ERROR);
+            SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Received c was", c, n);
+            goto finish_free;
+        }
+    }
+#endif
+
+
     // Pack the output signature and perform any entropy coding
     size_t packer_bits;
     if (SC_SCHEME_SIG_DILITHIUM_G == sc->scheme) {
@@ -1832,18 +1941,6 @@ SINT32 dilithium_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
 }
 
 #else
-
-static SINT32 check_hint_ones(const SINT32 *h, size_t k, size_t n)
-{
-    size_t i;
-    SINT32 sum = 0;
-
-    for (i=0; i<k*n; i++) {
-        sum += h[i];
-    }
-
-    return sum;
-}
 
 SINT32 dilithium_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
     const UINT8 *sigbuf, size_t siglen)
@@ -1999,6 +2096,7 @@ SINT32 dilithium_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
     prng_destroy(csprng);
     csprng = NULL;
 #endif
+    SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "y (AFTER create_rand_product())", z, l * n);
     SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Verify w = A*z", w, k*n);
 
     // Calculate c * t1 . 2^d
