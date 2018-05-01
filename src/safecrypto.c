@@ -60,6 +60,9 @@
 #ifndef DISABLE_ECDSA
 #include "schemes/sig/ecdsa/ecdsa.h"
 #endif
+#ifndef DISABLE_SIG_FALCON
+#include "schemes/sig/falcon/falcon.h"
+#endif
 
 #include <string.h>
 
@@ -155,6 +158,16 @@ static safecrypto_alg_t safecrypto_algorithms[] = {
       ens_dlp_set_key_coding, ens_dlp_get_key_coding,
       ens_dlp_sig_pubkey_load, ens_dlp_sig_privkey_load, ens_dlp_sig_pubkey_encode, ens_dlp_sig_privkey_encode,
       NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, ens_dlp_sig_sign_recovery, ens_dlp_sig_verify_recovery, NULL, NULL, ens_dlp_sig_stats },
+#endif
+#if defined(DISABLE_SIGNATURES) || defined(DISABLE_SIG_FALCON)
+    { SC_SCHEME_SIG_FALCON, NULL, NULL, NULL, NULL, NULL,
+      NULL, NULL, NULL, NULL,
+      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
+#else
+    { SC_SCHEME_SIG_FALCON, falcon_sig_create, falcon_sig_destroy, falcon_sig_keygen,
+      falcon_sig_set_key_coding, falcon_sig_get_key_coding,
+      falcon_sig_pubkey_load, falcon_sig_privkey_load, falcon_sig_pubkey_encode, falcon_sig_privkey_encode,
+      NULL, NULL, NULL, NULL, NULL, NULL, NULL, falcon_sig_sign, falcon_sig_verify, NULL, NULL, NULL, NULL, falcon_sig_stats },
 #endif
 #if defined(DISABLE_ENCRYPTION) || defined(DISABLE_ENC_RLWE)
     { SC_SCHEME_ENC_RLWE, NULL, NULL, NULL, NULL, NULL,
