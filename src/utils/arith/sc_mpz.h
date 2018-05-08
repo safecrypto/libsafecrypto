@@ -48,6 +48,7 @@ sc_slimb_t sc_mpz_get_si(const sc_mpz_t *in);
 DOUBLE sc_mpz_get_d(const sc_mpz_t *in);
 sc_ulimb_t sc_mpz_get_ui_mod(const sc_mpz_t *a, const sc_mod_t *mod);
 SINT32 sc_mpz_get_bytes(UINT8 *out, const sc_mpz_t *in, size_t n);
+SINT32 sc_mpz_get_u32(UINT32 *out, const sc_mpz_t *in, size_t n);
 sc_ulimb_t * sc_mpz_get_limbs(const sc_mpz_t *in);
 SINT32 sc_mpz_get_size(const sc_mpz_t *in);
 void sc_mpz_set_ui(sc_mpz_t *inout, sc_ulimb_t value);
@@ -55,6 +56,7 @@ void sc_mpz_set_si(sc_mpz_t *inout, sc_slimb_t value);
 void sc_mpz_set_d(sc_mpz_t *inout, DOUBLE value);
 void sc_mpz_set_size(sc_mpz_t *inout, SINT32 size);
 void sc_mpz_set_bytes(sc_mpz_t *out, const UINT8 *bytes, size_t n);
+void sc_mpz_set_u32(sc_mpz_t *out, const UINT32 *u32, size_t n);
 void sc_mpz_set_limbs(sc_mpz_t *out, const sc_ulimb_t *limbs, size_t n);
 SINT32 sc_mpz_set_str(sc_mpz_t *out, SINT32 base, const char *str);
 /// @}

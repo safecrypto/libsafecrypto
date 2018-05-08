@@ -89,7 +89,6 @@ SINT32 sc_mpz_get_bytes(UINT8 *out, const sc_mpz_t *in, size_t n)
             out[SC_LIMB_BYTES * in_used + n] = 0;
         }
         n = sizeof(sc_ulimb_t) * in_used;
-
     }
 
     // Obtain a pointer to the limbs and copy them to the output
@@ -99,6 +98,32 @@ SINT32 sc_mpz_get_bytes(UINT8 *out, const sc_mpz_t *in, size_t n)
 #else
     SC_LITTLE_ENDIAN_32_COPY(out, 0, limbs, n);
 #endif
+
+    return SC_FUNC_SUCCESS;
+}
+
+SINT32 sc_mpz_get_u32(UINT32 *out, const sc_mpz_t *in, size_t n)
+{
+    sc_ulimb_t *limbs;
+    SINT32 in_used;
+
+    if (NULL == in || NULL == out) {
+        return SC_FUNC_FAILURE;
+    }
+
+    // Ensure that the most significant bytes of the output byte array are zeroed
+    in_used = sc_mpz_get_size(in);
+    if (((SC_LIMB_BYTES * in_used) >> 2) < n) {
+        n = n - ((SC_LIMB_BYTES * in_used) >> 2);
+        while (n--) {
+            out[((SC_LIMB_BYTES * in_used) >> 2) + n] = 0;
+        }
+        n = sizeof(sc_ulimb_t) * in_used;
+    }
+
+    // Obtain a pointer to the limbs and copy them to the output
+    limbs = sc_mpz_get_limbs(in);
+    SC_LITTLE_ENDIAN_32_COPY(out, 0, limbs, n);
 
     return SC_FUNC_SUCCESS;
 }
@@ -305,6 +330,21 @@ void sc_mpz_set_bytes(sc_mpz_t *out, const UINT8 *bytes, size_t n)
     for (i=n; i--;) {
         sc_mpz_mul_2exp(&temp, out, 8);
         sc_mpz_add_ui(out, &temp, bytes[i]);
+    }
+
+    mpz_clear(&temp);
+}
+
+void sc_mpz_set_u32(sc_mpz_t *out, const UINT32 *u32, size_t n)
+{
+    size_t i;
+    sc_mpz_t temp;
+    mpz_init(&temp);
+
+    sc_mpz_set_ui(out, 0);
+    for (i=n; i--;) {
+        sc_mpz_mul_2exp(&temp, out, 32);
+        sc_mpz_add_ui(out, &temp, u32[i]);
     }
 
     mpz_clear(&temp);
