@@ -15,7 +15,7 @@
  *   Id:     $SC_IDENT$
  */
 
-#include "falcon.h"
+#include "schemes/sig/falcon/falcon.h"
 #include "falcon_params.h"
 #include "safecrypto_private.h"
 #include "safecrypto_error.h"
@@ -32,6 +32,8 @@
 #include "utils/entropy/packer.h"
 #include "utils/entropy/entropy.h"
 #include "utils/sampling/sampling.h"
+
+#include "utils/arith/internal.h"
 
 #include <math.h>
 
@@ -86,7 +88,7 @@ SINT32 falcon_sig_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
         return SC_FUNC_FAILURE;
     }
 
-    // Allocate memory for ENS/DLP signature configuration
+    // Allocate memory for FALCON signature configuration
     sc->falcon = SC_MALLOC(sizeof(falcon_cfg_t));
     if (NULL == sc->falcon) {
         SC_LOG_ERROR(sc, SC_NULL_POINTER);
@@ -263,7 +265,7 @@ SINT32 falcon_sig_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
 #endif
 
     // Dynamically allocate memory for temporary storage
-    sc->temp_size = (FALCON_NUM_TEMP * n + kappa) * sizeof(SINT32);
+    sc->temp_size = (FALCON_NUM_TEMP * n + kappa) * sizeof(SINT32) + 4 * n * sizeof(DOUBLE);
     if (!sc->temp_external_flag) {
         sc->temp = SC_MALLOC(sc->temp_size);
         if (NULL == sc->temp) {
@@ -351,7 +353,7 @@ SINT32 falcon_sig_destroy(safecrypto_t *sc)
         SC_FREE(sc->falcon, sizeof(falcon_cfg_t));
     }
 
-    SC_PRINT_DEBUG(sc, "ENS/DLP Signature algorithm destroyed");
+    SC_PRINT_DEBUG(sc, "FALCON Signature algorithm destroyed");
 
     return SC_FUNC_SUCCESS;
 }
@@ -876,11 +878,428 @@ static FLOAT get_std_dev(SINT32 *s, size_t n)
     return sd;
 }
 
+/* start of imported FALCON functions*****
+ * Convert an integer polynomial (with small values) into the
+ * representation with complex numbers.
+ */
+static void
+smallints_to_double(DOUBLE *r, const SINT32 *t, unsigned logn, unsigned ter)
+{
+	size_t n, u;
+
+	n = (1 + ((ter) << 1)) << ((logn) - (ter));
+	for (u = 0; u < n; u ++) {
+		r[u] = (SINT16)t[u];
+	}
+}
+
+static inline size_t
+skoff_b00(unsigned logn, unsigned ter)
+{
+	(void)logn;
+	(void)ter;
+	return 0;
+}
+
+static inline size_t
+skoff_b01(unsigned logn, unsigned ter)
+{
+	return (1 + ((ter) << 1)) << ((logn) - (ter));
+}
+
+static inline size_t
+skoff_b10(unsigned logn, unsigned ter)
+{
+	return 2 * (1 + ((ter) << 1)) << ((logn) - (ter));
+}
+
+static inline size_t
+skoff_b11(unsigned logn, unsigned ter)
+{
+	return 3 * (1 + ((ter) << 1)) << ((logn) - (ter));
+}
+
+static inline size_t
+skoff_tree(unsigned logn, unsigned ter)
+{
+	return 4 * (1 + ((ter) << 1)) << ((logn) - (ter));
+}
+
+/*void
+falcon_poly_neg(DOUBLE *a, unsigned logn)
+{
+	size_t n, u;
+
+	n = (size_t)1 << logn;
+	for (u = 0; u < n; u ++) {
+		a[u] = -a[u];
+	}
+}
+*/
+/*void
+falcon_poly_mulselfadj_fft(DOUBLE *a, unsigned logn)
+{
+	
+	size_t n, hn, u;
+
+	n = (size_t)1 << logn;
+	hn = n >> 1;
+	for (u = 0; u < hn; u ++) {
+		DOUBLE a_re, a_im;
+
+		a_re = a[u];
+		a_im = a[u + hn];
+		a[u] = a_re*a_re + a_im*a_im;
+		a[u + hn] =0;
+	}
+}
+
+void
+falcon_poly_add(DOUBLE *restrict a, const DOUBLE *restrict b, unsigned logn)
+{
+	size_t n, u;
+
+	n = (size_t)1 << logn;
+	for (u = 0; u < n; u ++) {
+		a[u] = a[u] + b[u];
+	}
+}
+*/
+
+static void
+LDL_fft(DOUBLE *restrict d11, DOUBLE *restrict l10,
+	const DOUBLE *restrict g00, const DOUBLE *restrict g01,
+	const DOUBLE *restrict g11, unsigned logn, DOUBLE *restrict tmp)
+{
+	size_t n;
+;
+	n = (1 + ((0) << 1)) << (logn) - (0);
+	/* Let tmp = mu = G[0,1] / G[0,0]. */
+	memcpy(tmp, g01, n * sizeof *g01);
+	falcon_poly_div_fft(tmp, g00, logn);
+
+	/* Let L[1,0] = adj(mu) and tmp = aux = mu * adj(mu). */
+	memcpy(l10, tmp, n * sizeof *tmp);
+	falcon_poly_adj_fft(l10, logn);
+	falcon_poly_mul_fft(tmp, l10, logn);
+
+	/* D[1,1] = G[1,1] - aux * G[0][0]. */
+	falcon_poly_mul_fft(tmp, g00, logn);
+	memcpy(d11, g11, n * sizeof *g11);
+	falcon_poly_sub(d11, tmp, logn);
+}
+
+
+/*
+ * Special case of LDL when G is quasicyclic, i.e. g11 == g00.
+ */
+static inline void
+LDLqc_fft(DOUBLE *restrict d11, DOUBLE *restrict l10,
+	const DOUBLE *restrict g00, const DOUBLE *restrict g01, unsigned logn,
+	DOUBLE *restrict tmp)
+{
+	LDL_fft(d11, l10, g00, g01, g00, logn, tmp);
+}
+
+
+/*
+void
+falcon_poly_adj_fft(DOUBLE *a, unsigned logn)
+{
+	size_t n, u;
+
+	n = (size_t)1 << logn;
+	for (u = (n >> 1); u < n; u ++) {
+		a[u] = -a[u];
+	}
+}
+
+void
+falcon_poly_sub(DOUBLE *restrict a, const DOUBLE *restrict b, unsigned logn)
+{
+	size_t n, u;
+
+	n = (size_t)1 << logn;
+	for (u = 0; u < n; u ++) {
+		a[u] = a[u]- b[u];
+	}
+}
+*/
+static inline unsigned
+ffLDL_treesize(unsigned logn)
+{
+	/*
+	 * For logn = 0 (polynomials are constant), the "tree" is a
+	 * single element. Otherwise, the tree node has size 2^logn, and
+	 * has two child trees for size logn-1 each. Thus, treesize s()
+	 * must fulfill these two relations:
+	 *
+	 *   s(0) = 1
+	 *   s(logn) = (2^logn) + 2*s(logn-1)
+	 */
+	return (logn + 1) << logn;
+}
+
+static void
+ffLDL_fft_inner(DOUBLE *restrict tree,
+	DOUBLE *restrict g0, DOUBLE *restrict g1, unsigned logn, DOUBLE *restrict tmp)
+{
+	size_t n, hn;
+
+	n = (1 + ((0) << 1)) << ((logn) - (0));
+	if (n == 1) {
+		tree[0] = g0[0];
+		return;
+	}
+	hn = n >> 1;
+
+	/*
+	 * The LDL decomposition yields L (which is written in the tree)
+	 * and the diagonal of D. Since d00 = g0, we just write d11
+	 * into tmp.
+	 */
+	LDLqc_fft(tmp, tree, g0, g1, logn, tmp + n);
+
+	/*
+	 * Split d00 (currently in g0) and d11 (currently in tmp). We
+	 * reuse g0 and g1 as temporary storage spaces:
+	 *   d00 splits into g1, g1+hn
+	 *   d11 splits into g0, g0+hn
+	 */
+	falcon_poly_split_fft(g1, g1 + hn, g0, logn);
+	falcon_poly_split_fft(g0, g0 + hn, tmp, logn);
+
+	/*
+	 * Each split result is the first row of a new auto-adjoint
+	 * quasicyclic matrix for the next recursive step.
+	 */
+	ffLDL_fft_inner(tree + n,
+		g1, g1 + hn, logn - 1, tmp);
+	ffLDL_fft_inner(tree + n + ffLDL_treesize(logn - 1),
+		g0, g0 + hn, logn - 1, tmp);
+}
+
+static void
+ffLDL_fft(DOUBLE *restrict tree, const DOUBLE *restrict g00,
+	const DOUBLE *restrict g01, const DOUBLE *restrict g11,
+	unsigned logn, DOUBLE *restrict tmp)
+{
+	size_t n, hn;
+	DOUBLE *d00, *d11;
+
+	n = (1 + ((0) << 1)) << ((logn) - (0));
+	if (n == 1) {
+		tree[0] = g00[0];
+		return;
+	}
+	hn = n >> 1;
+	d00 = tmp;
+	d11 = tmp + n;
+	tmp += n << 1;
+
+	memcpy(d00, g00, n * sizeof *g00);
+	LDL_fft(d11, tree, g00, g01, g11, logn, tmp);
+
+	falcon_poly_split_fft(tmp, tmp + hn, d00, logn);
+	falcon_poly_split_fft(d00, d00 + hn, d11, logn);
+	memcpy(d11, tmp, n * sizeof *tmp);
+	ffLDL_fft_inner(tree + n,
+		d11, d11 + hn, logn - 1, tmp);
+	ffLDL_fft_inner(tree + n + ffLDL_treesize(logn - 1),
+		d00, d00 + hn, logn - 1, tmp);
+}
+
+
+/*
+ * Normalize an ffLDL tree: each leaf of value x is replaced with
+ * sigma / sqrt(x).
+ */
+static void
+ffLDL_binary_normalize(DOUBLE *tree, DOUBLE sigma, unsigned logn)
+{
+	/*
+	 * TODO: make an iterative version.
+	 */
+	size_t n;
+
+	n = (1 + ((0) << 1)) << ((logn) - (0));
+	if (n == 1) {
+		tree[0] = (sigma / sqrt(tree[0]));
+	} else {
+		ffLDL_binary_normalize(tree + n,
+			sigma, logn - 1);
+		ffLDL_binary_normalize(tree + n + ffLDL_treesize(logn - 1),
+			sigma, logn - 1);
+	}
+}
+
+/*
+ * Get the size of the LDL tree for an input with polynomials of size
+ * 2^logn. The size is expressed in the number of elements.
+ */
+
+
+static void
+load_skey(DOUBLE *restrict sk, unsigned q,
+	const SINT32 *f_src, const SINT32 *g_src,
+	const SINT32 *F_src, const SINT32 *G_src,
+	unsigned logn, unsigned ter, DOUBLE *restrict tmp) //keep ter=0 for the binary case
+{
+	size_t n;
+	DOUBLE *f, *g, *F, *G;
+	DOUBLE *b00, *b01, *b10, *b11;
+	DOUBLE *tree;
+	DOUBLE sigma;
+
+	n =(1 + ((ter) << 1)) << ((logn) - (ter));
+	b00 = sk + skoff_b00(logn, ter);
+	b01 = sk + skoff_b01(logn, ter);
+	b10 = sk + skoff_b10(logn, ter);
+	b11 = sk + skoff_b11(logn, ter);
+	tree = sk + skoff_tree(logn, ter);
+
+	/*
+	 * We load the private key elements directly into the B0 matrix,
+	 * since B0 = [[g, -f], [G, -F]].
+	 */
+	f = b01;
+	g = b00;
+	F = b11;
+	G = b10;
+
+	smallints_to_double(f, f_src, logn, ter); //copies f_src to f (DOUBLE)
+	smallints_to_double(g, g_src, logn, ter);
+	smallints_to_double(F, F_src, logn, ter);
+	smallints_to_double(G, G_src, logn, ter);
+	
+
+
+	/*
+	 * Compute the FFT for the key elements, and negate f and F.
+	 */
+	/*if (ter) {
+		falcon_FFT3(f, logn, 1);
+		falcon_FFT3(g, logn, 1);
+		falcon_FFT3(F, logn, 1);
+		falcon_FFT3(G, logn, 1);
+		falcon_poly_neg_fft3(f, logn, 1);
+		falcon_poly_neg_fft3(F, logn, 1);
+	} else  */
+
+	//{
+		falcon_FFT(f, logn);
+		falcon_FFT(g, logn);
+		falcon_FFT(F, logn);
+		falcon_FFT(G, logn);
+		falcon_poly_neg(f, logn);
+		falcon_poly_neg(F, logn);
+	//}
+
+	/*
+	 * The Gram matrix is G = B·B*. Formulas are:
+	 *   g00 = b00*adj(b00) + b01*adj(b01)
+	 *   g01 = b00*adj(b10) + b01*adj(b11)
+	 *   g10 = b10*adj(b00) + b11*adj(b01)
+	 *   g11 = b10*adj(b10) + b11*adj(b11)
+	 */
+	/*if (ter) {
+		DOUBLE *g00, *g10, *g11, *gxx;
+
+		g00 = tmp;
+		g10 = g00 + n;
+		g11 = g10 + n;
+		gxx = g11 + n;
+
+		memcpy(g00, b00, n * sizeof *b00);
+		falcon_poly_mulselfadj_fft3(g00, logn, 1);
+		memcpy(gxx, b01, n * sizeof *b01);
+		falcon_poly_mulselfadj_fft3(gxx, logn, 1);
+		falcon_poly_add_fft3(g00, gxx, logn, 1);
+
+		memcpy(g10, b10, n * sizeof *b10);
+		falcon_poly_muladj_fft3(g10, b00, logn, 1);
+		memcpy(gxx, b11, n * sizeof *b11);
+		falcon_poly_muladj_fft3(gxx, b01, logn, 1);
+		falcon_poly_add_fft3(g10, gxx, logn, 1);
+
+		memcpy(g11, b10, n * sizeof *b10);
+		falcon_poly_mulselfadj_fft3(g11, logn, 1);
+		memcpy(gxx, b11, n * sizeof *b11);
+		falcon_poly_mulselfadj_fft3(gxx, logn, 1);
+		falcon_poly_add_fft3(g11, gxx, logn, 1); */
+
+		/*
+		 * Compute the Falcon tree.
+		 */
+		/*ffLDL_fft3(tree, g00, g10, g11, logn, gxx);
+
+		/*
+		 * Tree normalization:
+		 *   sigma = 1.32 * sqrt(q/sqrt(2))
+		 */
+		/*sigma = fpr_mul(
+			fpr_sqrt(fpr_mul(fpr_of(q), fpr_sqrt(fpr_of(2)))),
+			fpr_div(fpr_of(132), fpr_of(100)));
+
+		/*
+		 * Normalize tree with sigma.
+		 */
+		/*ffLDL_ternary_normalize(tree, sigma, logn);
+	} else 
+	
+		/*
+		 * For historical reasons, this implementation uses
+		 * g00, g01 and g11 (upper triangle).
+		 */
+		 { DOUBLE *g00, *g01, *g11, *gxx;
+
+		g00 = tmp;
+		g01 = g00 + n;
+		g11 = g01 + n;
+		gxx = g11 + n;
+
+		memcpy(g00, b00, n * sizeof *b00);
+		falcon_poly_mulselfadj_fft(g00, logn);
+		memcpy(gxx, b01, n * sizeof *b01);
+		falcon_poly_mulselfadj_fft(gxx, logn);
+		falcon_poly_add(g00, gxx, logn);
+
+		memcpy(g01, b00, n * sizeof *b00);
+		falcon_poly_muladj_fft(g01, b10, logn);
+		memcpy(gxx, b01, n * sizeof *b01);
+		falcon_poly_muladj_fft(gxx, b11, logn);
+		falcon_poly_add(g01, gxx, logn);
+
+		memcpy(g11, b10, n * sizeof *b10);
+		falcon_poly_mulselfadj_fft(g11, logn);
+		memcpy(gxx, b11, n * sizeof *b11);
+		falcon_poly_mulselfadj_fft(gxx, logn);
+		falcon_poly_add(g11, gxx, logn);
+
+		/*
+		 * Compute the Falcon tree.
+		 */
+		ffLDL_fft(tree, g00, g01, g11, logn, gxx);
+
+		/*
+		 * Tree normalization:
+		 *   sigma = 1.55 * sqrt(q)
+		 */
+		sigma = sqrt(q)* (155/100);
+
+		/*
+		 * Normalize tree with sigma.
+		 */
+		ffLDL_binary_normalize(tree, sigma, logn);
+	}
+}
+
 SINT32 falcon_sig_keygen(safecrypto_t *sc)
 {
     SINT32 i, iter;
     SINT32 *f, *g, *F, *G, *h, *h_ntt;
-    UINT32 n, q;
+    DOUBLE *f_tmp, *g_tmp, *F_tmp, *G_tmp;
+    UINT32 n, q, logn;
     gpv_t gpv;
     UINT32 gaussian_flags = 0;
 #if defined(FALCON_USE_EFFICIENT_GAUSSIAN_SAMPLING)
@@ -894,16 +1313,18 @@ SINT32 falcon_sig_keygen(safecrypto_t *sc)
     GSO_TYPE  sig;
     SINT32 sample_error;
     FLOAT std_dev;
+	
 
     if (NULL == sc) {
         SC_LOG_ERROR(sc, SC_NULL_POINTER);
         return SC_FUNC_FAILURE;
     }
 
-    SC_PRINT_DEBUG(sc, "ENS/DLP Signature KeyGen\n");
+    SC_PRINT_DEBUG(sc, "FALCON Signature KeyGen\n");
 
     n      = sc->falcon->params->n;
     q      = sc->falcon->params->q;
+    logn = sc->falcon->params->n_bits;
 
     SINT32 s1[n] SC_DEFAULT_ALIGNED;
     SINT32 c[n];
@@ -914,16 +1335,67 @@ SINT32 falcon_sig_keygen(safecrypto_t *sc)
         SC_LOG_ERROR(sc, SC_NULL_POINTER);
         return SC_FUNC_FAILURE;
     }
+
     g     = f + n;
     F     = f + 2 * n;
     G     = f + 3 * n;
     h     = f + 4 * n;
     h_ntt = f + 5 * n;
+    f_tmp     = (DOUBLE *)(f + 6 *n);
+    g_tmp     = f_tmp + n;
+    F_tmp     = f_tmp + 2 * n;
+    G_tmp    = f_tmp + 3 * n;
+	
+
+unsigned ter=0; //for binary case
+ 	
+	
+	smallints_to_double(f_tmp, f, logn, ter); //copies f to f_tmp (DOUBLE)
+	smallints_to_double(g_tmp, g, logn, ter);
+	smallints_to_double(F_tmp, F, logn, ter);
+	smallints_to_double(G_tmp, G, logn, ter);
+	
+
+    falcon_FFT(f_tmp,10);
+    falcon_FFT(g_tmp,10);
+    falcon_FFT(F_tmp,10);
+    falcon_FFT(G_tmp,10);
     gpv.f = f;
     gpv.g = g;
     gpv.F = F;
     gpv.G = G;
     gpv.n = n;
+    
+/*if (fs->ternary) {
+		fs->sk_len = ((size_t)(3 * (fs->logn + 6)) << (fs->logn - 1))
+			* sizeof(fpr);
+		fs->tmp_len = ((size_t)21 << (fs->logn - 1)) * sizeof(fpr); 
+	} else */ 
+		size_t sk_len = ((size_t)(logn + 5) << logn)
+			* sizeof(DOUBLE);
+		size_t tmp_len = ((size_t)7 << logn) * sizeof(DOUBLE);
+	
+	DOUBLE *sk = malloc(sk_len);
+	/*if (sk == NULL) {
+		cout << "bad_skey";
+	} */
+	DOUBLE *tmp = malloc(tmp_len);
+	/*if (tmp == NULL) {
+		cout << "bad_skey"; 
+	}*/
+ if (NULL == sc->privkey->key) {
+        sc->privkey->key = SC_MALLOC(4 * n * sizeof(SINT32));
+        if (NULL == sc->privkey->key) {
+            SC_LOG_ERROR(sc, SC_NULL_POINTER);
+            goto finish_free;
+        }
+    }
+
+load_skey( sk, q,
+	 gpv.f,  gpv.g,
+	  gpv.F,  gpv.G,
+	 logn,  0,   tmp);
+
 
     // Generate the public and private keys
     iter = 0;
@@ -941,15 +1413,15 @@ restart:
 
     SC_PRINT_DEBUG(sc, "Memory allocation for keys\n");
 
-    // Allocate key pair memory
-    if (NULL == sc->privkey->key) {
+    // Allocate key pair memory--commented out as the private key changes for FALCON. -S
+   /* if (NULL == sc->privkey->key) {
         sc->privkey->key = SC_MALLOC(4 * n * sizeof(SINT32));
         if (NULL == sc->privkey->key) {
             SC_LOG_ERROR(sc, SC_NULL_POINTER);
             goto finish_free;
         }
     }
-
+*/
     if (NULL == sc->pubkey->key) {
         sc->pubkey->key = SC_MALLOC(2 * n * sizeof(SINT16));
         if (NULL == sc->pubkey->key) {
@@ -1032,11 +1504,11 @@ restart:
     SC_PRINT_KEYS(sc, SC_LEVEL_DEBUG, 16);
 
     // Clear the temporary memory used for generation
-    SC_MEMZERO(f, 6 * n * sizeof(SINT32));
+    SC_MEMZERO(f, 6 * n * sizeof(SINT32) + 4 * n *sizeof(DOUBLE));
     return SC_FUNC_SUCCESS;
 
 finish_free:
-    SC_MEMZERO(f, 6 * n * sizeof(SINT32));
+    SC_MEMZERO(f, 6 * n * sizeof(SINT32) + 4 * n *sizeof(DOUBLE));
     return SC_FUNC_FAILURE;
 }
 
