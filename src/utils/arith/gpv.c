@@ -33,9 +33,9 @@
 
 #include <math.h>
 
-#define DEBUG_GPV               1
-#define CRT_NTRU_SOLVE          1
-#define SP_PUBLIC_KEY_CREATE    1
+#define DEBUG_GPV               0
+#define CRT_NTRU_SOLVE          0
+#define SP_PUBLIC_KEY_CREATE    0
 
 
 typedef struct {

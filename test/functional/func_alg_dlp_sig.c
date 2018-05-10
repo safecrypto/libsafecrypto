@@ -105,7 +105,7 @@ int main(void)
     SC_TIMER_CREATE(sig_timer);
     SC_TIMER_CREATE(ver_timer);
 
-    for (i=1; i<2; i++) {
+    for (i=0; i<2; i++) {
         SC_TIMER_RESET(keygen_timer);
 
         printf("Parameter Set: %d\n", i);

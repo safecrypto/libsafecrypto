@@ -109,6 +109,7 @@ void * keygen_f_producer_worker(void *p)
     ntt_params_t *ntt = &sc->bliss->ntt;
 
     UINT16 n = sc->bliss->params->n;
+    UINT16 q = sc->bliss->params->q;
     const UINT16 *nz = sc->bliss->params->nz;
     const SINT16 *w = sc->bliss->params->w;
 
@@ -129,6 +130,8 @@ restart:
     if (SC_FUNC_FAILURE == sc_ntt->invert_32(u, ntt, n)) {
         goto restart;
     }
+
+    sc_poly->mod_negate_32(u, n, q, u);
 
     // Success, write the two polynomials to the data pipeline
     pipe_push(sc->bliss->pipe_producer_b, data, 2*n);
@@ -767,13 +770,15 @@ SINT32 bliss_b_privkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len)
 SINT32 bliss_b_privkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len)
 {
     size_t i;
-    UINT16 n, nz2;
+    UINT16 n, q, nz2;
     SINT32 *f, *g;
     const SINT16 *w;
+    const utils_arith_poly_t *sc_poly = sc->sc_poly;
     const utils_arith_ntt_t *sc_ntt = sc->sc_ntt;
     ntt_params_t *ntt = &sc->bliss->ntt;
 
     n = sc->bliss->params->n;
+    q = sc->bliss->params->q;
     nz2 = sc->bliss->params->nz[0];
 
     f = sc->temp;
@@ -828,6 +833,8 @@ SINT32 bliss_b_privkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len)
         SC_LOG_ERROR(sc, SC_ERROR);
         return SC_FUNC_FAILURE;
     }
+
+    sc_poly->mod_negate_32(f, n, q, f);
 
     // a = (2g+1)/f and f is invertible, so calculate ...
     sc_ntt->mul_32_pointwise(g, ntt, g, f);
@@ -1170,6 +1177,8 @@ restart:
         if (SC_FUNC_FAILURE == sc_ntt->invert_32(u, ntt, n)) {
             goto restart;
         }
+
+        sc_poly->mod_negate_32(u, n, q, u);
 
         SC_PRINT_DEBUG(sc, "Inversion after %d attempts\n", iter);
         sc->stats.keygen_num_trials++;
