@@ -4939,21 +4939,24 @@ poly_sub_scaled_ntt(uint32_t *restrict F, size_t Flen, size_t Fstride,
 
 struct falcon_keygen_ {
 
-	/* Base-2 logarithm of the degree. */
+	// Base-2 logarithm of the degree
 	unsigned logn;
 
-	/* 1 for a ternary modulus, 0 for binary. */
+	// 1 for a ternary modulus, 0 for binary [UNUSED]
 	unsigned ternary;
 
-	/* RNG:
-	   seeded    non-zero when a 'replace' seed or system RNG was pushed
-	   flipped   non-zero when flipped */
+	// The selected modulus
+	unsigned q;
+
+	// RNG:
+	//   seeded    non-zero when a 'replace' seed or system RNG was pushed
+	//   flipped   non-zero when flipped
 	shake_context rng;
 	int seeded;
 	int flipped;
 
-	/* Temporary storage for key generation. 'tmp_len' is expressed
-	   in 32-bit words. */
+	// Temporary storage for key generation. 'tmp_len' is expressed
+	//   in 32-bit words
 	uint32_t *tmp;
 	size_t tmp_len;
 };
@@ -5146,7 +5149,7 @@ static const size_t MAX_BL_LARGE3[] = {
  * Returned size is expressed in bytes.
  */
 static size_t
-temp_size(unsigned logn, int ternary)
+temp_size(unsigned logn)
 {
 #define ALIGN_FP(tt)   ((((tt) + sizeof(DOUBLE) - 1) / sizeof(DOUBLE)) * sizeof(DOUBLE))
 #define ALIGN_UW(tt)   ((((tt) + sizeof(uint32_t) - 1) \
@@ -5163,31 +5166,17 @@ temp_size(unsigned logn, int ternary)
 	for (depth = 0; depth < logn; depth ++) {
 		size_t cur;
 
-		if (depth == 0 && ternary) {
-			size_t n, dn, tn;
+		size_t n, slen, tlen;
 
-			n = (size_t)3 << (logn - 1);
-			dn = (size_t)1 << logn;
-			tn = (size_t)1 << (logn - 1);
-			cur = (2 * tn + 2 * n + 2 * dn) * sizeof(uint32_t);
-			gmax = cur > gmax ? cur : gmax;
-		} else {
-			size_t n, slen, tlen;
-
-			n = (size_t)1 << (logn - depth);
-			slen = ternary
-				? MAX_BL_SMALL3[depth]
-				: MAX_BL_SMALL2[depth];
-			tlen = ternary
-				? MAX_BL_SMALL3[depth + 1]
-				: MAX_BL_SMALL2[depth + 1];
-			cur = (n * tlen + 2 * n * slen + 3 * n)
-				* sizeof(uint32_t);
-			gmax = cur > gmax ? cur : gmax;
-			cur = (n * tlen + 2 * n * slen + slen)
-				* sizeof(uint32_t);
-			gmax = cur > gmax ? cur : gmax;
-		}
+		n = (size_t)1 << (logn - depth);
+		slen = MAX_BL_SMALL2[depth];
+		tlen = MAX_BL_SMALL2[depth + 1];
+		cur = (n * tlen + 2 * n * slen + 3 * n)
+			* sizeof(uint32_t);
+		gmax = cur > gmax ? cur : gmax;
+		cur = (n * tlen + 2 * n * slen + slen)
+			* sizeof(uint32_t);
+		gmax = cur > gmax ? cur : gmax;
 	}
 
 	/*
@@ -5200,26 +5189,10 @@ temp_size(unsigned logn, int ternary)
 		if (depth == logn) {
 			size_t slen;
 
-			slen = ternary
-				? MAX_BL_SMALL3[depth]
-				: MAX_BL_SMALL2[depth];
+			slen = MAX_BL_SMALL2[depth];
 			cur = 8 * slen * sizeof(uint32_t);
 			max = cur > max ? cur : max;
-		} else if (ternary && depth == 0 && logn > 2) {
-			size_t n, tn, hn;
-
-			n = (size_t)3 << (logn - 1);
-			tn = (size_t)1 << (logn - 1);
-			hn = n >> 1;
-			cur = ALIGN_FP(2 * tn * sizeof(uint32_t))
-				+ (2 * n + hn) * sizeof(DOUBLE);
-			max = cur > max ? cur : max;
-			cur = (hn + 4 * n) * sizeof(DOUBLE);
-			max = cur > max ? cur : max;
-			cur = ALIGN_FP(2 * n * sizeof(uint32_t))
-				+ 2 * n * sizeof(DOUBLE);
-			max = cur > max ? cur : max;
-		} else if (!ternary && depth == 0 && logn > 2) {
+		} else if (depth == 0 && logn > 2) {
 			size_t n, hn;
 
 			n = (size_t)1 << logn;
@@ -5232,7 +5205,7 @@ temp_size(unsigned logn, int ternary)
 			cur = ALIGN_FP(3 * n * sizeof(uint32_t))
 				+ (n + hn) * sizeof(DOUBLE);
 			max = cur > max ? cur : max;
-		} else if (!ternary && depth == 1 && logn > 2) {
+		} else if (depth == 1 && logn > 2) {
 			size_t n, hn, slen, dlen, llen;
 
 			n = (size_t)1 << (logn - 1);
@@ -5263,20 +5236,10 @@ temp_size(unsigned logn, int ternary)
 		} else {
 			size_t n, hn, slen, llen, tmp1, tmp2;
 
-			if (ternary && depth == 0 && logn == 2) {
-				n = 6;
-				hn = 2;
-			} else {
-				n = (size_t)1 << (logn - depth);
-				hn = n >> 1;
-			}
-			if (ternary) {
-				slen = MAX_BL_SMALL3[depth];
-				llen = MAX_BL_LARGE3[depth];
-			} else {
-				slen = MAX_BL_SMALL2[depth];
-				llen = MAX_BL_LARGE2[depth];
-			}
+			n = (size_t)1 << (logn - depth);
+			hn = n >> 1;
+			slen = MAX_BL_SMALL2[depth];
+			llen = MAX_BL_LARGE2[depth];
 			cur = (2 * n * llen + 2 * n * slen + 4 * n)
 				* sizeof(uint32_t);
 			max = cur > max ? cur : max;
@@ -5317,30 +5280,25 @@ static const char MEMCHECK_MARK[] = "memcheck";
 
 /* see falcon.h */
 falcon_keygen *
-falcon_keygen_new(unsigned logn, int ternary)
+falcon_keygen_new(unsigned logn, unsigned q)
 {
 	falcon_keygen *fk;
 
-	if (ternary) {
-		if (logn < 3 || logn > 9) {
-			return NULL;
-		}
-	} else {
-		if (logn < 1 || logn > 10) {
-			return NULL;
-		}
+	if (logn < 1 || logn > 10) {
+		return NULL;
 	}
 	fk = malloc(sizeof *fk);
 	if (fk == NULL) {
 		return NULL;
 	}
 	fk->logn = logn;
-	fk->ternary = ternary;
+	fk->ternary = 0;
+	fk->q = q;
 	shake_init(&fk->rng, 512);
 	fk->seeded = 0;
 	fk->flipped = 0;
 
-	fk->tmp_len = temp_size(logn, ternary);
+	fk->tmp_len = temp_size(logn);
 #if MEMCHECK
 	fk->tmp = malloc(fk->tmp_len + sizeof MEMCHECK_MARK);
 #else
@@ -7657,152 +7615,63 @@ falcon_keygen_make(falcon_keygen *fk, int comp,
 	 * both odd (the NTRU equation solver requires it).
 	 */
 	for (;;) {
-		if (ter) {
-			DOUBLE *rt1, *rt2, *rt3;
-			size_t hn;
-			DOUBLE sigma, norm, bound;
+		DOUBLE *rt1, *rt2, *rt3;
+		DOUBLE bnorm;
+		DOUBLE bound;
+		uint32_t normf, normg, norm;
 
-			hn = n >> 1;
+		/*
+		 * The poly_small_mkgauss() function makes sure
+		 * that the sum of coefficients is 1 modulo 2
+		 * (i.e. the resultant of the polynomial with phi
+		 * will be odd).
+		 */
+		poly_small_mkgauss(fk, f, logn);
+		poly_small_mkgauss(fk, g, logn);
 
-			/*
-			 * Generate f and g in FFT representation (in rt1
-			 * and rt2, respectively); we must then convert
-			 * them back to non-FFT to apply rounding.
-			 */
-			rt1 = (DOUBLE *)fk->tmp;
-			rt2 = rt1 + n;
-			rt3 = rt2 + n;
-			sigma = fpr_sqrt(fpr_div((DOUBLE)18433,
-				fpr_sqrt((DOUBLE)0)));
-			for (u = 0; u < hn; u ++) {
-				uint32_t a, b;
-				uint64_t c;
+		/*
+		 * Bound is 1.17*sqrt(q). We compute the squared
+		 * norms. With q = 12289, the squared bound is:
+		 *   (1.17^2)* 12289 = 16822.4121
+		 * Since f and g are integral, the squared norm
+		 * of (g,-f) is an integer.
+		 */
+		normf = poly_small_sqnorm(f, logn, ter);
+		normg = poly_small_sqnorm(g, logn, ter);
+		norm = (normf + normg) | -((normf | normg) >> 31);
+		bound = 1.3689 * fk->q;
+		if (norm >= bound) {
+			continue;
+		}
 
-				c = get_rng_u64(&fk->rng);
-				a = (uint32_t)c;
-				b = (uint32_t)(c >> 32);
-				fpr_gauss(&rt1[u], &rt1[u + hn], sigma, a, b);
-				c = get_rng_u64(&fk->rng);
-				a = (uint32_t)c;
-				b = (uint32_t)(c >> 32);
-				fpr_gauss(&rt2[u], &rt2[u + hn], sigma, a, b);
-			}
-			falcon_iFFT3(rt1, logn, 1);
-			falcon_iFFT3(rt2, logn, 1);
-			for (u = 0; u < n; u ++) {
-				f[u] = (int16_t)fpr_rint(rt1[u]);
-				g[u] = (int16_t)fpr_rint(rt2[u]);
-			}
-
-			if (mod2_res_ternary(f, logn) == 0) {
-				continue;
-			}
-			if (mod2_res_ternary(g, logn) == 0) {
-				continue;
-			}
-
-			/*
-			 * Convert back to FFT to compute norms. Bound on
-			 * the squared norm of (g,-f) (in FFT representation)
-			 * is 4*N*q/sqrt(8).
-			 *
-			 * Note that our FFT contains only half the values,
-			 * so we must double the sum.
-			 */
-			bound = fpr_div((DOUBLE)(73732L * (long)n), fpr_sqrt((DOUBLE)8));
-
-			poly_small_to_fp(rt1, f, logn, 1);
-			poly_small_to_fp(rt2, g, logn, 1);
-			falcon_FFT3(rt1, logn, 1);
-			falcon_FFT3(rt2, logn, 1);
-			norm = (DOUBLE)0;
-			for (u = 0; u < n; u ++) {
-				norm = fpr_add(norm, fpr_sqr(rt1[u]));
-				norm = fpr_add(norm, fpr_sqr(rt2[u]));
-			}
-			norm = fpr_double(norm);
-
-			if (!fpr_lt(norm, bound)) {
-				continue;
-			}
-
-			/*
-			 * Orthogonalized vector.
-			 */
-			falcon_poly_invnorm2_fft3(rt3, rt1, rt2, logn, 1);
-			falcon_poly_adj_fft3(rt1, logn, 1);
-			falcon_poly_adj_fft3(rt2, logn, 1);
-			falcon_poly_mulconst_fft3(rt1, (DOUBLE)18433, logn, 1);
-			falcon_poly_mulconst_fft3(rt2, (DOUBLE)18433, logn, 1);
-			falcon_poly_mul_autoadj_fft3(rt1, rt3, logn, 1);
-			falcon_poly_mul_autoadj_fft3(rt2, rt3, logn, 1);
-			norm = (DOUBLE)0;
-			for (u = 0; u < n; u ++) {
-				norm = fpr_add(norm, fpr_sqr(rt1[u]));
-				norm = fpr_add(norm, fpr_sqr(rt2[u]));
-			}
-			norm = fpr_double(norm);
-
-			if (!fpr_lt(norm, bound)) {
-				continue;
-			}
-		} else {
-			DOUBLE *rt1, *rt2, *rt3;
-			DOUBLE bnorm;
-			uint32_t normf, normg, norm;
-
-			/*
-			 * The poly_small_mkgauss() function makes sure
-			 * that the sum of coefficients is 1 modulo 2
-			 * (i.e. the resultant of the polynomial with phi
-			 * will be odd).
-			 */
-			poly_small_mkgauss(fk, f, logn);
-			poly_small_mkgauss(fk, g, logn);
-
-			/*
-			 * Bound is 1.17*sqrt(q). We compute the squared
-			 * norms. With q = 12289, the squared bound is:
-			 *   (1.17^2)* 12289 = 16822.4121
-			 * Since f and g are integral, the squared norm
-			 * of (g,-f) is an integer.
-			 */
-			normf = poly_small_sqnorm(f, logn, ter);
-			normg = poly_small_sqnorm(g, logn, ter);
-			norm = (normf + normg) | -((normf | normg) >> 31);
-			if (norm >= 16823) {
-				continue;
-			}
-
-			/*
-			 * We compute the orthogonalized vector norm.
-			 */
-			rt1 = (DOUBLE *)fk->tmp;
-			rt2 = rt1 + n;
-			rt3 = rt2 + n;
-			poly_small_to_fp(rt1, f, logn, 0);
-			poly_small_to_fp(rt2, g, logn, 0);
-			falcon_FFT(rt1, logn);
-			falcon_FFT(rt2, logn);
-			falcon_poly_invnorm2_fft(rt3, rt1, rt2, logn);
-			falcon_poly_adj_fft(rt1, logn);
-			falcon_poly_adj_fft(rt2, logn);
-			falcon_poly_mulconst_fft(rt1, (DOUBLE)12289, logn);
-			falcon_poly_mulconst_fft(rt2, (DOUBLE)12289, logn);
-			falcon_poly_mul_autoadj_fft(rt1, rt3, logn);
-			falcon_poly_mul_autoadj_fft(rt2, rt3, logn);
-			falcon_iFFT(rt1, logn);
-			falcon_iFFT(rt2, logn);
-			bnorm = (DOUBLE)0;
-			for (u = 0; u < n; u ++) {
-				bnorm = fpr_add(bnorm, fpr_sqr(rt1[u]));
-				bnorm = fpr_add(bnorm, fpr_sqr(rt2[u]));
-			}
-			if (!fpr_lt(bnorm, fpr_div(
-				(DOUBLE)168224121, (DOUBLE)10000)))
-			{
-				continue;
-			}
+		/*
+		 * We compute the orthogonalized vector norm.
+		 */
+		rt1 = (DOUBLE *)fk->tmp;
+		rt2 = rt1 + n;
+		rt3 = rt2 + n;
+		poly_small_to_fp(rt1, f, logn, 0);
+		poly_small_to_fp(rt2, g, logn, 0);
+		falcon_FFT(rt1, logn);
+		falcon_FFT(rt2, logn);
+		falcon_poly_invnorm2_fft(rt3, rt1, rt2, logn);
+		falcon_poly_adj_fft(rt1, logn);
+		falcon_poly_adj_fft(rt2, logn);
+		falcon_poly_mulconst_fft(rt1, (DOUBLE)fk->q, logn);
+		falcon_poly_mulconst_fft(rt2, (DOUBLE)fk->q, logn);
+		falcon_poly_mul_autoadj_fft(rt1, rt3, logn);
+		falcon_poly_mul_autoadj_fft(rt2, rt3, logn);
+		falcon_iFFT(rt1, logn);
+		falcon_iFFT(rt2, logn);
+		bnorm = (DOUBLE)0;
+		for (u = 0; u < n; u ++) {
+			bnorm = fpr_add(bnorm, fpr_sqr(rt1[u]));
+			bnorm = fpr_add(bnorm, fpr_sqr(rt2[u]));
+		}
+		if (!fpr_lt(bnorm, fpr_div(
+			(DOUBLE)168224121, (DOUBLE)10000)))
+		{
+			continue;
 		}
 
 		/*
@@ -7844,7 +7713,7 @@ falcon_keygen_make(falcon_keygen *fk, int comp,
 		size_t elen;
 
 		elen = falcon_encode_small(skbuf + skoff, klen - skoff,
-			comp, ter ? 18433 : 12289, ske[i], logn);
+			comp, fk->q, ske[i], logn);
 		if (elen == 0) {
 			return 0;
 		}

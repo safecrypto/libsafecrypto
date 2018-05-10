@@ -1121,6 +1121,33 @@ SINT32 NTT_FUNC_NAME(ntt32_invert)(SINT32 *v, const ntt_params_t *p, size_t n)
     return SC_FUNC_SUCCESS;
 }
 
+SINT32 NTT_FUNC_NAME(ntt32_div)(SINT32 *num, const SINT32 *den, const ntt_params_t *p, size_t n)
+{
+    size_t i;
+    SINT32 q = p->u.ntt32.q;
+#ifdef _ENABLE_BARRETT
+    SINT32 m = p->u.ntt32.m;
+    SINT32 k = p->u.ntt32.k;
+#endif
+
+    for (i=0; i<n; i++) {
+#if defined(_ENABLE_REFERENCE)
+        SINT32 x = den[i] % q;
+#elif defined(_ENABLE_BARRETT)
+        SINT32 x = barrett_reduction_32(den[i], m, k, q);
+#else
+        SINT32 x = NTT_FUNC_NAME(ntt32_modn)(den[i], p);
+#endif
+        if (x == 0) {
+            return SC_FUNC_FAILURE;
+        }
+        x = NTT_FUNC_NAME(ntt32_pwr)(x, q - 2, p);
+        num[i] = NTT_FUNC_NAME(ntt32_muln)(num[i], x, p);
+    }
+
+    return SC_FUNC_SUCCESS;
+}
+
 void NTT_FUNC_NAME(ntt32_center_32)(SINT32 *v, size_t n, const ntt_params_t *p)
 {
 #ifdef _ENABLE_AVX2_INTRINSICS
@@ -2070,7 +2097,32 @@ SINT32 NTT_FUNC_NAME(ntt_invert)(sc_slimb_t *v, const ntt_params_t *p, size_t n)
             return SC_FUNC_FAILURE;
         }
         x = NTT_FUNC_NAME(ntt_pwr)(x, q - 2, p);
-        v[i] = -x; // NOTE: Sign inversion here
+        v[i] = x;
+    }
+
+    return SC_FUNC_SUCCESS;
+}
+
+SINT32 NTT_FUNC_NAME(ntt_div)(sc_slimb_t *num, const sc_slimb_t *den, const ntt_params_t *p, size_t n)
+{
+    size_t i;
+    sc_slimb_t q = p->u.nttlimb.q;
+#ifdef _ENABLE_BARRETT
+    sc_slimb_t m = p->u.ntt32.m;
+    sc_slimb_t k = p->u.ntt32.k;
+#endif
+
+    for (i=0; i<n; i++) {
+#ifdef _ENABLE_BARRETT
+        sc_slimb_t x = barrett_reduction(den[i], m, k, q);
+#else
+        sc_slimb_t x = NTT_FUNC_NAME(ntt_modn)(den[i], p);
+#endif
+        if (x == 0) {
+            return SC_FUNC_FAILURE;
+        }
+        x = NTT_FUNC_NAME(ntt_pwr)(x, q - 2, p);
+        num[i] = NTT_FUNC_NAME(ntt_muln)(num[i], x, p);
     }
 
     return SC_FUNC_SUCCESS;

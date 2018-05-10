@@ -304,7 +304,7 @@ typedef struct falcon_keygen_ falcon_keygen;
  * Returned value is the new context, or NULL on error. Errors include
  * out-of-range parameters, and memory allocation errors.
  */
-falcon_keygen *falcon_keygen_new(unsigned logn, int ternary);
+falcon_keygen *falcon_keygen_new(unsigned logn, unsigned q);
 
 /*
  * Release a previously allocated key generation context, and all

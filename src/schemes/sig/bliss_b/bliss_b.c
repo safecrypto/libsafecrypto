@@ -116,6 +116,7 @@ void * keygen_f_producer_worker(void *p)
     SINT32 data[1024];
     SINT32 *f = data;
     SINT32 *u = data + n;
+    size_t i;
 
 restart:
     sc->stats.keygen_num_trials++;
@@ -131,7 +132,9 @@ restart:
         goto restart;
     }
 
-    sc_poly->mod_negate_32(u, n, q, u);
+    for (i=n; i--;) {
+        u[i] = -u[i];
+    }
 
     // Success, write the two polynomials to the data pipeline
     pipe_push(sc->bliss->pipe_producer_b, data, 2*n);
@@ -828,16 +831,29 @@ SINT32 bliss_b_privkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len)
     sc_ntt->fwd_ntt_32_16(g, ntt, g, w);
     sc_ntt->fwd_ntt_32_16(f, ntt, f, w);
 
+#if 0
+    // Attempt to invert NTT(f)
+    if (SC_FUNC_FAILURE == sc_ntt->div_32(g, f, ntt, n)) {
+        SC_LOG_ERROR(sc, SC_ERROR);
+        return SC_FUNC_FAILURE;
+    }
+
+    // Negate h
+    sc_poly->mod_negate_32(g, n, q, g);
+#else
     // Attempt to invert NTT(f)
     if (SC_FUNC_FAILURE == sc_ntt->invert_32(f, ntt, n)) {
         SC_LOG_ERROR(sc, SC_ERROR);
         return SC_FUNC_FAILURE;
     }
 
-    sc_poly->mod_negate_32(f, n, q, f);
+    for (i=n; i--;) {
+        f[i] = -f[i];
+    }
 
     // a = (2g+1)/f and f is invertible, so calculate ...
     sc_ntt->mul_32_pointwise(g, ntt, g, f);
+#endif
 
     // Normalize a
     sc_ntt->normalize_32(g, n, ntt);
@@ -1178,7 +1194,9 @@ restart:
             goto restart;
         }
 
-        sc_poly->mod_negate_32(u, n, q, u);
+        for (i=n; i--;) {
+            u[i] = -u[i];
+        }
 
         SC_PRINT_DEBUG(sc, "Inversion after %d attempts\n", iter);
         sc->stats.keygen_num_trials++;

@@ -35,7 +35,10 @@
 
 #define DEBUG_GPV               0
 #define CRT_NTRU_SOLVE          0
-#define SP_PUBLIC_KEY_CREATE    0
+#define SP_PUBLIC_KEY_CREATE    1
+#if CRT_NTRU_SOLVE == 1 && SP_PUBLIC_KEY_CREATE == 0
+#error "If CRT_NTRU_SOLVE is enabled SP_PUBLIC_KEY_CREATE must also be enabled"
+#endif
 
 
 typedef struct {
@@ -2171,7 +2174,7 @@ static SINT32 create_public_key(SINT32 *h, const SINT32 *f, const SINT32 *g, UIN
     // h = g/f and f is invertible, so calculate public key
     sc_ntt->mul_32_pointwise(h, &ntt_q, temp, h);
     sc_ntt->inv_ntt_32_16(h, &ntt_q, h, ntt_w, ntt_r);
-    sc_ntt->center_32(h, n, &ntt_q);
+    sc_ntt->normalize_32(h, n, &ntt_q);
 
 #if DEBUG_GPV == 1
     size_t i;
@@ -2316,7 +2319,7 @@ step2:
         num_retries++;
         goto step2;
     }*/
-    falcon_keygen *fk = falcon_keygen_new(sc_log2_32(n), 0);
+    falcon_keygen *fk = falcon_keygen_new(sc_log2_32(n), q);
     int16_t F16[1024], G16[1024], f16[1024], g16[1024];
     for (size_t i=0; i<n; i++) {
         f16[i] = f[i];
