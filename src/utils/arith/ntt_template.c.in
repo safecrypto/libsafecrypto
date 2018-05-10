@@ -1115,7 +1115,7 @@ SINT32 NTT_FUNC_NAME(ntt32_invert)(SINT32 *v, const ntt_params_t *p, size_t n)
             return SC_FUNC_FAILURE;
         }
         x = NTT_FUNC_NAME(ntt32_pwr)(x, q - 2, p);
-        v[i] = -x; // NOTE: Sign inversion here
+        v[i] = x;
     }
 
     return SC_FUNC_SUCCESS;

@@ -379,6 +379,12 @@ int falcon_keygen_make(falcon_keygen *fk, int comp,
 
 /* ==================================================================== */
 
+
+
+
+int solve_NTRU(falcon_keygen *fk, int16_t *F, int16_t *G,
+	const int16_t *f, const int16_t *g);
+
 #ifdef __cplusplus
 }
 #endif

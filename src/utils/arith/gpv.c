@@ -27,10 +27,15 @@
 #include "safecrypto_debug.h"
 #include "poly_fft.h"
 
+#include "internal.h"
+#define NTT_NEEDS_12289
+#include "utils/arith/ntt_tables.h"
+
 #include <math.h>
 
-#define DEBUG_GPV    1
-
+#define DEBUG_GPV               1
+#define CRT_NTRU_SOLVE          1
+#define SP_PUBLIC_KEY_CREATE    1
 
 
 typedef struct {
@@ -1286,43 +1291,64 @@ static const size_t MAX_BL_LARGE2[] = {
     2, 2, 5, 7, 12, 22, 42, 80, 157, 310
 };
 
+static UINT32 set_mod(UINT32 x, UINT32 p)
+{
+    x -= p;
+    x += p & -(x >> 31);
+    return x;
+}
+
+static UINT32 add_mod(UINT32 x, UINT32 y, UINT32 p)
+{
+    x += y - p;
+    x += p & -(x >> 31);
+    return x;
+}
+
+static UINT32 sub_mod(UINT32 x, UINT32 y, UINT32 p)
+{
+    x -= y;
+    x += p & -(x >> 31);
+    return x;
+}
 
 static UINT32 bigint_mod_u32(const UINT32 *d, size_t dlen,
     const utils_arith_ntt_t *sc_ntt, const ntt_params_t *ntt_p)
 {
-        UINT32 x, p;
-        size_t i;
-        p = ntt_p->u.ntt32.q;
+    UINT32 x, p;
+    size_t i;
+    p = ntt_p->u.ntt32.q;
 
-        // Algorithm: we inject words one by one, starting with the high
-        // word. Each step is:
-        //  - multiply x by 2^31
-        //  - add new word
-        x = 0;
-        i = dlen;
-        while (i--) {
-                UINT32 w;
+    // Algorithm: we inject words one by one, starting with the high
+    // word. Each step is:
+    //  - multiply x by 2^31
+    //  - add new word
+    x = 0;
+    i = dlen;
+    while (i--) {
+        UINT32 w;
 
-                x = sc_ntt->muln_32(x, 0x40000000, ntt_p);
-                w = d[i] - p;
-                w += p & -(w >> 31);
-                x = x + w - p;
-                x += p & -(x >> 31);
-        }
-        return x;
+        x = sc_ntt->muln_32(x, 0x40000000, ntt_p);
+        w = set_mod(d[i], p);
+        w = add_mod(x, w, p);
+    }
+    return x;
 }
 
-static UINT32 bigint_mod_s32(const UINT32 *d, size_t dlen,
+static UINT32 bigint_mod_s32(const UINT32 *d, size_t dlen, UINT32 rexp,
     const utils_arith_ntt_t *sc_ntt, const ntt_params_t *ntt_p)
 {
-    UINT32 v;
+    UINT32 x, p;
+    size_t i;
+
     if (0 == dlen) {
         return 0;
     }
-    v = bigint_mod_u32(d, dlen, sc_ntt, ntt_p);
-    //v = v - w - p; // RX
-    //v += p & -(v >> 31);
-    return v;
+
+    p = ntt_p->u.ntt32.q;
+    x = bigint_mod_u32(d, dlen, sc_ntt, ntt_p);
+    x = sub_mod(x, rexp & -(d[dlen-1] >> 30), p);
+    return x;
 }
 
 static void bigint_add_mul_small(UINT32 *restrict x,
@@ -1479,7 +1505,7 @@ static void fg_step_mul(UINT32 *d, UINT32 *s, UINT32 prime, size_t idx, size_t n
     }
 }
 
-static void fg_step_mul2(UINT32 *d, UINT32 *s, UINT32 prime, size_t idx, size_t n, size_t logn,
+static void fg_step_mul2(UINT32 *d, UINT32 *s, UINT32 prime, UINT32 rexp, size_t idx, size_t n, size_t logn,
     size_t slen, size_t tlen, UINT32 *temp, SINT32 ntt_flag, SINT32 *ntt_w, SINT32 *ntt_r,
     const utils_arith_ntt_t *sc_ntt, const ntt_params_t *ntt_logn)
 {
@@ -1491,7 +1517,7 @@ static void fg_step_mul2(UINT32 *d, UINT32 *s, UINT32 prime, size_t idx, size_t 
     p = binary_primes[idx].p;
 
     for (v=0, x=s+idx; v<n; v++, x+=slen) {
-        temp[v] = bigint_mod_u32(x, slen, sc_ntt, ntt_logn);
+        temp[v] = bigint_mod_s32(x, slen, rexp, sc_ntt, ntt_logn);
     }
 
     sc_ntt->fwd_ntt_32_32(temp, ntt_logn, temp, ntt_w);
@@ -1502,6 +1528,20 @@ static void fg_step_mul2(UINT32 *d, UINT32 *s, UINT32 prime, size_t idx, size_t 
         w1 = temp[(v<<1) + 1];
         *x = sc_ntt->muln_32(sc_ntt->muln_32(w0, w1, ntt_logn), 0x40000000, ntt_logn);
     }
+}
+
+// Calculate 2^(31*x) modulo p
+UINT32 exp_modp(UINT32 x, UINT32 p, const utils_arith_ntt_t *sc_ntt, ntt_params_t *ntt_p)
+{
+    size_t i;
+    UINT32 y = (1<<31) - p;  // i.e. As 2^30 < p < 2^31, 2^31 mod p = 2^31 - p
+    for (i=0; (1<<i)<=x; i++) {
+        if (0 != (x & (1<<i))) {
+            y = sc_ntt->muln_32(x, y, ntt_p);
+        }
+        y = sc_ntt->muln_32(y, y, ntt_p);
+    }
+    return y;
 }
 
 void ntru_make_fg_step(UINT32 *out, size_t logn, size_t depth, UINT32 q,
@@ -1579,18 +1619,21 @@ void ntru_make_fg_step(UINT32 *out, size_t logn, size_t depth, UINT32 q,
         ntt_params_t ntt_p;
 
         // Pick a prime number and calculate the NTT LUT coefficients
-        UINT32 prime, prime_root;
+        UINT32 prime, prime_root, rexp;
         prime      = binary_primes[i].p;
         prime_root = binary_primes[i].g;
         roots_of_unity_s32(ntt_w, ntt_r, n, prime, prime_root);
 
         init_reduce(&ntt_p, n, prime);
 
+        // Calculate the ring modulo the small prime number, 2^(31*slen) modulo p
+        rexp = exp_modp(slen, prime, sc_ntt, &ntt_p);
+
         // Multiply of fs modulo a prime number to form fd
-        fg_step_mul2(fd, fs, prime, i, n, logn, slen, tlen, t, in_ntt_flag, ntt_w, ntt_r, sc_ntt, &ntt_p);
+        fg_step_mul2(fd, fs, prime, rexp, i, n, logn, slen, tlen, t, in_ntt_flag, ntt_w, ntt_r, sc_ntt, &ntt_p);
 
         // Multiply of gs modulo a prime number to form gd
-        fg_step_mul2(gd, gs, prime, i, n, logn, slen, tlen, t, in_ntt_flag, ntt_w, ntt_r, sc_ntt, &ntt_p);
+        fg_step_mul2(gd, gs, prime, rexp, i, n, logn, slen, tlen, t, in_ntt_flag, ntt_w, ntt_r, sc_ntt, &ntt_p);
 
         if (!out_ntt_flag) {
             UINT32 *x;
@@ -1645,11 +1688,7 @@ void ntru_make_fg(UINT32 *out, SINT32 *f, SINT32 *g, size_t logn, size_t depth, 
 SINT32 ntru_solve_step1(SINT32 *f, SINT32 *g, SINT32 *temp, UINT32 q, size_t logn)
 {
     SINT32 retval = SC_FUNC_FAILURE;
-#ifdef HAVE_AVX2
-    safecrypto_ntt_e ntt_type = SC_NTT_AVX;
-#else
     safecrypto_ntt_e ntt_type = SC_NTT_FLOATING_POINT;
-#endif
     const utils_arith_ntt_t *sc_ntt = utils_arith_ntt(ntt_type);
 
     size_t i, len = MAX_BL_SMALL2[logn];
@@ -1705,11 +1744,7 @@ finish:
 
 SINT32 ntru_solve_step2_general(SINT32 *f, SINT32 *g, SINT32 *temp, UINT32 q, size_t logn, size_t depth)
 {
-#ifdef HAVE_AVX2
-    safecrypto_ntt_e ntt_type = SC_NTT_AVX;
-#else
     safecrypto_ntt_e ntt_type = SC_NTT_FLOATING_POINT;
-#endif
     const utils_arith_ntt_t *sc_ntt = utils_arith_ntt(ntt_type);
 
     SINT32 retval = SC_FUNC_FAILURE;
@@ -1755,14 +1790,137 @@ SINT32 ntru_solve_step2_general(SINT32 *f, SINT32 *g, SINT32 *temp, UINT32 q, si
 
     // Reduce Fd and Gd modulo all the small primes of the RNS
     for (i=0; i<llen; i++) {
-        UINT32 *xs, *ys, *xd, *yd, p;
+        ntt_params_t ntt_p;
+        UINT32 *xs, *ys, *xd, *yd, prime, rexp;
 
-        p = binary_primes[i].p;
+        prime = binary_primes[i].p;
+        init_reduce(&ntt_p, dlen, prime);
+
+        // Calculate the ring modulo the small prime number, 2^(31*dlen) modulo prime
+        rexp = exp_modp(dlen, prime, sc_ntt, &ntt_p);
 
         for (j=0, xs=Fd, ys=Gd, xd=Ft, yd=Gt; j<hn; j++, xs+=dlen, ys+=dlen, xd+=llen, yd+=llen) {
-            //*xd = 
+            *xd = bigint_mod_s32(xs, dlen, rexp, sc_ntt, &ntt_p);
+            *yd = bigint_mod_s32(ys, dlen, rexp, sc_ntt, &ntt_p);
         }
     }
+
+    // Compute F and G modulo the small primes
+    for (i=0; i<llen; i++) {
+        ntt_params_t ntt_p;
+        UINT32 *fx, *gx, *Fp, *Gp, *s;
+        UINT32 *x, *y;
+        SINT32 *ntt_w, *ntt_r;
+        UINT32 prime, prime_root;
+
+        // Obtain the prime number and the NTT parameters
+        prime      = binary_primes[i].p;
+        prime_root = binary_primes[i].g;
+        init_reduce(&ntt_p, llen, prime);
+
+        ntt_w = (SINT32*) t;
+        ntt_r = (SINT32*)(ntt_w + n);
+        fx    = (UINT32*)(ntt_r + n);
+        gx    = fx + n;
+        s     = gx + n;
+        roots_of_unity_s32(ntt_w, ntt_r, n, prime, prime_root);
+
+        // When this point is reached f and g can be rebuilt from their non-NTT form
+        if (i == slen) {
+            rns_to_integer(ft, slen, slen, n, sc_ntt, 1, t);
+            rns_to_integer(gt, slen, slen, n, sc_ntt, 1, t);
+        }
+
+        if (i < slen) {
+            for (j=0, x=ft+i, y=gt+i; j<n; j++, x+=slen, y+=slen) {
+                fx[j] = *x;
+                gx[j] = *y;
+            }
+
+            // Inverse NTT of ft+i with a stride of slen
+            for (j=0, x=ft+i; j<n; j++, x+=slen) {
+                s[j] = *x;
+            }
+            sc_ntt->inv_ntt_32_32(s, &ntt_p, s, ntt_w, ntt_r);
+            for (j=0, x=ft+i; j<n; j++, x+=slen) {
+                *x = s[j];
+            }
+
+            // Inverse NTT of gt+i with a stride of slen
+            for (j=0, x=gt+i; j<n; j++, x+=slen) {
+                s[j] = *x;
+            }
+            sc_ntt->inv_ntt_32_32(s, &ntt_p, s, ntt_w, ntt_r);
+            for (j=0, x=gt+i; j<n; j++, x+=slen) {
+                *x = s[j];
+            }
+        }
+        else {
+            UINT32 rexp;
+
+            // Calculate the ring modulo the small prime number, 2^(31*dlen) modulo prime
+            rexp = exp_modp(slen, prime, sc_ntt, &ntt_p);
+
+            for (j=0, x=ft, y=gt; j<n; j++, x+=slen, y+=slen) {
+                fx[j] = bigint_mod_s32(x, slen, rexp, sc_ntt, &ntt_p);
+                gx[j] = bigint_mod_s32(y, slen, rexp, sc_ntt, &ntt_p);
+            }
+
+            sc_ntt->fwd_ntt_32_32(fx, &ntt_p, fx, ntt_w);
+            sc_ntt->fwd_ntt_32_32(gx, &ntt_p, gx, ntt_w);
+        }
+
+        Fp = gx + n;
+        Gp = Fp + hn;
+        for (j=0, x=Ft+i, y=Gt+i; j<hn; j++, x+=llen, y+=llen) {
+            Fp[j] = *x;
+            Gp[j] = *y;
+        }
+        ntt_p.n >>= 1;
+        sc_ntt->fwd_ntt_32_32(Fp, &ntt_p, Fp, ntt_w);
+        sc_ntt->fwd_ntt_32_32(Gp, &ntt_p, Gp, ntt_w);
+
+
+        // Compute F and G modulo p
+        for (j=0, x=Ft+i, y=Gt+i; j<hn; j++, x+=(llen<<1), y+=(llen<<1)) {
+            UINT32 ftA, ftB, gtA, gtB;
+
+            ftA = fx[(j<<1)  ];
+            ftB = fx[(j<<1)+1];
+            gtA = gx[(j<<1)  ];
+            gtB = gx[(j<<1)+1];
+            x[0]    = sc_ntt->muln_32(Fp[j], gtB, &ntt_p);
+            x[llen] = sc_ntt->muln_32(Fp[j], gtA, &ntt_p);
+            y[0]    = sc_ntt->muln_32(Gp[j], ftB, &ntt_p);
+            y[llen] = sc_ntt->muln_32(Gp[j], ftA, &ntt_p);
+        }
+
+        ntt_p.n <<= 1;
+
+        // Inverse NTT of Ft+i with a stride of slen
+        for (j=0, x=Ft+i; j<n; j++, x+=llen) {
+            s[j] = *x;
+        }
+        sc_ntt->inv_ntt_32_32(s, &ntt_p, s, ntt_w, ntt_r);
+        for (j=0, x=Ft+i; j<n; j++, x+=slen) {
+            *x = s[j];
+        }
+
+        // Inverse NTT of Gt+i with a stride of slen
+        for (j=0, x=Gt+i; j<n; j++, x+=llen) {
+            s[j] = *x;
+        }
+        sc_ntt->inv_ntt_32_32(s, &ntt_p, s, ntt_w, ntt_r);
+        for (j=0, x=Gt+i; j<n; j++, x+=slen) {
+            *x = s[j];
+        }
+    }
+
+    // Rebuild F and G using CRT
+    rns_to_integer(Ft, llen, llen, n, sc_ntt, 1, t);
+    rns_to_integer(Gt, llen, llen, n, sc_ntt, 1, t);
+
+    // Babai reduction to bring F and G to size slen words at most
 
     retval = SC_FUNC_SUCCESS;
 
@@ -1787,10 +1945,114 @@ SINT32 ntru_solve_step2_0(SINT32 *f, SINT32 *g, SINT32 *temp, UINT32 q)
     return retval;
 }
 
+static size_t temp_size(unsigned logn)
+{
+#define ALIGN_FP(tt)   ((((tt) + sizeof(DOUBLE) - 1) / sizeof(DOUBLE)) * sizeof(DOUBLE))
+#define ALIGN_UW(tt)   ((((tt) + sizeof(UINT32) - 1) \
+                       / sizeof(UINT32)) * sizeof(UINT32))
+
+    size_t gmax, depth;
+
+    gmax = 0;
+
+    // Compute memory requirements for make_fg() at each depth.
+    for (depth = 0; depth < logn; depth ++) {
+        size_t cur;
+        size_t n, slen, tlen;
+
+        n = (size_t)1 << (logn - depth);
+        slen = MAX_BL_SMALL2[depth];
+        tlen = MAX_BL_SMALL2[depth + 1];
+        cur = (n * tlen + 2 * n * slen + 3 * n) * sizeof(UINT32);
+        gmax = cur > gmax ? cur : gmax;
+        cur = (n * tlen + 2 * n * slen + slen) * sizeof(UINT32);
+        gmax = cur > gmax ? cur : gmax;
+    }
+
+    // Compute memory requirements for each depth.
+    for (depth = 0; depth <= logn; depth ++) {
+        size_t cur, max;
+
+        max = 0;
+        if (depth == logn) {
+            size_t slen;
+
+            slen = MAX_BL_SMALL2[depth];
+            cur = 8 * slen * sizeof(UINT32);
+            max = cur > max ? cur : max;
+        } else if (depth == 0 && logn > 2) {
+            size_t n, hn;
+
+            n = (size_t)1 << logn;
+            hn = n >> 1;
+            cur = 7 * n * sizeof(UINT32);
+            max = cur > max ? cur : max;
+            cur = ALIGN_FP(4 * n * sizeof(UINT32)) + n * sizeof(DOUBLE);
+            max = cur > max ? cur : max;
+            cur = ALIGN_FP(3 * n * sizeof(UINT32)) + (n + hn) * sizeof(DOUBLE);
+            max = cur > max ? cur : max;
+        } else if (depth == 1 && logn > 2) {
+            size_t n, hn, slen, dlen, llen;
+
+            n = (size_t)1 << (logn - 1);
+            hn = n >> 1;
+            slen = MAX_BL_SMALL2[depth];
+            dlen = MAX_BL_SMALL2[depth + 1];
+            llen = MAX_BL_LARGE2[depth];
+            cur = (2 * hn * dlen + 2 * n * llen) * sizeof(UINT32);
+            max = cur > max ? cur : max;
+            cur = (2 * n * llen + 2 * n * slen + 7 * n) * sizeof(UINT32);
+            max = cur > max ? cur : max;
+            cur = (2 * n * llen + 2 * n * slen + llen) * sizeof(UINT32);
+            max = cur > max ? cur : max;
+            cur = ALIGN_FP((2 * n * llen + 2 * n * slen) * sizeof(UINT32)) + 2 * n * sizeof(DOUBLE);
+            max = cur > max ? cur : max;
+            cur = ALIGN_FP(2 * n * slen * sizeof(UINT32)) + 4 * n * sizeof(DOUBLE);
+            max = cur > max ? cur : max;
+            cur = (5 * n + hn) * sizeof(DOUBLE);
+            cur = ALIGN_FP(2 * n * sizeof(UINT32)) + 2 * n * sizeof(DOUBLE);
+            max = cur > max ? cur : max;
+        } else {
+            size_t n, hn, slen, llen, tmp1, tmp2;
+
+            n = (size_t)1 << (logn - depth);
+            hn = n >> 1;
+            slen = MAX_BL_SMALL2[depth];
+            llen = MAX_BL_LARGE2[depth];
+            cur = (2 * n * llen + 2 * n * slen + 4 * n) * sizeof(UINT32);
+            max = cur > max ? cur : max;
+            cur = (2 * n * llen + 2 * n * slen + llen) * sizeof(UINT32);
+            max = cur > max ? cur : max;
+            tmp1 = ALIGN_UW(
+                    ALIGN_FP((2 * n * llen + 2 * n * slen) * sizeof(UINT32))
+                    + (2 * n + hn) * sizeof(DOUBLE))
+                    + n * sizeof(UINT32);
+            tmp2 = ALIGN_FP((2 * n * llen + 2 * n * slen) * sizeof(UINT32))
+                    + (3 * n + hn) * sizeof(DOUBLE);
+            cur = tmp1 > tmp2 ? tmp1 : tmp2;
+            cur = ALIGN_FP(cur) + n * sizeof(DOUBLE);
+            max = cur > max ? cur : max;
+            cur = ALIGN_UW(
+                    ALIGN_FP((2 * n * llen + 2 * n * slen) * sizeof(UINT32))
+                    + (2 * n + hn) * sizeof(DOUBLE))
+                    + (5 * n + n * slen) * sizeof(UINT32);
+            max = cur > max ? cur : max;
+        }
+
+        gmax = max > gmax ? max : gmax;
+    }
+
+    return gmax;
+
+#undef ALIGN_FP
+#undef ALIGN_UW
+}
+
 SINT32 field_norm_ntru_solve(SINT32 *f, SINT32 *g, SINT32 *F, SINT32 *G,
     UINT32 q, size_t logn)
 {
-    SINT32 *temp;
+    size_t len = temp_size(logn);
+    SINT32 *temp = SC_MALLOC(len);
 
     if (SC_FUNC_SUCCESS != ntru_solve_step1(f, g, temp, q, logn)) {
         return SC_FUNC_FAILURE;
@@ -1822,6 +2084,105 @@ SINT32 field_norm_ntru_solve(SINT32 *f, SINT32 *g, SINT32 *F, SINT32 *G,
 
     // Generate the output F and G polynomials
 
+    SC_FREE(temp, len);
+
+    return SC_FUNC_SUCCESS;
+}
+
+static SINT32 verify_private_key(safecrypto_t *sc, const SINT32 *f, const SINT32 *g,
+    const SINT32 *F, const SINT32 *G, UINT32 q, size_t n)
+{
+    // Verify that the NTRU equation is solved, i.e. f*G - g*F = q
+
+    size_t i;
+    safecrypto_ntt_e ntt_type = SC_NTT_FLOATING_POINT;
+    const utils_arith_ntt_t *sc_ntt = utils_arith_ntt(ntt_type);
+    const utils_arith_poly_t *sc_poly  = sc->sc_poly;
+    SINT16 ntt_w[n];
+    SINT16 ntt_r[n];
+    SINT32 *fn, *gn, *Fn, *Gn, *temp;
+    UINT32 verify;
+    SINT32 retval = SC_FUNC_FAILURE;
+
+    temp = SC_MALLOC(sizeof(SINT32) * n * 3);
+    fn = temp;
+    gn = temp + n;
+    Fn = temp + 2*n;
+    Gn = temp + 2*n;
+
+    // Dynamically allocate memory for the necessary NTT tables
+    roots_of_unity_s16(ntt_w, ntt_r, n, q, 0);
+
+    // Initialise the reduction parameters
+    ntt_params_t ntt_p;
+    init_reduce(&ntt_p, n, q);
+
+    // Calculate fG
+    sc_ntt->fwd_ntt_32_16(fn, &ntt_p, f, ntt_w);
+    sc_ntt->fwd_ntt_32_16(Gn, &ntt_p, G, ntt_w);
+    sc_ntt->mul_32_pointwise(fn, &ntt_p, fn, Gn);
+
+    // Calculate gF
+    sc_ntt->fwd_ntt_32_16(gn, &ntt_p, g, ntt_w);
+    sc_ntt->fwd_ntt_32_16(Fn, &ntt_p, F, ntt_w);
+    sc_ntt->mul_32_pointwise(gn, &ntt_p, gn, Fn);
+
+    // Calculate fG - gF
+    sc_poly->sub_32(gn, n, fn, gn);
+    sc_ntt->normalize_32(gn, n, &ntt_p);
+
+    // Verify that fG - gF = q = 0 mod q
+    for (i=0; i<n; i++) {
+        if (0 != gn[i]) {
+            goto finish;
+        }
+    }
+
+    retval = SC_FUNC_SUCCESS;
+
+finish:
+    SC_FREE(temp, sizeof(SINT32) * n * 3);
+    return retval;
+}
+
+static SINT32 create_public_key(SINT32 *h, const SINT32 *f, const SINT32 *g, UINT32 q, size_t n)
+{
+    safecrypto_ntt_e ntt_type = SC_NTT_FLOATING_POINT;
+    const utils_arith_ntt_t *sc_ntt = utils_arith_ntt(ntt_type);
+    SINT16 ntt_w[n];
+    SINT16 ntt_r[n];
+    SINT32 temp[n];
+
+    // Dynamically allocate memory for the necessary NTT tables
+    roots_of_unity_s16(ntt_w, ntt_r, n, q, 0);
+
+    ntt_params_t ntt_q;
+    init_reduce(&ntt_q, n, q);
+
+    // Obtain NTT(f) and NTT(g)
+    sc_ntt->fwd_ntt_32_16(h, &ntt_q, f, ntt_w);
+    sc_ntt->fwd_ntt_32_16(temp, &ntt_q, g, ntt_w);
+
+    // Attempt to invert NTT(f)
+    if (SC_FUNC_FAILURE == sc_ntt->invert_32(h, &ntt_q, n)) {
+        return SC_FUNC_FAILURE;
+    }
+
+    // h = g/f and f is invertible, so calculate public key
+    sc_ntt->mul_32_pointwise(h, &ntt_q, temp, h);
+    sc_ntt->inv_ntt_32_16(h, &ntt_q, h, ntt_w, ntt_r);
+    sc_ntt->center_32(h, n, &ntt_q);
+
+#if DEBUG_GPV == 1
+    size_t i;
+    fprintf(stderr, "\nh = g/f mod q =\n");
+    for (i=0; i<n; i++) {
+        fprintf(stderr, "%6d ", h[i]);
+        if (15 == (15&i)) fprintf(stderr, "\n");
+    }
+    fprintf(stderr, "\n");
+#endif
+
     return SC_FUNC_SUCCESS;
 }
 
@@ -1833,11 +2194,20 @@ SINT32 gpv_gen_basis(safecrypto_t *sc, SINT32 *f, SINT32 *g, SINT32 *h,
     size_t i, j;
     DOUBLE sigma;
     DOUBLE gs_norm;
+    SINT32 retval = -1, num_retries = 0;
+#if CRT_NTRU_SOLVE == 0
     sc_mpz_t Rf, Rg, gcd1, gcd2;
     sc_poly_mpz_t rho_f, rho_g, rho_dummy;
     sc_mpz_t alpha, beta, mp_q;
     sc_poly_mpz_t mp_f, mp_g;
-    SINT32 retval = -1, num_retries = 0;
+    sc_mpz_t qv, qu;
+    sc_poly_mpz_t pF, pG;
+    sc_poly_mpz_t polymod;
+    sc_poly_mpz_t pfbar, pgbar;
+    sc_poly_mpz_t temp, num, den, k;
+    sc_poly_mpz_t inv_f;
+    sc_mpz_t scale;
+#endif
 
     SC_TIMER_INSTANCE(timer);
     SC_TIMER_CREATE(timer);
@@ -1847,6 +2217,7 @@ SINT32 gpv_gen_basis(safecrypto_t *sc, SINT32 *f, SINT32 *g, SINT32 *h,
     SC_TIMER_CREATE(total_timer);
     SC_TIMER_RESET(total_timer);
 
+#if CRT_NTRU_SOLVE == 0
     sc_mpz_init(&Rf);
     sc_mpz_init(&Rg);
     sc_mpz_init(&gcd1);
@@ -1861,38 +2232,31 @@ SINT32 gpv_gen_basis(safecrypto_t *sc, SINT32 *f, SINT32 *g, SINT32 *h,
     sc_mpz_init(&mp_q);
     sc_mpz_set_ui(&mp_q, q);
 
-    SC_TIMER_START(timer);
-    SC_TIMER_START(total_timer);
-
-
     // Computations are done mod x^N+1-----this defines this polynomial
-    sc_poly_mpz_t polymod;
     sc_poly_mpz_init(&polymod, n+1);
     sc_poly_mpz_set_si(&polymod, 0, 1);
     sc_poly_mpz_set_si(&polymod, n, 1);
 
-    sc_mpz_t qv, qu;
-    sc_poly_mpz_t pF, pG;
     sc_poly_mpz_init(&pF, n);
     sc_poly_mpz_init(&pG, n);
     sc_mpz_init(&qv);
     sc_mpz_init(&qu);
 
-    sc_poly_mpz_t pfbar, pgbar;
     sc_poly_mpz_init(&pfbar, n);
     sc_poly_mpz_init(&pgbar, n);
 
-    sc_poly_mpz_t temp, num, den, k;
     sc_poly_mpz_init(&temp, 2*n);
     sc_poly_mpz_init(&num, n);
     sc_poly_mpz_init(&den, n);
     sc_poly_mpz_init(&k, n);
 
-    sc_poly_mpz_t inv_f;
     sc_poly_mpz_init(&inv_f, n);
 
-    sc_mpz_t scale;
     sc_mpz_init(&scale);
+#endif
+
+    SC_TIMER_START(timer);
+    SC_TIMER_START(total_timer);
 
     // Step 1. set standard deviation of Gaussian distribution
     DOUBLE bd;
@@ -1947,14 +2311,52 @@ step2:
 
 
 
-    sc_mod_t modulus;
-    limb_mod_init(&modulus, q);
-
-#ifdef RECURSIVE_NTRU_SOLVE
-    if (SC_FUNC_SUCCESS != field_norm_ntru_solve(f, g, F, G, n, &modulus)) {
+#if CRT_NTRU_SOLVE == 1
+    /*if (SC_FUNC_SUCCESS != field_norm_ntru_solve(f, g, F, G, q, sc_log2_32(n))) {
         num_retries++;
         goto step2;
+    }*/
+    falcon_keygen *fk = falcon_keygen_new(sc_log2_32(n), 0);
+    int16_t F16[1024], G16[1024], f16[1024], g16[1024];
+    for (size_t i=0; i<n; i++) {
+        f16[i] = f[i];
+        g16[i] = g[i];
     }
+    if (!solve_NTRU(fk, F16, G16, f16, g16)) {
+        falcon_keygen_free(fk);
+        goto step2;
+    }
+    for (size_t i=0; i<n; i++) {
+        F[i] = F16[i];
+        G[i] = G16[i];
+    }
+    falcon_keygen_free(fk);
+
+    fprintf(stderr, "\n");
+    fprintf(stderr, "f = \n");
+    for (i=0; i<n; i++) {
+        fprintf(stderr, "%6d ", f[i]);
+        if (15 == (15&i)) fprintf(stderr, "\n");
+    }
+    fprintf(stderr, "\n");
+    fprintf(stderr, "g = \n");
+    for (i=0; i<n; i++) {
+        fprintf(stderr, "%6d ", g[i]);
+        if (15 == (15&i)) fprintf(stderr, "\n");
+    }
+    fprintf(stderr, "\n");
+    fprintf(stderr, "F = \n");
+    for (i=0; i<n; i++) {
+        fprintf(stderr, "%6d ", F[i]);
+        if (15 == (15&i)) fprintf(stderr, "\n");
+    }
+    fprintf(stderr, "\n");
+    fprintf(stderr, "G = \n");
+    for (i=0; i<n; i++) {
+        fprintf(stderr, "%6d ", G[i]);
+        if (15 == (15&i)) fprintf(stderr, "\n");
+    }
+    fprintf(stderr, "\n");
 #else
 
     poly_si32_to_mpi(&mp_f, n, f);
@@ -2160,6 +2562,21 @@ step2:
 
     fprintf(stderr, "Verifying master key ...\n");
 #endif
+
+
+#if CRT_NTRU_SOLVE == 0
+#if SP_PUBLIC_KEY_CREATE == 1
+    if (SC_FUNC_FAILURE == verify_private_key(sc, f, g, F, G, q, n)) {
+        num_retries++;
+        goto step2;
+    }
+#else
+    poly_si32_to_mpi(&mp_f, n, f);
+    poly_si32_to_mpi(&mp_g, n, g);
+    poly_si32_to_mpi(&pF, n, F);
+    poly_si32_to_mpi(&pG, n, G);
+
+    // Verify that the NTRU equation is solved
     sc_poly_mpz_mul(&temp, &pG, &mp_f);
     sc_poly_mpz_submul(&temp, &pF, &mp_g);      // F = F - k*f
     sc_poly_mpz_mod_ring(&temp, n, &temp);
@@ -2173,8 +2590,20 @@ step2:
         num_retries++;
         goto step2;
     }
+#endif
+#endif
+
+
 
     // Step 11. Compute the public key h = g/f mod q
+#if SP_PUBLIC_KEY_CREATE == 1
+    if (SC_FUNC_FAILURE == create_public_key(h, f, g, q, n)) {
+        num_retries++;
+        goto step2;
+    }
+#else
+    sc_mod_t modulus;
+    limb_mod_init(&modulus, q);
 
     // Don't need this as it's done above ...
     //poly_mpi_xgcd(&mp_f, &polymod, &Rg, &rho_dummy, &rho_f);
@@ -2216,10 +2645,12 @@ step2:
     }
     fprintf(stderr, "\n");
 #endif
+#endif
 
     retval = num_retries;
 
 finish:
+#if CRT_NTRU_SOLVE == 0
     sc_poly_mpz_clear(&inv_f);
     sc_mpz_clear(&Rf);
     sc_mpz_clear(&Rg);
@@ -2245,6 +2676,7 @@ finish:
     sc_poly_mpz_clear(&num);
     sc_poly_mpz_clear(&den);
     sc_poly_mpz_clear(&k);
+#endif
 
     SC_TIMER_STOP(timer);
     SC_TIMER_STOP(total_timer);

@@ -41,37 +41,22 @@
 
 #include <math.h>
 
-/*
-typedef struct { DOUBLE v; } fpr;
 
-static inline fpr
-FPR(DOUBLE v)
-{
-	DOUBLE x;
+//typedef struct { DOUBLE v; } fpr;
 
-	x.v = v;
-	return x;
-}
-
-
-static inline fpr
-fpr_of(int64_t i)
-{
-	return FPR((DOUBLE)i);
-}
-
-static inline fpr
+static inline DOUBLE
 fpr_scaled(int64_t i, int sc)
 {
-	return FPR(ldexp((DOUBLE)i, sc));
+	return ldexp((DOUBLE)i, sc);
 }
 
-static inline fpr
+static inline DOUBLE
 fpr_inverse_of(long i)
 {
-	return FPR(1.0 / (DOUBLE)i);
+	return 1.0 / (DOUBLE)i;
 }
-*/
+
+
 static const DOUBLE fpr_log2 = { 0.69314718055994530941723212146 };
 static const DOUBLE fpr_p55 = { 36028797018963968.0 };
 static const DOUBLE fpr_p63 = { 9223372036854775808.0 };
@@ -98,89 +83,76 @@ static const DOUBLE fpr_W5I = { -0.866025403784438646763723171 };
  */
 static const DOUBLE fpr_IW1I = {  1.154700538379251529018297561 };
 
-/*static inline int64_t
-fpr_rint(fpr x)
+static inline int64_t fpr_rint(DOUBLE x)
 {
-	return llrint(x.v);
+	return llrint(x);
 }
 
-static inline long
-fpr_floor(fpr x)
+static inline long fpr_floor(DOUBLE x)
 {
-	return (long)floor(x.v);
+	return (long)floor(x);
 }
 
-static inline fpr
-fpr_add(fpr x, fpr y)
+static inline DOUBLE fpr_add(DOUBLE x, DOUBLE y)
 {
-	return FPR(x.v + y.v);
+	return x + y;
 }
 
-static inline fpr
-fpr_sub(fpr x, fpr y)
+static inline DOUBLE fpr_sub(DOUBLE x, DOUBLE y)
 {
-	return FPR(x.v - y.v);
+	return x - y;
 }
 
-static inline fpr
-fpr_neg(fpr x)
+static inline DOUBLE fpr_neg(DOUBLE x)
 {
-	return FPR(-x.v);
+	return -x;
 }
 
-static inline fpr
-fpr_half(fpr x)
+static inline DOUBLE fpr_half(DOUBLE x)
 {
-	return FPR(x.v * 0.5);
+	return x * 0.5;
 }
 
-static inline fprfpr_double(fpr x)
+static inline DOUBLE fpr_double(DOUBLE x)
 {
-	return FPR(x.v + x.v);
+	return x + x;
 }
 
-static inline fpr
-fpr_mul(fpr x, fpr y)
+static inline DOUBLE fpr_mul(DOUBLE x, DOUBLE y)
 {
-	return FPR(x.v * y.v);
+	return x * y;
 }
 
-static inline fpr
-fpr_sqr(fpr x)
+static inline DOUBLE fpr_sqr(DOUBLE x)
 {
-	return FPR(x.v * x.v);
+	return x * x;
 }
 
-static inline fpr
-fpr_inv(fpr x)
+static inline DOUBLE fpr_inv(DOUBLE x)
 {
-	return FPR(1.0 / x.v);
+	return 1.0 / x;
 }
 
-static inline fpr
-fpr_div(fpr x, fpr y)
+static inline DOUBLE fpr_div(DOUBLE x, DOUBLE y)
 {
-	return FPR(x.v / y.v);
+	return x / y;
 }
 
-static inline fpr
-fpr_sqrt(fpr x)
+static inline DOUBLE fpr_sqrt(DOUBLE x)
 {
-	return FPR(sqrt(x.v));
+	return sqrt(x);
 }
 
-static inline fpr
-fpr_max(fpr x, fpr y)
+static inline DOUBLE fpr_max(DOUBLE x, DOUBLE y)
 {
-	return FPR(fmax(x.v, y.v));
+	return fmax(x, y);
 }
 
-static inline int
-fpr_lt(fpr x, fpr y)
+static inline int fpr_lt(DOUBLE x, DOUBLE y)
 {
-	return x.v < y.v;
+	return x < y;
 }
-*/
+
 /*
  * Compute exp(x) for x such that |x| <= ln 2. We want a precision of 50
  * bits or so.
