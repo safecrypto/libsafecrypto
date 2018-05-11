@@ -29,6 +29,140 @@
 #include "utils/arith/sc_poly_mpz.c"
 #endif
 
+START_TEST(test_ntt16_muln)
+{
+    ntt_params_t ntt;
+    ntt.n = 512;
+    ntt.u.ntt16.q = 12289;
+    ntt.u.ntt16.m = 2730;
+    ntt.u.ntt16.k = 25;
+    ntt.q_dbl = ntt.u.ntt16.q;
+    ntt.inv_q_dbl = 1.0f / ntt.q_dbl;
+    ntt.inv_q_flt = 1.0f / (FLOAT)ntt.u.ntt16.q;
+
+    SINT16 x=1234, y=5678;
+    SINT16 r = ntt16_muln_reference(x, y, &ntt);
+    ck_assert_int_eq(r, 1922);
+
+    r = ntt16_muln_barrett(x, y, &ntt);
+    ck_assert_int_eq(r, 1922);
+
+    r = ntt16_muln_fp(x, y, &ntt);
+    ck_assert_int_eq(r, 1922);
+}
+END_TEST
+
+/*START_TEST(test_ntt16_muln_barrett)
+{
+    ntt_params_t barrett;
+    barrett.n = 512;
+    barrett.u.ntt16.q = 7681;
+    barrett.u.ntt16.m = (1 << 14) / 7681;
+    barrett.u.ntt16.k = 14;
+
+    SINT16 x=1234, y=5678;
+    SINT16 r = ntt16_muln_barrett(x, y, &barrett);
+    ck_assert_int_eq(r, 1922);
+
+    x=1, y=12289;
+    r = ntt16_muln_barrett(x, y, &barrett);
+    ck_assert_int_eq(r, 0);
+
+    x=1, y=12290;
+    r = ntt16_muln_barrett(x, y, &barrett);
+    ck_assert_int_eq(r, 1);
+
+    x=1, y=12289*12289-1;
+    r = ntt16_muln_barrett(x, y, &barrett);
+    ck_assert_int_eq(r, 12288);
+
+    x=1, y=12289*12289;
+    r = ntt16_muln_barrett(x, y, &barrett);
+    ck_assert_int_eq(r, 0);
+}
+END_TEST*/
+
+START_TEST(test_ntt16_muln_fp)
+{
+    ntt_params_t ntt;
+    ntt.n = 512;
+    ntt.u.ntt16.q = 7681;
+    ntt.u.ntt16.m = (1 << 14) / 7681;
+    ntt.u.ntt16.k = 14;
+    ntt.q_dbl = ntt.u.ntt16.q;
+    ntt.inv_q_dbl = 1.0f / ntt.q_dbl;
+    ntt.inv_q_flt = 1.0f / (FLOAT)ntt.u.ntt16.q;
+
+    SINT16 x=1234, y=5678;
+    SINT16 r = ntt16_muln_fp(x, y, &ntt);
+    ck_assert_int_eq(r, 1580);
+
+    x=1, y=7681;
+    r = ntt16_muln_fp(x, y, &ntt);
+    ck_assert_int_eq(r, 0);
+
+    x=1, y=7682;
+    r = ntt16_muln_fp(x, y, &ntt);
+    ck_assert_int_eq(r, 1);
+}
+END_TEST
+
+START_TEST(test_ntt16_muln_negative)
+{
+    ntt_params_t ntt;
+    ntt.n = 512;
+    ntt.u.ntt16.q = 12289;
+    ntt.u.ntt16.m = 12;
+
+    SINT16 x=-1234, y=5678;
+    SINT16 r = ntt16_muln_reference(x, y, &ntt);
+    ck_assert_int_eq(r, -1922);
+
+    x=-1234, y=-5678;
+    r = ntt16_muln_reference(x, y, &ntt);
+    ck_assert_int_eq(r, 1922);
+
+    x=1, y=12289;
+    r = ntt16_muln_reference(x, y, &ntt);
+    ck_assert_int_eq(r, 0);
+
+    x=1, y=-12289;
+    r = ntt16_muln_reference(x, y, &ntt);
+    ck_assert_int_eq(r, 0);
+
+    x=1, y=-12290;
+    r = ntt16_muln_reference(x, y, &ntt);
+    ck_assert_int_eq(r, -1);
+}
+END_TEST
+
+START_TEST(test_ntt16_muln_mismatch)
+{
+    size_t i;
+    ntt_params_t ntt;
+    ntt.n = 512;
+    ntt.u.ntt16.q = 7681;
+    ntt.u.ntt16.m = (1 << 14) / 7681;
+    ntt.u.ntt16.k = 14;
+    ntt.q_dbl = ntt.u.ntt16.q;
+    ntt.inv_q_dbl = 1.0f / ntt.q_dbl;
+    ntt.inv_q_flt = 1.0f / (FLOAT)ntt.u.ntt16.q;
+
+    SINT16 x=-35, y=783;
+    SINT16 r = ntt16_muln_reference(x, y, &ntt);
+    ck_assert_int_eq(r, -4362);
+    r = ntt16_muln_fp(x, y, &ntt);
+    ck_assert_int_eq(r, -4362);
+
+    for (i=0; i<8192; i++) {
+        x = -i; y = 0x7FFF;
+        SINT16 r1 = ntt16_muln_reference(x, y, &ntt);
+        SINT16 r2 = ntt16_muln_fp(x, y, &ntt);
+        ck_assert_int_eq(r1, r2);
+    }
+}
+END_TEST
+
 START_TEST(test_ntt32_muln)
 {
     ntt_params_t ntt;
@@ -1714,6 +1848,11 @@ Suite *ntt32_suite(void)
 
     /* Test cases */
     tc_core = tcase_create("CORE");
+    tcase_add_test(tc_core, test_ntt16_muln);
+    //tcase_add_test(tc_core, test_ntt16_muln_barrett);
+    tcase_add_test(tc_core, test_ntt16_muln_fp);
+    tcase_add_test(tc_core, test_ntt16_muln_negative);
+    tcase_add_test(tc_core, test_ntt16_muln_mismatch);
     tcase_add_test(tc_core, test_ntt32_muln);
     tcase_add_test(tc_core, test_ntt32_muln_barrett);
     tcase_add_test(tc_core, test_ntt32_muln_fp);

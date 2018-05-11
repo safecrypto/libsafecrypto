@@ -288,6 +288,9 @@ size_t falcon_sign_generate(falcon_sign *fs,
  */
 typedef struct falcon_keygen_ falcon_keygen;
 
+typedef struct _safecrypto safecrypto_t;
+typedef struct ntt_params_t ntt_params_t;
+
 /*
  * Create a new falcon key generation context.
  *
@@ -304,7 +307,7 @@ typedef struct falcon_keygen_ falcon_keygen;
  * Returned value is the new context, or NULL on error. Errors include
  * out-of-range parameters, and memory allocation errors.
  */
-falcon_keygen *falcon_keygen_new(unsigned logn, unsigned q);
+falcon_keygen *falcon_keygen_new(safecrypto_t *sc, ntt_params_t *ntt_params, const int16_t *ntt_w, const int16_t *ntt_r, unsigned logn);
 
 /*
  * Release a previously allocated key generation context, and all

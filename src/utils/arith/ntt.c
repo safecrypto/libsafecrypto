@@ -145,6 +145,224 @@ void barrett_init(ntt_params_t *p)
     p->u.ntt32.m = (1 << p->u.ntt32.k) / p->u.ntt32.q;
 }
 
+
+
+
+/*****************************************************************************
+ * 16-BIT GENERIC NTT FUNCTIONS
+ ****************************************************************************/
+
+// Sparse polynomial multiplication
+void ntt16_mult_sparse_generic(SINT16 *v, size_t n, UINT16 omega, const SINT16 *t, const SINT16 *u)
+{
+    size_t i;
+    SINT32 j, pos;
+
+    // Ensure the output is cleared to zero
+    for (i=n; i--;) {
+        v[i] = 0;
+    }
+
+    for (i=0; i<omega; i++) {
+        pos = u[i];
+        for (j=0; j<pos; j++) {
+            v[j] += t[j + n - pos];
+        }
+        for (j=pos; j<(SINT16)n; j++) {
+            v[j] -= t[j - pos];
+        }
+    }
+}
+
+// Multiply with a scalar  v = t * c.
+void ntt16_mult_scalar_generic(SINT16 *v, const ntt_params_t *p,
+                const SINT16 *t, SINT16 c)
+{
+#ifdef HAVE_AVX2
+    size_t i;
+
+    union u {
+        __m256i m;
+        SINT64 s[4];
+    };
+
+    // This is an AVX2 implementation ...
+    __m256i scalar   = _mm256_setr_epi32(c, 0, c, 0, c, 0, c, 0);
+    __m256i quotient = _mm256_setr_epi32(p->u.ntt16.q, 0, p->u.ntt16.q, 0, p->u.ntt16.q, 0, p->u.ntt16.q, 0);
+    __m256i zero     = {0};
+    for (i=0; i<p->n; i+=4) {
+        __m128i int32t   = _mm_load_si128((__m128i*)(t + i));
+        __m256i vec1     = _mm256_cvtepi32_epi64(int32t);
+        __m256i res      = _mm256_mul_epi32(vec1, scalar);
+        __m256i mask     = _mm256_cmpgt_epi64(zero, res);
+        __m256i add      = _mm256_and_si256(mask, quotient);
+        union u simd;
+        simd.m = _mm256_add_epi64(res, add);
+        v[i  ] = simd.s[0];
+        v[i+1] = simd.s[1];
+        v[i+2] = simd.s[2];
+        v[i+3] = simd.s[3];
+    }
+#else
+    size_t i;
+    SINT16 q = p->u.ntt16.q;
+
+    for (i=p->n; i--;) {
+        SINT16 x = ntt_table->muln_16(t[i], c, p);
+#if 1
+        x += q * sc_const_time_u16_lessthan(x, 0);
+#else
+        if (x < 0)
+            x += q;
+#endif
+        v[i] = x;
+    }
+#endif
+}
+
+void inverse_shuffle_16(SINT16 *v, size_t n)
+{
+    size_t i;
+
+#ifdef LUT_BASED_INVERSE_SHUFFLE
+    // Use a precomputed swap table with sequential reads, only use if
+    // RAM/ROM is not constrained
+    const SC_DEFAULT_ALIGNED UINT32 *lut = (1024 == n)? shuffle_lut_1024 :
+                                           (512  == n)? shuffle_lut_512  :
+                                                        shuffle_lut_256;
+    size_t depth = (1024 == n)? 496 : (512 == n)? 240 : 120;
+    for (i = 0; i < depth; i++) {
+        UINT32 data = lut[i];
+        size_t idx1 = data >> 16;
+        size_t idx2 = data & 0xFFFF;
+
+        SINT16 t = v[idx1];
+        v[idx1] = v[idx2];
+        v[idx2] = t;
+    }
+#else
+#ifdef __arm__
+    // Make use of a bit reversal instruction
+    UINT16 bits = 16 - sc_ctz_16(n);
+    for (i = 1; i < n-1; i++) {       // 00..0 and 11..1 remain same
+        UINT16 r = sc_bit_reverse_16(i);
+        r >>= bits;
+#if 1
+        {
+            UINT16 gte = sc_const_time_u16_lessthan(i, r) - 1;
+            SINT16 x = (gte & v[r]) | (~gte & v[i]);
+            v[i] = (gte & v[i]) | (~gte & v[r]);
+            v[r] = x;
+        }
+#else
+        if (i < r) {
+            SINT16 x = v[i];
+            v[i] = v[r];
+            v[r] = x;
+        }
+#endif
+    }
+#else
+#ifdef HAVE___BUILTIN_CTZ
+    size_t j;
+    // If a BUILTIN funtion exists for CTZ then inverse incremental
+    // counting can be achieved by incrementing the MSB's
+    UINT16 bits = sc_ctz_16(n) - 1;
+    j = n >> 1;
+    for (i = 1; i < (size_t)n - 1;) {       // 00..0 and 11..1 remain same
+#if 1
+        {
+            UINT16 gte = sc_const_time_u16_lessthan(i, j) - 1;
+            SINT16 x = (gte & v[j]) | (~gte & v[i]);
+            v[i] = (gte & v[i]) | (~gte & v[j]);
+            v[j] = x;
+        }
+#else
+        if (i < j) {
+            SINT16 x = v[i];
+            v[i] = v[j];
+            v[j] = x;
+        }
+#endif
+        UINT16 mask = i++;
+        mask ^= i;
+        UINT16 len = sc_ctz_16(i);
+        mask <<= bits - len;
+        j ^= mask;
+    }
+#else
+    size_t j, k;
+
+    // This is the fallback method that also increments the MSB's
+    j = n >> 1;
+    for (i = 1; i < n - 1; i++) {       // 00..0 and 11..1 remain same
+#if 1
+        {
+            UINT16 gte = sc_const_time_u16_lessthan(i, j) - 1;
+            SINT16 x = (gte & v[j]) | (~gte & v[i]);
+            v[i] = (gte & v[i]) | (~gte & v[j]);
+            v[j] = x;
+        }
+#else
+        if (i < j) {
+            SINT16 x = v[i];
+            v[i] = v[j];
+            v[j] = x;
+        }
+#endif
+        k = n;
+        do {
+            k >>= 1;
+            j ^= k;
+        } while ((j & k) == 0);
+    }
+#endif
+#endif
+#endif
+}
+
+static void swap_ntt16(SINT16 *a, SINT16 *b, size_t n)
+{
+    SINT16 i, j;
+    SINT16 limit = (n-1)>>1;
+
+    for (i = 1, j = n - 1; i <= limit; i++, j--) {
+        SINT16 x = a[i];
+        a[i] = b[j];
+        b[j] = x;
+    }
+    a[0] = -a[0];
+}
+
+void ntt16_flip_generic(SINT16 *v, const ntt_params_t *p)
+{
+    size_t i;
+    SINT16 q = p->u.ntt16.q;
+
+    swap_ntt16(v, v, p->n); // Encourage automatic loop vectorisation ...
+
+    for (i=p->n; i--;) {
+        SINT16 x = v[i];
+#if 1
+        x += q * ((UINT16)x >> 15);                     // Guarantees x is positive
+        x -= q * sc_const_time_u16_lessthan(q, x + 1);  // q is always positive
+#else
+        if (x < 0)
+            x += q;
+        if (x >= q)
+            x -= q;
+#endif
+        v[i] = x;
+    }
+}
+
+
+
+
+/*****************************************************************************
+ * 32-BIT GENERIC NTT FUNCTIONS
+ ****************************************************************************/
+
 SINT32 barrett_reduction_32(/*should be UINT64*/SINT64 a, SINT32 m, SINT32 k, SINT32 q)
 {
     SINT64 t = (((SINT64)a * (SINT64)m) >> k);

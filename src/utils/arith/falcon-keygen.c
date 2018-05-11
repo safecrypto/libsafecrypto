@@ -31,6 +31,9 @@
 
 #include <stddef.h>
 #include "internal.h"
+#include "safecrypto_private.h"
+#include "utils/arith/ntt.h"
+#include "utils/arith/poly_32.h"
 
 /*
  * If CLEANSE is non-zero, then temporary areas obtained with malloc()
@@ -76,6 +79,39 @@ cleanse(void *data, size_t len)
 }
 #endif
 
+
+struct falcon_keygen_ {
+
+	// Base-2 logarithm of the degree
+	unsigned logn;
+
+	// 1 for a ternary modulus, 0 for binary [UNUSED]
+	unsigned ternary;
+
+	// A pointer to SAFEcrypto
+	safecrypto_t *sc;
+
+	// NTT reduction parameters
+	ntt_params_t *ntt_params;
+
+	const SINT16 *ntt_w;
+	const SINT16 *ntt_r;
+
+	// The selected modulus
+	unsigned q;
+
+	// RNG:
+	//   seeded    non-zero when a 'replace' seed or system RNG was pushed
+	//   flipped   non-zero when flipped
+	shake_context rng;
+	int seeded;
+	int flipped;
+
+	// Temporary storage for key generation. 'tmp_len' is expressed
+	//   in 32-bit words
+	uint32_t *tmp;
+	size_t tmp_len;
+};
 
 
 
@@ -1411,36 +1447,49 @@ mq_div_18433(uint32_t x, uint32_t y)
 
 /* see internal.h */
 int
-falcon_compute_public(uint16_t *h,
-	const int16_t *f, const int16_t *g, unsigned logn, int ternary)
+falcon_compute_public(falcon_keygen *fk, uint16_t *h,
+	const int16_t *f, const int16_t *g, unsigned logn)
 {
 	size_t u, n;
 	uint16_t t[1024];
 	uint32_t q;
 
-	if (ternary) {
-		n = (size_t)3 << (logn - 1);
-		q = Qt;
-	} else {
-		n = (size_t)1 << logn;
-		q = Qb;
+#if 1
+    const utils_arith_poly_t *sc_poly = fk->sc->sc_poly;
+	const utils_arith_ntt_t *sc_ntt = fk->sc->sc_ntt;
+	const SINT16 *ntt_w, *ntt_r;
+    ntt_params_t *ntt = fk->ntt_params;
+    n = (size_t)1 << logn;
+    ntt_w = fk->ntt_w;
+    ntt_r = fk->ntt_r;
+
+    sc_ntt->fwd_ntt_16(t, ntt, f, ntt_w);
+    sc_ntt->fwd_ntt_16(h, ntt, g, ntt_w);
+	if (SC_FUNC_FAILURE == sc_ntt->div_16(h, t, ntt, n)) {
+		return 0;
 	}
+	sc_ntt->inv_ntt_16(h, ntt, h, ntt_w, ntt_r);
+	sc_ntt->center_16(h, n, ntt);
+	return 1;
+
+#else
+    n = (size_t)1 << logn;
+	q = Qb;
 	for (u = 0; u < n; u ++) {
 		t[u] = mq_conv_small(f[u], q);
 		h[u] = mq_conv_small(g[u], q);
 	}
-	mq_NTT(h, logn, ternary);
-	mq_NTT(t, logn, ternary);
+	mq_NTT(h, logn, 0);
+	mq_NTT(t, logn, 0);
 	for (u = 0; u < n; u ++) {
 		if (t[u] == 0) {
 			return 0;
 		}
-		h[u] = ternary
-			? mq_div_18433(h[u], t[u])
-			: mq_div_12289(h[u], t[u]);
+		h[u] = mq_div_12289(h[u], t[u]);
 	}
-	mq_iNTT(h, logn, ternary);
+	mq_iNTT(h, logn, 0);
 	return 1;
+#endif
 }
 
 
@@ -4937,30 +4986,6 @@ poly_sub_scaled_ntt(uint32_t *restrict F, size_t Flen, size_t Fstride,
 
 /* ==================================================================== */
 
-struct falcon_keygen_ {
-
-	// Base-2 logarithm of the degree
-	unsigned logn;
-
-	// 1 for a ternary modulus, 0 for binary [UNUSED]
-	unsigned ternary;
-
-	// The selected modulus
-	unsigned q;
-
-	// RNG:
-	//   seeded    non-zero when a 'replace' seed or system RNG was pushed
-	//   flipped   non-zero when flipped
-	shake_context rng;
-	int seeded;
-	int flipped;
-
-	// Temporary storage for key generation. 'tmp_len' is expressed
-	//   in 32-bit words
-	uint32_t *tmp;
-	size_t tmp_len;
-};
-
 /*
  * Get a random 8-byte integer from a SHAKE-based RNG. This function
  * ensures consistent interpretation of the SHAKE output so that
@@ -5280,7 +5305,7 @@ static const char MEMCHECK_MARK[] = "memcheck";
 
 /* see falcon.h */
 falcon_keygen *
-falcon_keygen_new(unsigned logn, unsigned q)
+falcon_keygen_new(safecrypto_t *sc, ntt_params_t *ntt_params, const int16_t *ntt_w, const int16_t *ntt_r, unsigned logn)
 {
 	falcon_keygen *fk;
 
@@ -5293,7 +5318,11 @@ falcon_keygen_new(unsigned logn, unsigned q)
 	}
 	fk->logn = logn;
 	fk->ternary = 0;
-	fk->q = q;
+	fk->sc = sc;
+	fk->ntt_params = ntt_params;
+	fk->ntt_w = ntt_w;
+	fk->ntt_r = ntt_r;
+	fk->q = ntt_params->u.ntt32.q;
 	shake_init(&fk->rng, 512);
 	fk->seeded = 0;
 	fk->flipped = 0;
@@ -5907,7 +5936,7 @@ solve_NTRU_deepest(falcon_keygen *fk, const int16_t *f, const int16_t *g)
 	 * Multiply the two values by the target value q. Values must
 	 * fit in the destination arrays.
 	 */
-	q = fk->ternary ? 18433 : 12289;
+	q = fk->q;
 	if (zint_mul_small(Fp, len, q) != 0
 		|| zint_mul_small(Gp, len, q) != 0)
 	{
@@ -7429,27 +7458,16 @@ solve_NTRU(falcon_keygen *fk, int16_t *F, int16_t *G,
 		unsigned depth;
 
 		depth = logn;
-		if (fk->ternary) {
-			while (depth -- > 1) {
-				if (!solve_NTRU_intermediate(fk, f, g, depth)) {
-					return 0;
-				}
-			}
-			if (!solve_NTRU_ternary_depth0(fk, f, g)) {
+		while (depth -- > 2) {
+			if (!solve_NTRU_intermediate(fk, f, g, depth)) {
 				return 0;
 			}
-		} else {
-			while (depth -- > 2) {
-				if (!solve_NTRU_intermediate(fk, f, g, depth)) {
-					return 0;
-				}
-			}
-			if (!solve_NTRU_binary_depth1(fk, f, g)) {
-				return 0;
-			}
-			if (!solve_NTRU_binary_depth0(fk, f, g)) {
-				return 0;
-			}
+		}
+		if (!solve_NTRU_binary_depth1(fk, f, g)) {
+			return 0;
+		}
+		if (!solve_NTRU_binary_depth0(fk, f, g)) {
+			return 0;
 		}
 	}
 
@@ -7457,8 +7475,8 @@ solve_NTRU(falcon_keygen *fk, int16_t *F, int16_t *G,
 	 * Final F and G are in fk->tmp, one word per coefficient
 	 * (signed value over 31 bits).
 	 */
-	if (!poly_big_to_small(F, fk->tmp, logn, fk->ternary)
-		|| !poly_big_to_small(G, fk->tmp + n, logn, fk->ternary))
+	if (!poly_big_to_small(F, fk->tmp, logn, 0)
+		|| !poly_big_to_small(G, fk->tmp + n, logn, 0))
 	{
 		return 0;
 	}
@@ -7474,33 +7492,21 @@ solve_NTRU(falcon_keygen *fk, int16_t *F, int16_t *G,
 	Gt = Ft + n;
 	gm = Gt + n;
 
-	primes = fk->ternary ? PRIMES3 : PRIMES2;
+	primes = PRIMES2;
 	p = primes[0].p;
 	p0i = modp_ninv31(p);
-	if (fk->ternary) {
-		modp_mkgm3(gm, ft, logn, 1, primes[0].g, p, p0i);
-	} else {
-		modp_mkgm2(gm, ft, logn, primes[0].g, p, p0i);
-	}
+	modp_mkgm2(gm, ft, logn, primes[0].g, p, p0i);
 	for (u = 0; u < n; u ++) {
 		ft[u] = modp_set(f[u], p);
 		gt[u] = modp_set(g[u], p);
 		Ft[u] = modp_set(F[u], p);
 		Gt[u] = modp_set(G[u], p);
 	}
-	if (fk->ternary) {
-		modp_NTT3(ft, gm, logn, 1, p, p0i);
-		modp_NTT3(gt, gm, logn, 1, p, p0i);
-		modp_NTT3(Ft, gm, logn, 1, p, p0i);
-		modp_NTT3(Gt, gm, logn, 1, p, p0i);
-		r = modp_montymul(18433, 1, p, p0i);
-	} else {
-		modp_NTT2(ft, gm, logn, p, p0i);
-		modp_NTT2(gt, gm, logn, p, p0i);
-		modp_NTT2(Ft, gm, logn, p, p0i);
-		modp_NTT2(Gt, gm, logn, p, p0i);
-		r = modp_montymul(12289, 1, p, p0i);
-	}
+	modp_NTT2(ft, gm, logn, p, p0i);
+	modp_NTT2(gt, gm, logn, p, p0i);
+	modp_NTT2(Ft, gm, logn, p, p0i);
+	modp_NTT2(Gt, gm, logn, p, p0i);
+	r = modp_montymul(fk->q, 1, p, p0i);
 	for (u = 0; u < n; u ++) {
 		uint32_t z;
 
@@ -7678,7 +7684,7 @@ falcon_keygen_make(falcon_keygen *fk, int comp,
 		 * Compute public key h = g/f mod X^N+1 mod q. If this
 		 * fails, we must restart.
 		 */
-		if (!falcon_compute_public(h, f, g, logn, ter)) {
+		if (!falcon_compute_public(fk, h, f, g, logn)) {
 			continue;
 		}
 

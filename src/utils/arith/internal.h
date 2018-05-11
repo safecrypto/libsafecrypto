@@ -188,8 +188,8 @@ int falcon_vrfy_verify_raw(const uint16_t *c0, const int16_t *s2,
  * modulus. This function returns 1 on success, 0 on error (an error is
  * reported if f is not invertible mod phi mod q).
  */
-int falcon_compute_public(uint16_t *h,
-	const int16_t *f, const int16_t *g, unsigned logn, int ternary);
+int falcon_compute_public(falcon_keygen *fk, uint16_t *h,
+	const int16_t *f, const int16_t *g, unsigned logn);
 
 /*
  * Recompute the fourth private key element. Private key consists in

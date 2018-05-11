@@ -27,6 +27,10 @@
 #include "safecrypto_debug.h"
 #include "poly_fft.h"
 
+#include "schemes/sig/falcon/falcon_params.h"
+#include "schemes/sig/ens_dlp/ens_dlp_sig_params.h"
+#include "schemes/ibe/dlp/dlp_ibe_params.h"
+
 #include "internal.h"
 #define NTT_NEEDS_12289
 #include "utils/arith/ntt_tables.h"
@@ -35,7 +39,7 @@
 
 #define DEBUG_GPV               0
 #define CRT_NTRU_SOLVE          0
-#define SP_PUBLIC_KEY_CREATE    1
+#define SP_PUBLIC_KEY_CREATE    0
 #if CRT_NTRU_SOLVE == 1 && SP_PUBLIC_KEY_CREATE == 0
 #error "If CRT_NTRU_SOLVE is enabled SP_PUBLIC_KEY_CREATE must also be enabled"
 #endif
@@ -2092,8 +2096,9 @@ SINT32 field_norm_ntru_solve(SINT32 *f, SINT32 *g, SINT32 *F, SINT32 *G,
     return SC_FUNC_SUCCESS;
 }
 
-static SINT32 verify_private_key(safecrypto_t *sc, const SINT32 *f, const SINT32 *g,
-    const SINT32 *F, const SINT32 *G, UINT32 q, size_t n)
+static SINT32 verify_private_key_32(safecrypto_t *sc, const SINT32 *f, const SINT32 *g,
+    const SINT32 *F, const SINT32 *G, UINT32 q, size_t n,
+    const SINT32 *ntt_w, const SINT32 *ntt_r, const ntt_params_t *ntt_params)
 {
     // Verify that the NTRU equation is solved, i.e. f*G - g*F = q
 
@@ -2101,8 +2106,6 @@ static SINT32 verify_private_key(safecrypto_t *sc, const SINT32 *f, const SINT32
     safecrypto_ntt_e ntt_type = SC_NTT_FLOATING_POINT;
     const utils_arith_ntt_t *sc_ntt = utils_arith_ntt(ntt_type);
     const utils_arith_poly_t *sc_poly  = sc->sc_poly;
-    SINT16 ntt_w[n];
-    SINT16 ntt_r[n];
     SINT32 *fn, *gn, *Fn, *Gn, *temp;
     UINT32 verify;
     SINT32 retval = SC_FUNC_FAILURE;
@@ -2113,26 +2116,67 @@ static SINT32 verify_private_key(safecrypto_t *sc, const SINT32 *f, const SINT32
     Fn = temp + 2*n;
     Gn = temp + 2*n;
 
-    // Dynamically allocate memory for the necessary NTT tables
-    roots_of_unity_s16(ntt_w, ntt_r, n, q, 0);
-
-    // Initialise the reduction parameters
-    ntt_params_t ntt_p;
-    init_reduce(&ntt_p, n, q);
-
     // Calculate fG
-    sc_ntt->fwd_ntt_32_16(fn, &ntt_p, f, ntt_w);
-    sc_ntt->fwd_ntt_32_16(Gn, &ntt_p, G, ntt_w);
-    sc_ntt->mul_32_pointwise(fn, &ntt_p, fn, Gn);
+    sc_ntt->fwd_ntt_32_32(fn, ntt_params, f, ntt_w);
+    sc_ntt->fwd_ntt_32_32(Gn, ntt_params, G, ntt_w);
+    sc_ntt->mul_32_pointwise(fn, ntt_params, fn, Gn);
 
     // Calculate gF
-    sc_ntt->fwd_ntt_32_16(gn, &ntt_p, g, ntt_w);
-    sc_ntt->fwd_ntt_32_16(Fn, &ntt_p, F, ntt_w);
-    sc_ntt->mul_32_pointwise(gn, &ntt_p, gn, Fn);
+    sc_ntt->fwd_ntt_32_32(gn, ntt_params, g, ntt_w);
+    sc_ntt->fwd_ntt_32_32(Fn, ntt_params, F, ntt_w);
+    sc_ntt->mul_32_pointwise(gn, ntt_params, gn, Fn);
 
     // Calculate fG - gF
     sc_poly->sub_32(gn, n, fn, gn);
-    sc_ntt->normalize_32(gn, n, &ntt_p);
+    sc_ntt->normalize_32(gn, n, ntt_params);
+
+    // Verify that fG - gF = q = 0 mod q
+    for (i=0; i<n; i++) {
+        if (0 != gn[i]) {
+            goto finish;
+        }
+    }
+
+    retval = SC_FUNC_SUCCESS;
+
+finish:
+    SC_FREE(temp, sizeof(SINT32) * n * 3);
+    return retval;
+}
+
+static SINT32 verify_private_key_16(safecrypto_t *sc, const SINT32 *f, const SINT32 *g,
+    const SINT32 *F, const SINT32 *G, UINT32 q, size_t n,
+    const SINT16 *ntt_w, const SINT16 *ntt_r, const ntt_params_t *ntt_params)
+{
+    // Verify that the NTRU equation is solved, i.e. f*G - g*F = q
+
+    size_t i;
+    safecrypto_ntt_e ntt_type = SC_NTT_FLOATING_POINT;
+    const utils_arith_ntt_t *sc_ntt = utils_arith_ntt(ntt_type);
+    const utils_arith_poly_t *sc_poly  = sc->sc_poly;
+    SINT32 *fn, *gn, *Fn, *Gn, *temp;
+    UINT32 verify;
+    SINT32 retval = SC_FUNC_FAILURE;
+
+    temp = SC_MALLOC(sizeof(SINT32) * n * 3);
+    fn = temp;
+    gn = temp + n;
+    Fn = temp + 2*n;
+    Gn = temp + 2*n;
+
+    // Calculate fG
+    sc_ntt->fwd_ntt_32_16(fn, ntt_params, f, ntt_w);
+    sc_ntt->fwd_ntt_32_16(Gn, ntt_params, G, ntt_w);
+    sc_ntt->mul_32_pointwise(fn, ntt_params, fn, Gn);
+
+    // Calculate gF
+    sc_ntt->fwd_ntt_32_16(gn, ntt_params, g, ntt_w);
+    sc_ntt->fwd_ntt_32_16(Fn, ntt_params, F, ntt_w);
+    sc_ntt->mul_32_pointwise(gn, ntt_params, gn, Fn);
+
+    // Calculate fG - gF
+    sc_poly->sub_32(gn, n, fn, gn);
+    sc_ntt->normalize_32(gn, n, ntt_params);
 
     // Verify that fG - gF = q = 0 mod q
     for (i=0; i<n; i++) {
@@ -2314,12 +2358,24 @@ step2:
 
 
 
+    ntt_params_t *ntt_params = (SC_SCHEME_SIG_FALCON == sc->scheme)? &sc->falcon->ntt  :
+                               (SC_SCHEME_IBE_DLP    == sc->scheme)? &sc->dlp_ibe->ntt :
+                                                                     &sc->ens_dlp_sig->ntt;
+    const SINT16 *ntt_w_16 = (SC_SCHEME_SIG_FALCON == sc->scheme)? sc->falcon->params->w  :
+                          //(SC_SCHEME_IBE_DLP    == sc->scheme)? sc->dlp_ibe->params->w :
+                                                                sc->ens_dlp_sig->params->w;
+    const SINT16 *ntt_r_16 = (SC_SCHEME_SIG_FALCON == sc->scheme)? sc->falcon->params->r  :
+                          //(SC_SCHEME_IBE_DLP    == sc->scheme)? sc->dlp_ibe->params->r :
+                                                                sc->ens_dlp_sig->params->r;
+    const SINT32 *ntt_w_32 = (SC_SCHEME_IBE_DLP == sc->scheme)? sc->dlp_ibe->params->w : 0;
+    const SINT32 *ntt_r_32 = (SC_SCHEME_IBE_DLP == sc->scheme)? sc->dlp_ibe->params->r : 0;
 #if CRT_NTRU_SOLVE == 1
     /*if (SC_FUNC_SUCCESS != field_norm_ntru_solve(f, g, F, G, q, sc_log2_32(n))) {
         num_retries++;
         goto step2;
     }*/
-    falcon_keygen *fk = falcon_keygen_new(sc_log2_32(n), q);
+
+    falcon_keygen *fk = falcon_keygen_new(sc, ntt_params, ntt_w_16, ntt_r_16, sc_log2_32(n));
     int16_t F16[1024], G16[1024], f16[1024], g16[1024];
     for (size_t i=0; i<n; i++) {
         f16[i] = f[i];
@@ -2335,7 +2391,7 @@ step2:
     }
     falcon_keygen_free(fk);
 
-    fprintf(stderr, "\n");
+    /*fprintf(stderr, "\n");
     fprintf(stderr, "f = \n");
     for (i=0; i<n; i++) {
         fprintf(stderr, "%6d ", f[i]);
@@ -2359,7 +2415,7 @@ step2:
         fprintf(stderr, "%6d ", G[i]);
         if (15 == (15&i)) fprintf(stderr, "\n");
     }
-    fprintf(stderr, "\n");
+    fprintf(stderr, "\n");*/
 #else
 
     poly_si32_to_mpi(&mp_f, n, f);
@@ -2520,6 +2576,9 @@ step2:
             break;
         }
         if (15 == j) {
+#if DEBUG_GPV == 1
+            fprintf(stderr, "Cannot reduce F and G ...\n");
+#endif
             num_retries++;
             goto finish;
         }
@@ -2569,9 +2628,17 @@ step2:
 
 #if CRT_NTRU_SOLVE == 0
 #if SP_PUBLIC_KEY_CREATE == 1
-    if (SC_FUNC_FAILURE == verify_private_key(sc, f, g, F, G, q, n)) {
-        num_retries++;
-        goto step2;
+    if (SC_SCHEME_IBE_DLP == sc->scheme) {
+        if (SC_FUNC_FAILURE == verify_private_key_32(sc, f, g, F, G, q, n, ntt_w_32, ntt_r_32, ntt_params)) {
+            num_retries++;
+            goto step2;
+        }
+    }
+    else {
+        if (SC_FUNC_FAILURE == verify_private_key_16(sc, f, g, F, G, q, n, ntt_w_16, ntt_r_16, ntt_params)) {
+            num_retries++;
+            goto step2;
+        }
     }
 #else
     poly_si32_to_mpi(&mp_f, n, f);
@@ -2652,6 +2719,10 @@ step2:
 
     retval = num_retries;
 
+#if DEBUG_GPV == 1
+    fprintf(stderr, "Polynomial basis found\n");
+#endif
+
 finish:
 #if CRT_NTRU_SOLVE == 0
     sc_poly_mpz_clear(&inv_f);
@@ -2691,9 +2762,6 @@ finish:
     SC_TIMER_DESTROY(timer);
     SC_TIMER_DESTROY(total_timer);
 
-#if DEBUG_GPV == 1
-    fprintf(stderr, "Polynomial basis found\n");
-#endif
     return retval;
 }
 

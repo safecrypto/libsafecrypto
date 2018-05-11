@@ -37,7 +37,7 @@ int main(void)
     FLOAT *b_gs, *b_gs_inv_norm;
     gpv_t gpv;
     size_t i;
-    static const size_t n = 1024;
+    static const size_t n = 512;
     static const SINT32 q = 12289;//1073741824;//51750913;
     utils_sampling_t *sampling;
 
