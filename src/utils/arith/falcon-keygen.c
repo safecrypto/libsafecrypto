@@ -3229,7 +3229,6 @@ zint_bezout(uint32_t *restrict u, uint32_t *restrict v,
 	 *   x and y must be odd.
 	 */
 	if (xlen == 0 || ylen == 0 || (x[0] & y[0] & 1) == 0) {
-		fprintf(stderr, "Ehhhh? xlen=%zu, ylen=%zu, %08X, %08X\n", xlen, ylen, x[0], y[0]);
 		return 0;
 	}
 
@@ -4322,7 +4321,7 @@ falcon_keygen_free(falcon_keygen *fk)
 		if (memcmp((unsigned char *)fk->tmp + fk->tmp_len,
 			MEMCHECK_MARK, sizeof MEMCHECK_MARK) != 0)
 		{
-			fprintf(stderr, "buffer overflow! temp_size() is wrong\n");
+			//fprintf(stderr, "buffer overflow! temp_size() is wrong\n");
 			abort();
 		}
 #endif
@@ -4894,7 +4893,6 @@ solve_NTRU_deepest(falcon_keygen *fk, const int32_t *f, const int32_t *g)
 	 * if both inputs are odd.
 	 */
 	if (!zint_bezout(Gp, Fp, fp, gp, len, t1)) {
-		fprintf(stderr, "Bezout error\n");
 		return 0;
 	}
 
@@ -4906,11 +4904,8 @@ solve_NTRU_deepest(falcon_keygen *fk, const int32_t *f, const int32_t *g)
 	if (zint_mul_small(Fp, len, q) != 0
 		|| zint_mul_small(Gp, len, q) != 0)
 	{
-		fprintf(stderr, "Scale error, q=%08X\n", q);
 		return 0;
 	}
-
-	fprintf(stderr, "GOOD\n");
 
 	return 1;
 }
@@ -6404,7 +6399,7 @@ solve_NTRU(falcon_keygen *fk, int32_t *F, int32_t *G,
 	n = MKN(logn, fk->ternary);
 
 	if (!solve_NTRU_deepest(fk, f, g)) {
-		fprintf(stderr, "Failed to solve deepest\n");
+		//fprintf(stderr, "Failed to solve deepest\n");
 		return 0;
 	}
 
@@ -6429,16 +6424,16 @@ solve_NTRU(falcon_keygen *fk, int32_t *F, int32_t *G,
 		depth = logn;
 		while (depth -- > 2) {
 			if (!solve_NTRU_intermediate(fk, f, g, depth)) {
-				fprintf(stderr, "Failed intermediate at depth %u\n", depth);
+				//fprintf(stderr, "Failed intermediate at depth %u\n", depth);
 				return 0;
 			}
 		}
 		if (!solve_NTRU_binary_depth1(fk, f, g)) {
-			fprintf(stderr, "Failed binary depth 1\n");
+			//fprintf(stderr, "Failed binary depth 1\n");
 			return 0;
 		}
 		if (!solve_NTRU_binary_depth0(fk, f, g)) {
-			fprintf(stderr, "Failed binary depth 0\n");
+			//fprintf(stderr, "Failed binary depth 0\n");
 			return 0;
 		}
 	}
@@ -6453,7 +6448,7 @@ solve_NTRU(falcon_keygen *fk, int32_t *F, int32_t *G,
 		return 0;
 	}
 
-	fprintf(stderr, "Checking NTRU equation\n");
+	//fprintf(stderr, "Checking NTRU equation\n");
 
 	/*
 	 * Verify that the NTRU equation is fulfilled. Since all elements

@@ -38,8 +38,8 @@
 #include <math.h>
 
 #define DEBUG_GPV               0
-#define CRT_NTRU_SOLVE          1
-#define SP_PUBLIC_KEY_CREATE    1
+#define CRT_NTRU_SOLVE          0
+#define SP_PUBLIC_KEY_CREATE    0
 #if CRT_NTRU_SOLVE == 1 && SP_PUBLIC_KEY_CREATE == 0
 #error "If CRT_NTRU_SOLVE is enabled SP_PUBLIC_KEY_CREATE must also be enabled"
 #endif

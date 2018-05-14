@@ -1207,7 +1207,7 @@ void NTT_FUNC_NAME(ntt32_fft_32)(SINT32 *v, const ntt_params_t *p, const SINT32 
             // w[0] is always 1
             for (k = 0; k < n; k += i_next) {
                 x = v[k + i];
-                x = sc_mod_limit_s32(x, q);
+                x = NTT_FUNC_NAME(ntt32_modn)(x, p);
                 v[k + i] = v[k] - x;
                 v[k] = v[k] + x;
             }
