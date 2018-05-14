@@ -84,14 +84,14 @@ extern "C" {
  * exceed the value of 'max_out_len') then 0 is returned.
  */
 size_t falcon_encode_12289(void *out, size_t max_out_len,
-	const uint16_t *x, unsigned logn);
+	const uint32_t *x, unsigned logn);
 
 /*
  * Decode a ring element, using q = 12289. The encoded length (in bytes)
  * is returned. If the source value is incorrect (too short or otherwise
  * invalid) then this function returns 0.
  */
-size_t falcon_decode_12289(uint16_t *x, unsigned logn,
+size_t falcon_decode_12289(uint32_t *x, unsigned logn,
 	const void *data, size_t len);
 
 /*
@@ -108,7 +108,7 @@ size_t falcon_decode_12289(uint16_t *x, unsigned logn,
  * exceed the value of 'max_out_len') then 0 is returned.
  */
 size_t falcon_encode_18433(void *out, size_t max_out_len,
-	const uint16_t *x, unsigned logn);
+	const uint32_t *x, unsigned logn);
 
 /*
  * Decode a ring element, using q = 18433. The encoded length (in bytes)
@@ -117,7 +117,7 @@ size_t falcon_encode_18433(void *out, size_t max_out_len,
  *
  * Note that length of x[] is 1.5*2^logn.
  */
-size_t falcon_decode_18433(uint16_t *x, unsigned logn,
+size_t falcon_decode_18433(uint32_t *x, unsigned logn,
 	const void *data, size_t len);
 
 /*
@@ -140,14 +140,14 @@ size_t falcon_decode_18433(uint16_t *x, unsigned logn,
  *  - Output buffer is too small (this may happen only if 'out' is not NULL).
  */
 size_t falcon_encode_small(void *out, size_t max_out_len,
-	int comp, unsigned q, const int16_t *x, unsigned logn);
+	int comp, unsigned q, const int32_t *x, unsigned logn);
 
 /*
  * Decode a "small vector". The encoded length (in bytes) is returned. If
  * the source value is incorrect (too short or otherwise invalid), then
  * this function returns 0.
  */
-size_t falcon_decode_small(int16_t *x, unsigned logn,
+size_t falcon_decode_small(int32_t *x, unsigned logn,
 	int comp, unsigned q, const void *data, size_t len);
 
 /*
@@ -162,7 +162,7 @@ void falcon_hash_to_point(shake_context *sc, unsigned q,
  * vector with the acceptance bound. Returned value is 1 on success
  * (vector is short enough to be acceptable), 0 otherwise.
  */
-int falcon_is_short(const int16_t *s1, const int16_t *s2,
+int falcon_is_short(const int32_t *s1, const int32_t *s2,
 	unsigned logn, unsigned ter);
 
 /* ==================================================================== */
@@ -179,8 +179,8 @@ int falcon_is_short(const int16_t *s1, const int16_t *s2,
  *   ternary   1 for the ternary case, 0 for binary
  * Returned value is 1 on success, 0 on error.
  */
-int falcon_vrfy_verify_raw(const uint16_t *c0, const int16_t *s2,
-	const uint16_t *h, unsigned logn, int ternary);
+int falcon_vrfy_verify_raw(const uint16_t *c0, const int32_t *s2,
+	const uint32_t *h, unsigned logn, int ternary);
 
 /*
  * Compute the public key h[], given the private key elements f[] and
@@ -188,8 +188,8 @@ int falcon_vrfy_verify_raw(const uint16_t *c0, const int16_t *s2,
  * modulus. This function returns 1 on success, 0 on error (an error is
  * reported if f is not invertible mod phi mod q).
  */
-int falcon_compute_public(falcon_keygen *fk, uint16_t *h,
-	const int16_t *f, const int16_t *g, unsigned logn);
+int falcon_compute_public(falcon_keygen *fk, uint32_t *h,
+	const int32_t *f, const int32_t *g, unsigned logn);
 
 /*
  * Recompute the fourth private key element. Private key consists in
@@ -199,8 +199,8 @@ int falcon_compute_public(falcon_keygen *fk, uint16_t *h,
  *
  * Returned value is 1 in success, 0 on error (f not invertible).
  */
-int falcon_complete_private(int16_t *G,
-	const int16_t *f, const int16_t *g, const int16_t *F,
+int falcon_complete_private(int32_t *G,
+	const int32_t *f, const int32_t *g, const int32_t *F,
 	unsigned logn, int ternary);
 
 /* ==================================================================== */

@@ -38,8 +38,8 @@
 #include <math.h>
 
 #define DEBUG_GPV               0
-#define CRT_NTRU_SOLVE          0
-#define SP_PUBLIC_KEY_CREATE    0
+#define CRT_NTRU_SOLVE          1
+#define SP_PUBLIC_KEY_CREATE    1
 #if CRT_NTRU_SOLVE == 1 && SP_PUBLIC_KEY_CREATE == 0
 #error "If CRT_NTRU_SOLVE is enabled SP_PUBLIC_KEY_CREATE must also be enabled"
 #endif
@@ -2362,11 +2362,11 @@ step2:
                                (SC_SCHEME_IBE_DLP    == sc->scheme)? &sc->dlp_ibe->ntt :
                                                                      &sc->ens_dlp_sig->ntt;
     const SINT16 *ntt_w_16 = (SC_SCHEME_SIG_FALCON == sc->scheme)? sc->falcon->params->w  :
-                          //(SC_SCHEME_IBE_DLP    == sc->scheme)? sc->dlp_ibe->params->w :
-                                                                sc->ens_dlp_sig->params->w;
+                             (SC_SCHEME_IBE_DLP    == sc->scheme)? 0 :
+                                                                   sc->ens_dlp_sig->params->w;
     const SINT16 *ntt_r_16 = (SC_SCHEME_SIG_FALCON == sc->scheme)? sc->falcon->params->r  :
-                          //(SC_SCHEME_IBE_DLP    == sc->scheme)? sc->dlp_ibe->params->r :
-                                                                sc->ens_dlp_sig->params->r;
+                             (SC_SCHEME_IBE_DLP    == sc->scheme)? 0 :
+                                                                   sc->ens_dlp_sig->params->r;
     const SINT32 *ntt_w_32 = (SC_SCHEME_IBE_DLP == sc->scheme)? sc->dlp_ibe->params->w : 0;
     const SINT32 *ntt_r_32 = (SC_SCHEME_IBE_DLP == sc->scheme)? sc->dlp_ibe->params->r : 0;
 #if CRT_NTRU_SOLVE == 1
@@ -2376,18 +2376,9 @@ step2:
     }*/
 
     falcon_keygen *fk = falcon_keygen_new(sc, ntt_params, ntt_w_16, ntt_r_16, sc_log2_32(n));
-    int16_t F16[1024], G16[1024], f16[1024], g16[1024];
-    for (size_t i=0; i<n; i++) {
-        f16[i] = f[i];
-        g16[i] = g[i];
-    }
-    if (!solve_NTRU(fk, F16, G16, f16, g16)) {
+    if (!solve_NTRU(fk, F, G, f, g)) {
         falcon_keygen_free(fk);
         goto step2;
-    }
-    for (size_t i=0; i<n; i++) {
-        F[i] = F16[i];
-        G[i] = G16[i];
     }
     falcon_keygen_free(fk);
 
