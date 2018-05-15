@@ -69,6 +69,12 @@
 #define NUM_TEMP_DILITHIUM_G_RINGS  (10*k + 2*l + 4)
 #endif
 
+#if defined(USE_DETERMINISTIC_DILITHIUM)
+#define NUM_DILITHIUM_PRIVKEY_SECRET_BYTES    (32 + 32 + 48)
+#else
+#define NUM_DILITHIUM_PRIVKEY_SECRET_BYTES    (32)
+#endif
+
 
 SINT32 dilithium_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
 {
@@ -326,7 +332,7 @@ SINT32 dilithium_destroy(safecrypto_t *sc)
 
     // Free all resources associated with key-pair and signature
     if (sc->privkey->key) {
-        SC_FREE(sc->privkey->key, (NUM_DILITHIUM_PRIVKEY_K*k + l) * n * sizeof(SINT32) + (32 + 32 + 48) * sizeof(UINT8));
+        SC_FREE(sc->privkey->key, (NUM_DILITHIUM_PRIVKEY_K*k + l) * n * sizeof(SINT32) + NUM_DILITHIUM_PRIVKEY_SECRET_BYTES * sizeof(UINT8));
         sc->privkey->len = 0;
     }
     if (sc->pubkey->key) {
@@ -413,7 +419,10 @@ SINT32 dilithium_privkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len
     size_t i;
     UINT32 n, k, l, q_bits, eta_bits;
     SINT32 *privkey, *s1, *s2, *t;
-    UINT8 *rho, *K, *tr;
+    UINT8 *rho;
+#ifdef USE_DETERMINISTIC_DILITHIUM
+    UINT8 *K, *tr;
+#endif
 #ifdef DILITHIUM_STORE_T_RESIDUALS
     SINT32 *t1, *t0;
     UINT32 q, d;
@@ -435,10 +444,12 @@ SINT32 dilithium_privkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len
 #endif
 
     if (sc->privkey->key) {
-        SC_FREE(sc->privkey->key, (NUM_DILITHIUM_PRIVKEY_K*k + l) * n * sizeof(SINT32) + (32 + 32 + 48) * sizeof(UINT8));
+        SC_FREE(sc->privkey->key, (NUM_DILITHIUM_PRIVKEY_K*k + l) * n * sizeof(SINT32) +
+            NUM_DILITHIUM_PRIVKEY_SECRET_BYTES * sizeof(UINT8));
     }
     if (NULL == sc->privkey->key) {
-        sc->privkey->key = SC_MALLOC((NUM_DILITHIUM_PRIVKEY_K*k + l) * n * sizeof(SINT32) + (32 + 32 + 48) * sizeof(UINT8));
+        sc->privkey->key = SC_MALLOC((NUM_DILITHIUM_PRIVKEY_K*k + l) * n * sizeof(SINT32) +
+            NUM_DILITHIUM_PRIVKEY_SECRET_BYTES * sizeof(UINT8));
         if (NULL == sc->privkey->key) {
             SC_LOG_ERROR(sc, SC_NULL_POINTER);
             return SC_FUNC_FAILURE;
@@ -455,10 +466,12 @@ SINT32 dilithium_privkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len
     t0      = t1 + k * n;
 #endif
     rho     = (UINT8*)(privkey + (NUM_DILITHIUM_PRIVKEY_K*k + l) * n);
+#ifdef USE_DETERMINISTIC_DILITHIUM
     K       = rho + 32;
     tr      = K + 32;
+#endif
     sc_packer_t *packer = utils_entropy.pack_create(sc, &sc->coding_priv_key,
-        ((eta_bits + 1) * (l + k) + q_bits * k) * n + 32*8, key, key_len, NULL, 0);
+        ((eta_bits + 1) * (l + k) + q_bits * k) * n + NUM_DILITHIUM_PRIVKEY_SECRET_BYTES*8, key, key_len, NULL, 0);
     if (NULL == packer) {
         return SC_FUNC_FAILURE;
     }
@@ -478,6 +491,16 @@ SINT32 dilithium_privkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len
     // rho
     entropy_poly_decode_8(packer, 32, rho, 8,
         UNSIGNED_COEFF, SC_ENTROPY_NONE, 0);
+
+#ifdef USE_DETERMINISTIC_DILITHIUM
+    // K
+    entropy_poly_decode_8(packer, 32, K, 8,
+        UNSIGNED_COEFF, SC_ENTROPY_NONE, 0);
+
+    // tr
+    entropy_poly_decode_8(packer, 48, tr, 8,
+        UNSIGNED_COEFF, SC_ENTROPY_NONE, 0);
+#endif
 
     utils_entropy.pack_destroy(&packer);
     sc->privkey->len = n;
@@ -510,7 +533,11 @@ SINT32 dilithium_privkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len
     SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Loaded privkey s2", s2, k*n);
     SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Loaded privkey t", t, k*n);
     SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "Loaded privkey rho", rho, 32);
-    SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "Loaded privkey stream", (UINT8*)privkey, (NUM_DILITHIUM_PRIVKEY_K*k + l) * n * sizeof(SINT32) + 32 + 32 + 48);
+#ifdef USE_DETERMINISTIC_DILITHIUM
+    SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "Loaded privkey K", K, 32);
+    SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "Loaded privkey tr", tr, 48);
+#endif
+    SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "Loaded privkey stream", (UINT8*)privkey, (NUM_DILITHIUM_PRIVKEY_K*k + l) * n * sizeof(SINT32) + NUM_DILITHIUM_PRIVKEY_SECRET_BYTES);
 
     return SC_FUNC_SUCCESS;
 }
@@ -589,7 +616,7 @@ SINT32 dilithium_privkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
     size_t i;
     UINT32 n, q_bits, eta_bits, l, k;
     SINT32 *privkey;
-    const UINT8 *rho;
+    const UINT8 *rho, *K, *tr;
 
     if (NULL == sc || NULL == key) {
         SC_LOG_ERROR(sc, SC_NULL_POINTER);
@@ -604,6 +631,10 @@ SINT32 dilithium_privkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
 
     privkey  = (SINT32 *) sc->privkey->key;
     rho      = (const UINT8*)(privkey + (NUM_DILITHIUM_PRIVKEY_K*k + l) * n);
+#ifdef USE_DETERMINISTIC_DILITHIUM
+    K   = rho + 32;
+    tr  = K + 32;
+#endif
     SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Encoded privkey s1", privkey, l*n);
     SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Encoded privkey s2", privkey + l*n, k*n);
     SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Encoded privkey t", privkey + (k+l)*n, k*n);
@@ -612,6 +643,10 @@ SINT32 dilithium_privkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
     SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Encoded privkey t0", privkey + (3*k+l)*n, k*n);
 #endif
     SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "Encoded privkey rho", rho, 32);
+#ifdef USE_DETERMINISTIC_DILITHIUM
+    SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "Encoded privkey K", K, 32);
+    SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "Encoded privkey tr", tr, 48);
+#endif
     SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "Encoded privkey stream",
         (UINT8*)privkey, (NUM_DILITHIUM_PRIVKEY_K*k + l) * n * sizeof(SINT32) + 32);
 
@@ -627,7 +662,7 @@ SINT32 dilithium_privkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
 
     // Create a bit packer to compress the public key
     sc_packer_t *packer = utils_entropy.pack_create(sc, &sc->coding_priv_key,
-        ((eta_bits + 1) * (l + k) + q_bits * k) * n + 32*8, NULL, 0, key, key_len);
+        ((eta_bits + 1) * (l + k) + q_bits * k) * n + NUM_DILITHIUM_PRIVKEY_SECRET_BYTES*8, NULL, 0, key, key_len);
     if (NULL == packer) {
         SC_LOG_ERROR(sc, SC_NULL_POINTER);
         return SC_FUNC_FAILURE;
@@ -652,6 +687,18 @@ SINT32 dilithium_privkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
     entropy_poly_encode_8(packer, 32, rho, 8,
         UNSIGNED_COEFF, SC_ENTROPY_NONE, 0,
         &sc->stats.components[SC_STAT_PRIV_KEY][3].bits_coded);
+
+#ifdef USE_DETERMINISTIC_DILITHIUM
+    // K
+    entropy_poly_encode_8(packer, 32, K, 8,
+        UNSIGNED_COEFF, SC_ENTROPY_NONE, 0,
+        &sc->stats.components[SC_STAT_PRIV_KEY][4].bits_coded);
+
+    // tr
+    entropy_poly_encode_8(packer, 48, tr, 8,
+        UNSIGNED_COEFF, SC_ENTROPY_NONE, 0,
+        &sc->stats.components[SC_STAT_PRIV_KEY][5].bits_coded);
+#endif
 
     // Extract the buffer with the public key and release the packer resources
     utils_entropy.pack_get_buffer(packer, key, key_len);

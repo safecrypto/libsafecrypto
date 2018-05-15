@@ -84,12 +84,15 @@ TESTS                   += func_alg_dlp_sig \
                            func_alg_dlp_sig_recovery_huffman
 endif WITH_DLP_SIG
 
-if BUILD_DILITHIUM
+if WITH_DILITHIUM_SIG
 TESTS                   += func_alg_dilithium \
-                           func_alg_dilithium_g \
-                           func_alg_dilithium_huffman \
+                           func_alg_dilithium_huffman
+endif WITH_DILITHIUM_SIG
+
+if WITH_DILITHIUM_G_SIG
+TESTS                   += func_alg_dilithium_g \
                            func_alg_dilithium_g_huffman
-endif BUILD_DILITHIUM
+endif WITH_DILITHIUM_G_SIG
 
 noinst_PROGRAMS          = $(TESTS)
 
@@ -185,7 +188,9 @@ func_alg_dilithium_huffman_SOURCES   = func_alg_dilithium.c \
 func_alg_dilithium_huffman_LDADD     = $(top_builddir)/libs/libsafecrypto.la -lm
 func_alg_dilithium_huffman_CFLAGS    = -DUSE_HUFFMAN_STATIC_ENTROPY
 func_alg_dilithium_huffman_LDFLAGS   = -static
+endif
 
+if WITH_DILITHIUM_G_SIG
 func_alg_dilithium_g_SOURCES         = func_alg_dilithium_g.c \
                                        $(top_srcdir)/include/safecrypto.h
 func_alg_dilithium_g_LDADD           = $(top_builddir)/libs/libsafecrypto.la -lm

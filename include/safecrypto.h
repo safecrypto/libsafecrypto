@@ -111,8 +111,8 @@ extern "C" {
 /// Word 2:
 /// @{
 #define SC_FLAG_2_SAMPLE_SCA_DISCARD_LO      0x00000001  ///< Enable discarding Gaussian samples at a low rate (6.25%)
-#define SC_FLAG_2_SAMPLE_SCA_DISCARD_MD      0x00000002  ///< Enable discarding Gaussian samples at a low rate (12.5%)
-#define SC_FLAG_2_SAMPLE_SCA_DISCARD_HI      0x00000003  ///< Enable discarding Gaussian samples at a low rate (25%)
+#define SC_FLAG_2_SAMPLE_SCA_DISCARD_MD      0x00000002  ///< Enable discarding Gaussian samples at a medium rate (12.5%)
+#define SC_FLAG_2_SAMPLE_SCA_DISCARD_HI      0x00000003  ///< Enable discarding Gaussian samples at a high rate (25%)
 #define SC_FLAG_2_SAMPLE_CACHE_ACCESS        0x00000004  ///< Enable random cache access of any Gaussian sample LUT
 #define SC_FLAG_2_SAMPLE_NON_CT_MASK         0x00000008  ///< Enable the masking of non-constant time Gaussian sampling
 #define SC_FLAG_2_SAMPLE_SCA_SHUFFLE         0x00000010  ///< Enable Gaussian shuffling countermeasures

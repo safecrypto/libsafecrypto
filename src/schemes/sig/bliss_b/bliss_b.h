@@ -38,6 +38,8 @@
 #define BLISS_ENABLE_NTT_TRANSMISSION
 #endif
 
+//#define USE_BLISS_COUNTERMEASURE_VERIFY_IN_SIGNATURE
+
 typedef struct _bliss_set_t bliss_set_t;
 
 SC_STRUCT_PACK_START
