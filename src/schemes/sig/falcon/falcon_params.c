@@ -41,7 +41,7 @@ falcon_set_t param_falcon_0 = {
 };*/
 
 falcon_set_t param_falcon_2 = {
-    0, SC_HASH_SHA3_512, 7681, 13, 256, 8, 5, 100.0f, 6, 9,
+    0, SC_HASH_SHA3_512, 12289, 13, 1024, 10, 5, 100.0f, 6, 9,
     13131, // 0.5 * n * 1.17 * sqrtl(q)
 #ifdef USE_RUNTIME_NTT_TABLES
     NULL, NULL
