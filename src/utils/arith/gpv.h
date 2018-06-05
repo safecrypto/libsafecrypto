@@ -86,6 +86,8 @@ LONGDOUBLE dot_s64_ldbl(const SINT64 *x, const LONGDOUBLE *y,
     size_t n, size_t u, size_t v);
 ///@}
 
+SINT32 create_public_key(SINT32 *h, const SINT32 *f, const SINT32 *g, UINT32 q, size_t n);
+
 /// Generate the polynomial basis B
 SINT32 gpv_expand_basis(const gpv_t *gpv);
 

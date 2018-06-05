@@ -2192,7 +2192,7 @@ finish:
     return retval;
 }
 
-static SINT32 create_public_key(SINT32 *h, const SINT32 *f, const SINT32 *g, UINT32 q, size_t n)
+SINT32 create_public_key(SINT32 *h, const SINT32 *f, const SINT32 *g, UINT32 q, size_t n)
 {
     safecrypto_ntt_e ntt_type = SC_NTT_FLOATING_POINT;
     const utils_arith_ntt_t *sc_ntt = utils_arith_ntt(ntt_type);
@@ -3204,20 +3204,14 @@ gaussian_lattice_sample_fft(safecrypto_t *sc,
     //fprintf(stderr, "print out  t1[0]= %d", t1[0]);
     n = (size_t)1 << logn;
     if (n == 1) {
-        DOUBLE x0, x1, sigma;
-        x0 = t0[0];
-        x1 = t1[0];
-        sigma = tree[0];
+        FLOAT sigma = tree[0];
 
         // Adaptive Gaussian Sampling
         utils_sampling_t *gauss = NULL;
-        LONGDOUBLE sig = 0L;
-   
-        sig = (LONGDOUBLE)sigma;
-        //fprintf(stderr, "before sampler \n");
+
         gauss = create_sampler(
             sc->sampling, SAMPLING_64BIT, sc->blinding, 1, SAMPLING_DISABLE_BOOTSTRAP,
-            sc->prng_ctx[0], 10, sig);
+            sc->prng_ctx[0], 10, sigma);
         //fprintf(stderr, "after sampler \n");
         if (NULL == gauss) {
             fprintf(stderr, "null==gauss \n");
@@ -3227,8 +3221,9 @@ gaussian_lattice_sample_fft(safecrypto_t *sc,
 /*DOUBLE r=(DOUBLE)get_sample(gauss);
 fprintf(stderr, "print out  r= %d", r);*/
    
-        z0[0] = t0[0]+(DOUBLE)get_sample(gauss);
-        z1[0] = t1[0]+(DOUBLE)get_sample(gauss);
+        z0[0] = floor(t0[0]) + get_sample(gauss);
+        z1[0] = floor(t1[0]) + get_sample(gauss);
+
 //print out sample for testing
 /*FILE * pFile_z0;
 pFile_z0=fopen("SC_z0.txt", "w");

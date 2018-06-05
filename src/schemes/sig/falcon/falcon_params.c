@@ -22,7 +22,7 @@
 
 falcon_set_t param_falcon_0 = {
     0, SC_HASH_SHA3_512, 12289, 14, 512, 9, 5, 215.0f, 6, 9,
-    33203, // 0.5 * n * 1.17 * sqrtl(q)
+    6598, // 1.2*1.55*sqrt(q)*sqrt(2*N)
 #ifdef USE_RUNTIME_NTT_TABLES
     NULL, NULL
 #else

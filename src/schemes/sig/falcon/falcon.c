@@ -39,7 +39,6 @@
 #include <math.h>
 
 #define FALCON_NUM_TEMP     8
-#define DEBUG_FALCON_SIG
 
 #if __WORDSIZE == 64
 #define FMT_LIMB    "lu"
@@ -621,6 +620,36 @@ SINT32 falcon_sig_privkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
 
 #endif // DISABLE_SIGNATURES_SERVER
 
+static SINT32 check_norm_bd(FLOAT bd, const SINT32 *s1, const SINT32 *s2, size_t n)
+{
+    size_t i;
+#ifdef FALCON_USE_LONGDOUBLE_PREC_FLOATS
+    LONGDOUBLE norm = 0;
+    for (i=n; i--;) {
+        norm += s1[i] * s1[i] + s2[i] * s2[i];
+    }
+    norm = sqrtl(norm);
+#else
+#ifdef FALCON_USE_DOUBLE_PREC_FLOATS
+    DOUBLE norm = 0;
+    for (i=n; i--;) {
+        norm += s1[i] * s1[i] + s2[i] * s2[i];
+    }
+    norm = sqrt(norm);
+#else
+    FLOAT norm = 0;
+    for (i=n; i--;) {
+        norm += s1[i] * s1[i] + s2[i] * s2[i];
+    }
+    norm = sqrtf(norm);
+#endif
+#endif
+
+    fprintf(stderr, "norm = %3.3f\n", norm);
+
+    return (norm >= bd)? SC_FUNC_FAILURE : SC_FUNC_SUCCESS;
+}
+
 // A random oracle that generates a fixed length random number sequence
 // if given a variable length unique user ID.
 static void oracle_csprng(safecrypto_t *sc, const UINT8 *msg, size_t msg_len, UINT8 *md)
@@ -669,100 +698,24 @@ static void h_function_csprng(safecrypto_t *sc, const UINT8 *md, SINT32 *c, size
 
 // Use a random oracle output (i.e. a hash message digest) to
 // create a ring polynomial that uniquely represents a binary message.
-static void h_function_xof(safecrypto_t *sc, DOUBLE *c, size_t n)
+static void h_function_xof(safecrypto_t *sc, SINT32 *c, size_t n)
 {
     size_t i;
     const SINT32 q      = sc->falcon->params->q;
     const SINT32 q_bits = sc->falcon->params->q_bits;
 
-for (int j=0; j < n/32; j++){
-	SINT32 c_tmp[32];
-    UINT32 mask = (1 << q_bits) - 1;
-//fprintf(stderr, "q= %d and mask= %lu \n", q, mask);
-    xof_squeeze(sc->xof, c_tmp, 32 *sizeof(SINT32));
+    for (int j=0; j < n/32; j++){
+	    SINT32 c_tmp[32];
+        UINT32 mask = (1 << q_bits) - 1;
+        xof_squeeze(sc->xof, c_tmp, 32 *sizeof(SINT32));
 
-//print out c_tmp
-/*FILE * pFile_c_tmp;
-pFile_c_tmp=fopen("SC_c_tmp.txt", "w");
-for (size_t u = 0; u < 32; u ++) {
-fprintf(pFile_c_tmp, "c_tmp[%d]: %d  \n", u, c_tmp[u]);
-	}
-fclose(pFile_c_tmp);*/
-
-    // Generate polynomial coefficients mod q from the CSPRNG
-    for (i=0; i<32; i++) {
-//fprintf(stderr, "and to here\n");
-        c_tmp[i] &= mask;
-        c_tmp[i] -= (c_tmp[i] >= q) * q;
-	c[j*32 + i]=(DOUBLE) c_tmp[i];
-    		}
-	}
-//print out c-array
-/*FILE * pFile_c_xof;
-pFile_c_xof=fopen("SC_c_xof.txt", "w");
-for (size_t u = 0; u < n; u ++) {
-fprintf(pFile_c_xof, "c[%d]: %g  \n", u, c[u]);
-	}
-fclose(pFile_c_xof);*/
-}
-
-// Extract m1 from the ring c and copy it to the message array that already contains m2
-static SINT32 recover_msg(safecrypto_t *sc, UINT8 **m, size_t *m_len, SINT32 *c, UINT32 q_bits, size_t n, size_t k)
-{
-    SINT32 retval = SC_FUNC_FAILURE;
-    size_t i, offset;
-    UINT32 mask, bound;
-    UINT8 *buffer;
-    size_t buffer_len = 0;
-    offset  = (n - k) * (M1_BITS(q_bits));
-    offset -= (offset >> 3) << 3;
-    mask    = ((1 << (8 - offset)) - 1) ^ 0xFF;
-    bound   = (1 << M1_BITS(q_bits)) - 1;
-
-    SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "Input m", *m, *m_len);
-
-    // Use packers to obtain a byte array from the first (n-k) input ring coefficients
-    sc_entropy_t coding_raw = {
-        .type = SC_ENTROPY_NONE,
-    };
-    sc_packer_t *packer;
-    packer = utils_entropy.pack_create(sc, &coding_raw, (n-k)*(M1_BITS(q_bits)), NULL, 0, &buffer, &buffer_len);
-    for (i=0; i<n-k; i++) {
-        // Check if the input sample is within bounds
-        if (c[i] > bound) {
-            utils_entropy.pack_destroy(&packer);
-            goto finish;
+        // Generate polynomial coefficients mod q from the CSPRNG
+        for (i=0; i<32; i++) {
+            c_tmp[i] &= mask;
+            c_tmp[i] -= ((UINT32)(q - c_tmp[i]) >> 31) * q;
+	        c[j*32 + i] = c_tmp[i];
         }
-
-        // Write M!_BITS to the data stream
-        utils_entropy.pack_insert(packer, c[i], M1_BITS(q_bits));
-    }
-    utils_entropy.pack_insert(packer, 0, 16);
-    utils_entropy.pack_get_buffer(packer, &buffer, &buffer_len);
-    utils_entropy.pack_destroy(&packer);
-
-    // Extract m1 from the buffer, ORing the last byte with the first few bits of m2
-    for (i=0; i<buffer_len-3; i++) {
-        (*m)[i] = buffer[i];
-    }
-    if (0 == offset) {
-        (*m)[i] = buffer[buffer_len-3];
-    }
-    else {
-        (*m)[i] &= (mask ^ 0xFF);
-        (*m)[i] |= buffer[buffer_len-3] & mask;
-    }
-
-    //*m_len = ((*m_len * 8) + (n - k) * (M1_BITS(q_bits))) >> 3;
-    SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "Recovered m", *m, *m_len);
-
-    // Free the memory associated with the buffer
-    SC_FREE(buffer, buffer_len);
-
-    retval = SC_FUNC_SUCCESS;
-
-finish:
-    return retval;
+	}
 }
 
 static void small_mul_mod_ring(SINT32 *r, const SINT32 *a, const SINT16 *b_sparse,
@@ -1300,56 +1253,8 @@ fclose(pFile_sc_G);
 	 *   g10 = b10*adj(b00) + b11*adj(b01)
 	 *   g11 = b10*adj(b10) + b11*adj(b11)
 	 */
-	/*if (ter) {
-		DOUBLE *g00, *g10, *g11, *gxx;
-
-		g00 = tmp;
-		g10 = g00 + n;
-		g11 = g10 + n;
-		gxx = g11 + n;
-
-		memcpy(g00, b00, n * sizeof *b00);
-		falcon_poly_mulselfadj_fft3(g00, logn, 1);
-		memcpy(gxx, b01, n * sizeof *b01);
-		falcon_poly_mulselfadj_fft3(gxx, logn, 1);
-		falcon_poly_add_fft3(g00, gxx, logn, 1);
-
-		memcpy(g10, b10, n * sizeof *b10);
-		falcon_poly_muladj_fft3(g10, b00, logn, 1);
-		memcpy(gxx, b11, n * sizeof *b11);
-		falcon_poly_muladj_fft3(gxx, b01, logn, 1);
-		falcon_poly_add_fft3(g10, gxx, logn, 1);
-
-		memcpy(g11, b10, n * sizeof *b10);
-		falcon_poly_mulselfadj_fft3(g11, logn, 1);
-		memcpy(gxx, b11, n * sizeof *b11);
-		falcon_poly_mulselfadj_fft3(gxx, logn, 1);
-		falcon_poly_add_fft3(g11, gxx, logn, 1); */
-
-		/*
-		 * Compute the Falcon tree.
-		 */
-		/*ffLDL_fft3(tree, g00, g10, g11, logn, gxx);
-
-		/*
-		 * Tree normalization:
-		 *   sigma = 1.32 * sqrt(q/sqrt(2))
-		 */
-		/*sigma = fpr_mul(
-			fpr_sqrt(fpr_mul(fpr_of(q), fpr_sqrt(fpr_of(2)))),
-			fpr_div(fpr_of(132), fpr_of(100)));
-
-		/*
-		 * Normalize tree with sigma.
-		 */
-		/*ffLDL_ternary_normalize(tree, sigma, logn);
-	} else 
-	
-		/*
-		 * For historical reasons, this implementation uses
-		 * g00, g01 and g11 (upper triangle).
-		 */
-		 { DOUBLE *g00, *g01, *g11, *gxx;
+    {
+        DOUBLE *g00, *g01, *g11, *gxx;
 
 		g00 = tmp;
 		g01 = g00 + n;
@@ -1369,8 +1274,6 @@ fclose(pFile_sc_G);
 		falcon_poly_add(g01, gxx, logn);
 
 		memcpy(g11, b10, n * sizeof *b10);
-//fprintf(stderr, "test-out 1 %3.0f \n", b10[0]);
-//fprintf(stderr, "test-out 2 %3.0f \n", g11[0]);
 		falcon_poly_mulselfadj_fft(g11, logn);
 		memcpy(gxx, b11, n * sizeof *b11);
 		falcon_poly_mulselfadj_fft(gxx, logn);
@@ -1379,36 +1282,24 @@ fclose(pFile_sc_G);
 		/*
 		 * Compute the Falcon tree.
 		 */
-//fprintf(stderr, "\n test-out 1 %3.0f \n", g11[0]);
-//fprintf(stderr, "CALLING ffLDL_fft \n");
 		ffLDL_fft(tree, g00, g01, g11, logn, gxx);
-//fprintf(stderr, "tree element 0 before normalisation: %3.0f \n", tree[0]);
-        ffLDL_fft_print(tree, logn);
-        /*size_t sk_len = ((size_t)(logn + 5) << logn) * sizeof(DOUBLE);
-        for (size_t u = 0; u < sk_len; u ++) {
-            fprintf(stderr, "%3.0f ", tree[u]);
-            if (15 == (u&0xF)) fprintf(stderr, "\n");
-        }
-        fprintf(stderr, "\n");*/
+        //ffLDL_fft_print(tree, logn);
 
 		/*
 		 * Tree normalization:
 		 *   sigma = 1.55 * sqrt(q)
 		 */
 		sigma = sqrt(q)* (1.55);
-//fprintf(stderr, "sigma=%f", sigma);
-//fprintf(stderr, "q=%d", q);
 
 		/*
 		 * Normalize tree with sigma.
 		 */
 		ffLDL_binary_normalize(tree, sigma, logn);
-//fprintf(stderr, "about to print tree \n");
-//print out tree-array
+
         FILE * pFile_sc_tree;
         pFile_sc_tree=fopen("SC_tree.txt", "w");
         for (size_t u = 0; u < skoff_tree(logn, ter); u ++) {
-            fprintf(pFile_sc_tree, "tree elements: %3.0f \n", tree[u]);
+            fprintf(pFile_sc_tree, "tree elements: %3.6f \n", tree[u]);
         }
         fclose(pFile_sc_tree);
 
@@ -1445,7 +1336,7 @@ SINT32 falcon_sig_keygen(safecrypto_t *sc)
 
     n      = sc->falcon->params->n;
     q      = sc->falcon->params->q;
-    logn = sc->falcon->params->n_bits;
+    logn   = sc->falcon->params->n_bits;
 
     SINT32 s1[n] SC_DEFAULT_ALIGNED;
     SINT32 c[n];
@@ -1499,14 +1390,12 @@ SINT32 falcon_sig_keygen(safecrypto_t *sc)
         }
     }
 
-
-
     // Generate the public and private keys
     iter = 0;
 restart:
     iter += gpv_gen_basis(sc, f, g, h, n, q,
         sc->sc_gauss, sc->prng_ctx[0], F, G, 0); //RECREATE_FLAG CHANGE BACK TO 0
-//fprintf(stderr, "I am here \n");
+
     // If short basis generation is unsuccessful then restart
     if (iter < 0) {
         goto restart;
@@ -1517,15 +1406,6 @@ restart:
 
     SC_PRINT_DEBUG(sc, "Memory allocation for keys\n");
 
-    // Allocate key pair memory--commented out as the private key changes for FALCON. -S
-   /* if (NULL == sc->privkey->key) {
-        sc->privkey->key = SC_MALLOC(4 * n * sizeof(SINT32));
-        if (NULL == sc->privkey->key) {
-            SC_LOG_ERROR(sc, SC_NULL_POINTER);
-            goto finish_free;
-        }
-    }
-*/
     if (NULL == sc->pubkey->key) {
         sc->pubkey->key = SC_MALLOC(2 * n * sizeof(SINT16));
         if (NULL == sc->pubkey->key) {
@@ -1540,52 +1420,11 @@ restart:
     smallints_to_double(g_tmp, g, logn, ter);
     smallints_to_double(F_tmp, F, logn, ter);
     smallints_to_double(G_tmp, G, logn, ter);
-    
-
-    falcon_FFT(f_tmp,10);
-    falcon_FFT(g_tmp,10);
-    falcon_FFT(F_tmp,10);
-    falcon_FFT(G_tmp,10);
 
     // Create the polynomial basis matrices if they are to be maintained in memory
     if (sc->falcon->keep_matrices) {
         create_gpv_matrices(sc, &gpv, q, n);
     }
-
-   /* // Obtain the Gram Scmidt orthogonalisation of the polynomial basis
-    get_gso(sc, n, q, &gpv, &b, &b_gs, &b_gs_inv_norm); 
-
-    // Generate a sampled polynomial using the polynomial basis
-    sig = 2.0L / b_gs_inv_norm[0];
-    for (i=0; i<n; i++) {
-        c[i] = q >> 1;
-    } 
-
-    sample_error = gaussian_lattice_sample(sc, &gpv, b_gs, b_gs_inv_norm,
-        c, s1, NULL, q, sig, gaussian_flags);*/ //GSO-not needed for falcon
-
-   /* // Free memory resources associated with the polynomial basis
-    if (0 == sc->falcon->keep_matrices) {
-        if (b) {
-            SC_FREE(b, sizeof(SINT32) * 4*n*n);
-        }
-        if (b_gs) {
-            SC_FREE(b_gs, sizeof(GSO_TYPE) * (4*n*n + 2*n));
-        }
-    } */
-
-   /* if (SC_FUNC_FAILURE == sample_error) {
-        SC_LOG_ERROR(sc, SC_ERROR);
-        return SC_FUNC_FAILURE;
-    }*/
-
-    // Verify that we can correctly sample over the lattice by checking that s1
-    // has a standard deviation of not more than 2*1.17*sqrt(q)
-   /* std_dev = get_std_dev(s1, n);
-    if (std_dev > n*sig)
-    {
-        goto restart;
-    }*/
 
     load_skey(sk, q, gpv.f, gpv.g, gpv.F, gpv.G, logn, 0, tmp);
 
@@ -1602,8 +1441,8 @@ restart:
     sc->pubkey->len = n; // Actually 2n as the NTT version is also stored
 
     // Store an NTT domain version of the public key
-#if 0
-    sc->sc_ntt->fwd_ntt_32_16_large(h_ntt, &sc->falcon->ntt,
+#if 1
+    sc->sc_ntt->fwd_ntt_32_16(h_ntt, &sc->falcon->ntt,
         h, sc->falcon->params->w);
     sc->sc_ntt->normalize_32(h_ntt, n, &sc->falcon->ntt);
     for (i=n; i--;) {
@@ -1649,19 +1488,12 @@ SINT32 falcon_sig_sign(safecrypto_t *sc, const UINT8 *m, size_t m_len, UINT8 **s
     // 3. Return the signature (s1, m)
 
  	SINT32 *s2;	
-
-    //ALLOCATE SIGNATURE MEMORY
-    DOUBLE *sk=sc->falcon->sk;
- 	//const DOUBLE *tree=sc->falcon->sk + skoff_tree(sc->falcon->params->n_bits, 0);
-
-#ifdef DEBUG_FALCON_SIG
+    DOUBLE *sk = sc->falcon->sk;
     size_t i;
     SINT16 *h, *h_ntt;
-    //SINT32 *s2, 
-    SINT32 *s1_ntt;
-#endif
+    SINT32 *s2_ntt;
     UINT32 n, q, q_bits, n_bits;
-    SINT32 *f, *g, *F, *G;
+    SINT32 *f, *g, *F, *G, *c;
     SINT32 *s1;
     UINT8 md[64];
     SINT32 retval = SC_FUNC_FAILURE;
@@ -1693,7 +1525,10 @@ SINT32 falcon_sig_sign(safecrypto_t *sc, const UINT8 *m, size_t m_len, UINT8 **s
     gpv.F    = F;
     gpv.G    = G;
     gpv.n    = n;
+    FLOAT bd;
 	unsigned ter = 0; //for binary
+    
+    // Assign pointers for the pre-computed Falcon tree
     DOUBLE *b00, *b01, *b10, *b11, *tree;
 	b00 = sk + skoff_b00(n_bits, ter);
 	b01 = sk + skoff_b01(n_bits, ter);
@@ -1701,17 +1536,8 @@ SINT32 falcon_sig_sign(safecrypto_t *sc, const UINT8 *m, size_t m_len, UINT8 **s
 	b11 = sk + skoff_b11(n_bits, ter);
 	tree = sk + skoff_tree(n_bits, ter);
 
-	/*
-	 * We load the private key elements directly into the B0 matrix,
-	 * since B0 = [[g, -f], [G, -F]].
-	 */
-	smallints_to_double(b01, f, n_bits, 0);
-	smallints_to_double(b00, g, n_bits, 0);
-	smallints_to_double(b11, F, n_bits, 0);
-	smallints_to_double(b10, G, n_bits, 0);
-
 	// Allocate memory for FALCON signature sampling_fft
-    DOUBLE *c0 =SC_MALLOC(sizeof(DOUBLE) * n * 2);
+    DOUBLE *c0 =SC_MALLOC(sizeof(DOUBLE) * 2 * n);
     if (NULL == c0) {
         SC_LOG_ERROR(sc, SC_NULL_POINTER);
         return SC_FUNC_FAILURE;
@@ -1719,13 +1545,7 @@ SINT32 falcon_sig_sign(safecrypto_t *sc, const UINT8 *m, size_t m_len, UINT8 **s
 
     DOUBLE *c1 = c0 + n;
 
-    DOUBLE *c = SC_MALLOC(sizeof(DOUBLE) * n);
-    if (NULL == sc->falcon) {
-        SC_LOG_ERROR(sc, SC_NULL_POINTER);
-        return SC_FUNC_FAILURE;
-    }
-
-    DOUBLE *tmp = (DOUBLE*) SC_MALLOC(sizeof(DOUBLE) * 7 *n);
+    DOUBLE *tmp = (DOUBLE*) SC_MALLOC(sizeof(DOUBLE) * 7 * n);
     if (NULL == tmp) {
         SC_LOG_ERROR(sc, SC_NULL_POINTER);
         return SC_FUNC_FAILURE;
@@ -1739,24 +1559,24 @@ SINT32 falcon_sig_sign(safecrypto_t *sc, const UINT8 *m, size_t m_len, UINT8 **s
 
     DOUBLE *z1 = z0 + n;
 
-    // c        = sc->temp;
-    s1       = sc->temp;
-#ifdef DEBUG_FALCON_SIG
+    c        = sc->temp;
+    s1       = c + n;
     s2       = s1 + n;
-    s1_ntt   = s2 + n;
+    s2_ntt   = s2 + n;
 
     // Obtain pointers to the public key (NTT domain version)
     h        = (SINT16 *) sc->pubkey->key;
     h_ntt    = (SINT16 *) sc->pubkey->key + n;
-#endif
 
-#ifdef DEBUG_FALCON_SIG
+    bd       = sc->falcon->params->bd;
+
     const SINT16 *w        = sc->falcon->params->w;
     const SINT16 *r        = sc->falcon->params->r;
     ntt_params_t *ntt      = &sc->falcon->ntt;
     const utils_arith_ntt_t *sc_ntt = sc->sc_ntt;
     const utils_arith_poly_t *sc_poly  = sc->sc_poly;
-#endif
+
+restart:
 
     // Translate the message into a polynomial using a random oracle
 #ifdef FALCON_USE_RANDOM_ORACLE_CSPRNG
@@ -1766,60 +1586,11 @@ SINT32 falcon_sig_sign(safecrypto_t *sc, const UINT8 *m, size_t m_len, UINT8 **s
     oracle_xof(sc, m, m_len);
     h_function_xof(sc, c, n);
 #endif
-#if 0
-//overwrite hash output
-FILE * pFile_hm;
-pFile_hm=fopen("fal_hm.txt", "r");
-	if (pFile_hm==NULL){
-	fprintf(stderr, "OPENING ERROR fal_hm");
-	exit (-1);
-	}
-for (size_t u = 0; u < n; u ++) {
-int hash_tmp;
-		if(fscanf(pFile_hm, "%d", &hash_tmp)!=1){
-			fprintf(stderr, "SCAN ERROR hm at hm[%zu]", u); 
-			exit (-1);
-		}
-c[u]=hash_tmp;
-	}
-fclose(pFile_hm);
-#endif
-FILE * pFile_c;
-pFile_c=fopen("SC_c.txt", "w");
-for (size_t u = 0; u < n; u ++) {
-fprintf(pFile_c, "c[%d]: %g  \n", u, c[u]);
-	}
-fclose(pFile_c);
 
-for (int i = 0; i < n; i ++) {
-		c[i]=llrint(c[i]);
+    for (int i = 0; i < n; i ++) {
 		c0[i] = c[i];
-		c1[i] = 0;
-}
-#if 0
-//print out c-array
-FILE * pFile_c0a;
-pFile_c0a=fopen("SC_c0a.txt", "w");
-for (size_t u = 0; u < n; u ++) {
-fprintf(pFile_c0a, "c0[%d]: %g  \n", u, c0[u]);
-	}
-fclose(pFile_c0a);
-
-FILE * pFile_c1a;
-pFile_c1a=fopen("SC_c1a.txt", "w");
-for (size_t u = 0; u < n; u ++) {
-fprintf(pFile_c1a, "c1[%d]: %g  \n", u, c1[u]);
-	}
-fclose(pFile_c1a);
-#endif
-
-    /*falcon_FFT(b01, n_bits);
-    falcon_FFT(b00, n_bits);
-    falcon_FFT(b11, n_bits);
-    falcon_FFT(b10, n_bits);*/
-
-    //falcon_FFT(c0, n_bits);
-    //falcon_FFT(c1, n_bits);
+		c1[i] = 0;  // NOT NEEDED - SET BELOW
+    }
 
     falcon_FFT(c0, n_bits);
     DOUBLE ni = fpr_inverse_of(q);
@@ -1829,156 +1600,53 @@ fclose(pFile_c1a);
     falcon_poly_mul_fft(c0, b11, n_bits);
     falcon_poly_mulconst_fft(c0, ni, n_bits);
 
-
-
-
-
-    //print out FFT of c0-array
-    FILE * pFile_hash;
-    pFile_hash=fopen("FFT_C0.txt", "w");
-    for (size_t u = 0; u < n; u ++) {
-        fprintf(pFile_hash, "c0[%d]: %g  \n", u, c0[u]);
-    }
-    fclose(pFile_hash);
-
-
-    /* // Obtain the Gram Scmidt orthogonalisation of the polynomial basis
-    SINT32 *b = NULL;
-    GSO_TYPE *b_gs = NULL;
-    GSO_TYPE *b_gs_inv_norm = NULL;
-    GSO_TYPE sig;
-    get_gso(sc, n, q, &gpv, &b, &b_gs, &b_gs_inv_norm);*/
-
     // Increment the trial statistics for signature generation
     sc->stats.sig_num++;
     sc->stats.sig_num_trials++;
-// convert to doubles (commented out as performed earlier) and compute fft of secret key polynomials
-
-    /*smallints_to_double(b01, f, n_bits, 0);
-    smallints_to_double(b00, g, n_bits, 0);
-    smallints_to_double(b11, F, n_bits, 0);
-    smallints_to_double(b10, G, n_bits, 0);*/
 
     // Generate a sampled polynomial using the polynomial basis
-    DOUBLE sig = 1.55 * sqrt(q);
-    SC_PRINT_DEBUG(sc, "Sign() sigma = %3.6f\n", sig);
     SINT32 sample_error;
     sample_error = gaussian_lattice_sample_fft(sc, z0, z1, tree, c0, c1, n_bits, tmp, gaussian_flags);
     if (SC_FUNC_FAILURE == sample_error) {
         SC_LOG_ERROR(sc, SC_ERROR);
         goto finish;
     }
-#if 0
-//overwrite sampled z-array
-FILE * pFile_sc_z0;
-pFile_sc_z0=fopen("fal_new_tx.txt", "r");
-	if (pFile_sc_z0==NULL){
-	fprintf(stderr, "OPENING ERROR SC_z0");
-	exit (-1);
-	}
-for (size_t u = 0; u < n; u ++) {
-		if(fscanf(pFile_sc_z0, "%lf", &z0[u])!=1){
-			fprintf(stderr, "SCAN ERROR z0 at z0[%zu]", u); 
-			exit (-1);
-		}
-	}
-fclose(pFile_sc_z0);
-// Z1-array
-FILE * pFile_sc_z1;
-pFile_sc_z1=fopen("fal_new_ty.txt", "r");
-	if (pFile_sc_z1==NULL){
-	fprintf(stderr, "OPENING ERROR SC_z1");
-	exit (-1);
-	}
-for (size_t u = 0; u < n; u ++) {
-		if(fscanf(pFile_sc_z1, "%lf", &z1[u])!=1){
-		fprintf(stderr, "SCAN ERROR z1 at z1[%zu]", u); 
-			exit (-1);
-		}
-	}
-fclose(pFile_sc_z1);
-#endif
-//print out sampled z-array
-FILE * pFile_z0_check;
-pFile_z0_check=fopen("SC_z0_check.txt", "w");
-for (size_t u = 0; u < n; u ++) {
-fprintf(pFile_z0_check, " %g  \n", z0[u]);
-	}
-fclose(pFile_z0_check);
 
-FILE * pFile_z1_check;
-pFile_z1_check=fopen("SC_z1_check.txt", "w");
-for (size_t u = 0; u < n; u ++) {
-fprintf(pFile_z1_check, " %g  \n", z1[u]);
-	}
-fclose(pFile_z1_check);
-		/*
-		 * Get the lattice point corresponding to that tiny vector-negate b11,b01 here
-		 */
-		falcon_poly_neg(b11,n_bits);
-		falcon_poly_neg(b01,n_bits);
-		memcpy(c0, z0, n * sizeof *z0);
-		memcpy(c1, z1, n * sizeof *z1);
-		falcon_poly_mul_fft(z0, b00, n_bits);
-		falcon_poly_mul_fft(z1,b10, n_bits);
-		falcon_poly_add(z0, z1, n_bits);
-		memcpy(z1, c0, n * sizeof *c0);
-		falcon_poly_mul_fft(z1, b01, n_bits);
+	// Get the lattice point corresponding to that tiny vector
+	memcpy(c0, z0, n * sizeof *z0);
+	memcpy(c1, z1, n * sizeof *z1);
+	falcon_poly_mul_fft(z0, b00, n_bits);
+	falcon_poly_mul_fft(z1, b10, n_bits);
+	falcon_poly_add(z0, z1, n_bits);
+	memcpy(z1, c0, n * sizeof *c0);
+	falcon_poly_mul_fft(z1, b01, n_bits);
 
-		memcpy(c0, z0, n * sizeof *c0);
-		falcon_poly_mul_fft(c1, b11, n_bits);
-		falcon_poly_add_fft(c1, z1, n_bits);
+	memcpy(c0, z0, n * sizeof *c0);
+	falcon_poly_mul_fft(c1, b11, n_bits);
+	falcon_poly_add_fft(c1, z1, n_bits);
 
 
-		falcon_iFFT(c0, n_bits);
-		falcon_iFFT(c1, n_bits);
-//print out c-array
-FILE * pFile_c0;
-pFile_c0=fopen("SC_c0.txt", "w");
-for (size_t u = 0; u < n; u ++) {
-fprintf(pFile_c0, "c0[%d]: %g  \n", u, c0[u]);
-	}
-fclose(pFile_c0);
+	falcon_iFFT(c0, n_bits);
+	falcon_iFFT(c1, n_bits);
 
-FILE * pFile_c1;
-pFile_c1=fopen("SC_c1.txt", "w");
-for (size_t u = 0; u < n; u ++) {
-fprintf(pFile_c1, "c1[%d]: %g  \n", u, c1[u]);
+	/*
+	 * Compute the signature.
+	 */
+	for (int i = 0; i < n; i ++) {
+		s1[i] = (SINT32)(c[i] - llrint(c0[i]));
+		s2[i] = (SINT32) -llrint(c1[i]);
 	}
-fclose(pFile_c1);
-FILE * pFile_hm_end;
-pFile_hm_end=fopen("sc_hm_end.txt", "w");
-for (size_t u = 0; u < n; u ++) {
-fprintf(pFile_hm_end, "c[%d]: %lf  \n", u, c[u]);
-	}
-fclose(pFile_hm_end);
-		/*
-		 * Compute the signature.
-		 */
-		for (int i = 0; i < n; i ++) {
-			s1[i] = (SINT32)(c[i]-llrint(c0[i]));
-			s2[i] = (SINT32)-1*llrint(c1[i]);
-		}
-
-FILE * pFile_s1;
-pFile_s1=fopen("sc_s1.txt", "w");
-for (size_t u = 0; u < n; u ++) {
-fprintf(pFile_s1, "%d  \n", s1[u]);
-	}
-fclose(pFile_s1);
-
-FILE * pFile_s2;
-pFile_s2=fopen("sc_s2.txt", "w");
-for (size_t u = 0; u < n; u ++) {
-fprintf(pFile_s2, " %d  \n",s2[u]);
-	}
-fclose(pFile_s2);
-	
 
     SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "m", m, m_len);
     SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "s1", s1, n);
     SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "s2", s2, n);
     sc->sc_ntt->center_32(s1, n, &sc->falcon->ntt);
+    sc->sc_ntt->center_32(s2, n, &sc->falcon->ntt);
+
+    if (SC_FUNC_FAILURE == check_norm_bd(bd, s1, s2, n)) {
+        SC_PRINT_DEBUG(sc, "Norm failed\n");
+        goto finish;//restart;
+    }
 
     // Output an encoded byte stream representing the secret key SK
     sc_entropy_t coding_raw = {
@@ -1993,22 +1661,34 @@ fclose(pFile_s2);
     }
 
     // Send s1
-    entropy_poly_encode_32(packer, n, s1, q_bits,
+    entropy_poly_encode_32(packer, n, s2, q_bits,
         SIGNED_COEFF, sc->coding_signature.type, 3, &sc->stats.components[SC_STAT_SIGNATURE][0].bits_coded);
 
     sc->stats.components[SC_STAT_SIGNATURE][0].bits += q_bits*n;
     utils_entropy.pack_get_buffer(packer, sigret, siglen);
     utils_entropy.pack_destroy(&packer);
 
-#ifdef DEBUG_FALCON_SIG
-    // Calculate s2 = t - h*s1 mod q //commented out cuz s2 was computed up there
-    /*sc_ntt->fwd_ntt_32_16_large(s1_ntt, ntt, s1, w);
-    sc->sc_ntt->mul_32_pointwise_16(s2, ntt, s1_ntt, h_ntt);
-    sc_ntt->inv_ntt_32_16_large(s2, ntt, s2, w, r);
-    sc_poly->sub_32(s2, n, c, s2);
-    sc_ntt->center_32(s2, n, ntt);*/
+#if 1
+    sc_ntt->normalize_32(s1, n, &sc->falcon->ntt);
+    sc_ntt->normalize_32(s2, n, &sc->falcon->ntt);
 
-    SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "s2 = t - h*s1 mod q", s2, n);
+    // Calculate s1 = h*s2 - c0
+#if 0
+    small_mul_mod_ring(s1, s2, h, n, q, s2_ntt);
+#else
+    sc_ntt->fwd_ntt_32_16(s2_ntt, ntt, s2, w);
+    sc_ntt->mul_32_pointwise_16(s1, ntt, s2_ntt, h_ntt);
+    sc_ntt->inv_ntt_32_16(s1, ntt, s1, w, r);
+#endif
+    sc_poly->sub_32(s1, n, c, s1);
+    sc_ntt->center_32(s1, n, ntt);
+    sc_ntt->center_32(s2, n, ntt);
+
+    SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "s1 (regen) = h*s2 - c0", s1, n);
+
+    if (SC_FUNC_FAILURE == check_norm_bd(bd, s1, s2, n)) {
+        goto finish;
+    }
 #endif
 
     retval = SC_FUNC_SUCCESS;
@@ -2029,7 +1709,6 @@ finish:
     // Reset the temporary memory
     SC_MEMZERO(sc->temp, 4 * n * sizeof(SINT32));
  SC_FREE(c0, sizeof(DOUBLE) * 2 * n);
- SC_FREE(c, sizeof(DOUBLE)* n);
  SC_FREE(tmp, sizeof(DOUBLE) * 7 * n);
  SC_FREE(z0, sizeof(DOUBLE) * 2 * n);
 
@@ -2049,34 +1728,6 @@ SINT32 falcon_sig_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
 
 #else
 
-static SINT32 check_norm_bd(FLOAT bd, const SINT32 *s1, const SINT32 *s2, size_t n)
-{
-    size_t i;
-#ifdef FALCON_USE_LONGDOUBLE_PREC_FLOATS
-    LONGDOUBLE norm = 0;
-    for (i=n; i--;) {
-        norm += s1[i] * s1[i] + s2[i] * s2[i];
-    }
-    norm = sqrtl(norm);
-#else
-#ifdef FALCON_USE_DOUBLE_PREC_FLOATS
-    DOUBLE norm = 0;
-    for (i=n; i--;) {
-        norm += s1[i] * s1[i] + s2[i] * s2[i];
-    }
-    norm = sqrt(norm);
-#else
-    FLOAT norm = 0;
-    for (i=n; i--;) {
-        norm += s1[i] * s1[i] + s2[i] * s2[i];
-    }
-    norm = sqrtf(norm);
-#endif
-#endif
-
-    return (norm >= bd)? SC_FUNC_FAILURE : SC_FUNC_SUCCESS;
-}
-
 SINT32 falcon_sig_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
     const UINT8 *sigbuf, size_t siglen)
 {
@@ -2089,11 +1740,9 @@ SINT32 falcon_sig_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
     size_t i;
     UINT32 n, q, q_bits;
     FLOAT bd;
-#ifdef DEBUG_FALCON_SIG
     SINT16 *h_ntt;
-#endif
     SINT16 *h;
-    SINT32 *s1, *s2, *s1_ntt;
+    SINT32 *s1, *s2, *s2_ntt, *c;
     DOUBLE *C;
     UINT8 md[64];
 
@@ -2103,27 +1752,19 @@ SINT32 falcon_sig_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
     q_bits   = sc->falcon->params->q_bits;
     bd       = sc->falcon->params->bd;
 
-    //c        = sc->temp;
-    s1       = sc->temp;
+    c        = sc->temp;
+    s1       = c + n;
     s2       = s1 + n;
-    s1_ntt   = s2 + n;
-
-DOUBLE *c = SC_MALLOC(sizeof(DOUBLE) * n);
-    if (NULL == sc->falcon) {
-        SC_LOG_ERROR(sc, SC_NULL_POINTER);
-        return SC_FUNC_FAILURE;
-    }
+    s2_ntt   = s2 + n;
 
     // Obtain pointers to the public key (NTT domain version)
     h        = (SINT16 *) sc->pubkey->key;
-#ifdef DEBUG_FALCON_SIG
+#if 1
     h_ntt    = (SINT16 *) sc->pubkey->key + n;
 #endif
 
-#ifdef DEBUG_FALCON_SIG
     const SINT16 *w        = sc->falcon->params->w;
     const SINT16 *r        = sc->falcon->params->r;
-#endif
     ntt_params_t *ntt      = &sc->falcon->ntt;
     const utils_arith_ntt_t *sc_ntt = sc->sc_ntt;
     const utils_arith_poly_t *sc_poly  = sc->sc_poly;
@@ -2138,10 +1779,17 @@ DOUBLE *c = SC_MALLOC(sizeof(DOUBLE) * n);
     }
 
     // Decode s1
-    entropy_poly_decode_32(ipacker, n, s1, q_bits,
+    entropy_poly_decode_32(ipacker, n, s2, q_bits,
         SIGNED_COEFF, sc->coding_signature.type, 3);
+    sc_ntt->center_32(s2, n, ntt);
 
-    SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Received s1", s1, n);
+    SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Received s2", s2, n);
+
+    fprintf(stderr, "s2=\n");
+    for (size_t u = 0; u < n; u ++) {
+        fprintf(stderr, "%d ", s2[u]);
+        if (15 == (u&15)) fprintf(stderr, "\n");
+    }
 
     // Destroy the input packer
     utils_entropy.pack_destroy(&ipacker);
@@ -2155,18 +1803,22 @@ DOUBLE *c = SC_MALLOC(sizeof(DOUBLE) * n);
     h_function_xof(sc, c, n);
 #endif
 
-#if 1
-    small_mul_mod_ring(s2, s1, h, n, q, s1_ntt);
+#if 0
+    small_mul_mod_ring(s1, s2, h, n, q, s2_ntt);
 #else
-    sc_ntt->fwd_ntt_32_16(s1_ntt, ntt, s1, w);
-    sc->sc_ntt->mul_32_pointwise_16(s2, ntt, s1_ntt, h_ntt);
-    sc_ntt->inv_ntt_32_16(s2, ntt, s2, w, r);
+    sc_ntt->fwd_ntt_32_16(s2_ntt, ntt, s2, w);
+    sc->sc_ntt->mul_32_pointwise_16(s1, ntt, s2_ntt, h_ntt);
+    sc_ntt->inv_ntt_32_16(s1, ntt, s1, w, r);
 #endif
-    for (i=n; i--;) {
-        s2[i] = (SINT32)(c[i]) - s2[i];
+    sc_poly->sub_32(s1, n, c, s1);
+    sc_ntt->center_32(s1, n, ntt);
+    SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "s1", s1, n);
+
+    fprintf(stderr, "s1=\n");
+    for (size_t u = 0; u < n; u ++) {
+        fprintf(stderr, "%d ", s1[u]);
+        if (15 == (u&15)) fprintf(stderr, "\n");
     }
-    sc_ntt->center_32(s2, n, ntt);
-    SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "s2", s2, n);
 
     if (SC_FUNC_FAILURE == check_norm_bd(bd, s1, s2, n)) {
         sc->stats.sig_num_unverified++;
@@ -2175,7 +1827,6 @@ DOUBLE *c = SC_MALLOC(sizeof(DOUBLE) * n);
 
     // Reset the temporary memory
     SC_MEMZERO(sc->temp, 6 * n * sizeof(SINT32));
- SC_FREE(c, sizeof(DOUBLE)* n);
 
     sc->stats.sig_num_verified++;
     return SC_FUNC_SUCCESS;
@@ -2183,8 +1834,6 @@ DOUBLE *c = SC_MALLOC(sizeof(DOUBLE) * n);
 error_return:
     // Reset the temporary memory
     SC_MEMZERO(sc->temp, 6 * n * sizeof(SINT32));
-
- SC_FREE(c, sizeof(DOUBLE)* n);
 
     return SC_FUNC_FAILURE;
 }
