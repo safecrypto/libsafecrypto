@@ -72,6 +72,7 @@ typedef struct falcon_cfg_t {
     sc_hash_e             oracle_hash;
     SINT32                keep_matrices;
     SINT32               *b;
+    DOUBLE               *sk;
 #ifdef FALCON_USE_LONGDOUBLE_PREC_FLOATS
     LONGDOUBLE           *b_gs;
     LONGDOUBLE           *b_gs_inv_norm;

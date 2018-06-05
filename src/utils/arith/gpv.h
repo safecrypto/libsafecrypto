@@ -135,3 +135,10 @@ SINT32 gaussian_lattice_sample_ldbl(safecrypto_t *sc,
     const SINT32 *c, SINT32 *v1, SINT32 *v2,
     UINT32 q, DOUBLE s_f, UINT32 flags);
 /// @}
+
+SINT32 gaussian_lattice_sample_fft(safecrypto_t *sc,
+    DOUBLE *z0, 
+    DOUBLE *z1,
+    DOUBLE *restrict tree,
+    const DOUBLE *restrict t0, const DOUBLE *restrict t1, unsigned logn,
+    DOUBLE *restrict tmp, UINT32 flags);

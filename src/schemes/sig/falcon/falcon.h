@@ -83,8 +83,7 @@ SINT32 falcon_sig_pubkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len);
 SINT32 falcon_sig_privkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len);
 
 /// Sign a message of m_len bytes
-SINT32 falcon_sig_sign(safecrypto_t *sc, const UINT8 *m, size_t m_len,
-    UINT8 **sigret, size_t *siglen);
+SINT32 falcon_sig_sign(safecrypto_t *sc, const UINT8 *m, size_t m_len, UINT8 **sigret, size_t *siglen);
 
 /// Verify a message of m_len bytes
 SINT32 falcon_sig_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,

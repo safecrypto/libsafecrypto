@@ -135,7 +135,7 @@
 		fpct_a_im = (a_im); \
 		fpct_b_re = (b_re); \
 		fpct_b_im = (b_im); \
-		fpct_m = sqrt(fpct_b_re) + sqrt(fpct_b_im); \
+		fpct_m = fpct_b_re*fpct_b_re + fpct_b_im * fpct_b_im; \
 		fpct_b_re = fpct_b_re / fpct_m; \
 		fpct_b_im = -(fpct_b_im) / fpct_m; \
 		fpct_d_re =  \
