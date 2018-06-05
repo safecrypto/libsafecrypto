@@ -37,9 +37,9 @@
 
 #include <math.h>
 
-#define DEBUG_GPV               1
-#define CRT_NTRU_SOLVE          1
-#define SP_PUBLIC_KEY_CREATE    1
+#define DEBUG_GPV               0
+#define CRT_NTRU_SOLVE          0
+#define SP_PUBLIC_KEY_CREATE    0
 #if CRT_NTRU_SOLVE == 1 && SP_PUBLIC_KEY_CREATE == 0
 #error "If CRT_NTRU_SOLVE is enabled SP_PUBLIC_KEY_CREATE must also be enabled"
 #endif
@@ -3181,106 +3181,6 @@ SINT32 gaussian_lattice_sample_ldbl(safecrypto_t *sc,
            v2[j] = ci[j];
         }
     }
-
-    return SC_FUNC_SUCCESS;
-}
-
-//fft sampler from FALCON:
-/*
- * Perform Fast Fourier Sampling for target vector t and LDL tree T.
- * tmp[] must have size for at least two polynomials of size 2^logn.
- */
-SINT32
-gaussian_lattice_sample_fft(safecrypto_t *sc,
-        DOUBLE *z0, 
-        DOUBLE *z1,
-        DOUBLE *restrict tree,
-        const DOUBLE *restrict t0, const DOUBLE *restrict t1, unsigned logn,
-        DOUBLE *restrict tmp, UINT32 flags)
-{
-    size_t n, hn;
-    DOUBLE *tree0, *tree1;
-    //fprintf(stderr, "print out  t0[0]= %d", t0[0]);
-    //fprintf(stderr, "print out  t1[0]= %d", t1[0]);
-    n = (size_t)1 << logn;
-    if (n == 1) {
-        FLOAT sigma = tree[0];
-
-        // Adaptive Gaussian Sampling
-        utils_sampling_t *gauss = NULL;
-
-        gauss = create_sampler(
-            sc->sampling, SAMPLING_64BIT, sc->blinding, 1, SAMPLING_DISABLE_BOOTSTRAP,
-            sc->prng_ctx[0], 10, sigma);
-        //fprintf(stderr, "after sampler \n");
-        if (NULL == gauss) {
-            fprintf(stderr, "null==gauss \n");
-            return SC_FUNC_FAILURE;
-        }
-//test sampler
-/*DOUBLE r=(DOUBLE)get_sample(gauss);
-fprintf(stderr, "print out  r= %d", r);*/
-   
-        z0[0] = floor(t0[0]) + get_sample(gauss);
-        z1[0] = floor(t1[0]) + get_sample(gauss);
-
-//print out sample for testing
-/*FILE * pFile_z0;
-pFile_z0=fopen("SC_z0.txt", "w");
-for (size_t u = 0; u < n; u ++) {
-fprintf(pFile_z0, "z0[%d]: %d  \n", u, z0[u]);
-        }
-fclose(pFile_z0);
-
-FILE * pFile_z1;
-pFile_z1=fopen("SC_z1.txt", "w");
-for (size_t u = 0; u < n; u ++) {
-fprintf(pFile_z1, "z1[%d]: %d  \n", u, z1[u]);
-        }
-fclose(pFile_z1);*/
-/* if (flags & GPV_GAUSSIAN_SAMPLE_EFFICIENT) {
-            if (j == n) {
-                sig = 0L;
-                destroy_sampler(&gauss);
-            }
-        }*/
-        destroy_sampler(&gauss);
-        return SC_FUNC_SUCCESS;
-   /* if (flags & GPV_GAUSSIAN_SAMPLE_EFFICIENT) {
-        destroy_sampler(&gauss);
-    }*/
-    }
-
-    hn = n >> 1;
-    tree0 = tree + n;
-    tree1 = tree + n + ffLDL_treesize(logn - 1);
-
-    /*
-     * We split t1 into z1 (reused as temporary storage), then do
-     * the recursive invocation, with output in tmp. We finally
-     * merge back into z1.
-     */
-    //fprintf(stderr, "logn=%d \n", logn);
-    falcon_poly_split_fft(z1, z1 + hn, t1, logn);
-    gaussian_lattice_sample_fft(sc, tmp, tmp + hn,
-            tree1, z1, z1 + hn, logn - 1, tmp + n, flags);
-    falcon_poly_merge_fft(z1, tmp, tmp + hn, logn);
-
-    /*
-     * Compute tb0 = t0 + (t1 - z1) * L. Value tb0 ends up in tmp[].
-     */
-    memcpy(tmp, t1, n * sizeof *t1);
-    falcon_poly_sub_fft(tmp, z1, logn);
-    falcon_poly_mul_fft(tmp, tree, logn);
-    falcon_poly_add_fft(tmp, t0, logn);
-
-    /*
-     * Second recursive invocation.
-     */
-    falcon_poly_split_fft(z0, z0 + hn, tmp, logn);
-    gaussian_lattice_sample_fft(sc, tmp, tmp + hn,
-            tree0, z0, z0 + hn, logn - 1, tmp + n, flags);
-    falcon_poly_merge_fft(z0, tmp, tmp + hn, logn);
 
     return SC_FUNC_SUCCESS;
 }

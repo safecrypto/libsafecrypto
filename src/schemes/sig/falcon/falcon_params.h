@@ -42,8 +42,6 @@ typedef struct falcon_set_t {
     const UINT16    q_bits;
     const UINT16    n;
     const UINT16    n_bits;
-    const UINT16    kappa;
-    const FLOAT     sig;
     const UINT32    fg_bits;
     const UINT32    FG_bits;
     const FLOAT     bd;
@@ -70,7 +68,6 @@ typedef struct falcon_cfg_t {
     ntt_params_t          ntt;
     sc_entropy_type_e     entropy;
     sc_hash_e             oracle_hash;
-    SINT32                keep_matrices;
     SINT32               *b;
     DOUBLE               *sk;
 #ifdef FALCON_USE_LONGDOUBLE_PREC_FLOATS

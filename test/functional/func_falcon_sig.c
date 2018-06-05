@@ -25,7 +25,7 @@
 #include <string.h>
 
 
-#define MAX_ITER    64
+#define MAX_ITER    1024
 
 #define USE_FIXED_BUFFERS     0
 #if USE_FIXED_BUFFERS == 1
@@ -107,7 +107,9 @@ int main(void)
     SC_TIMER_CREATE(sig_timer);
     SC_TIMER_CREATE(ver_timer);
 
-    for (i=0; i<2; i++) {
+    for (i=0; i<3; i++) {
+        if (i == 1) continue;
+
         SC_TIMER_RESET(keygen_timer);
 
         printf("Parameter Set: %d\n", i);;
@@ -125,10 +127,8 @@ int main(void)
 #endif
         flags[0] |= SC_FLAG_MORE;
         flags[1] |= SC_FLAG_1_CSPRNG_AES_CTR_DRBG;
-printf("about to create an object");
         // Create a SAFEcrypto object
         sc = safecrypto_create(SC_SCHEME_SIG_FALCON, i, flags);
-printf("about to create a key pair");
         // Create a key pair
         SC_TIMER_START(keygen_timer);
         if (SC_FUNC_SUCCESS != safecrypto_keygen(sc)) {
@@ -165,7 +165,6 @@ printf("about to create a key pair");
             prng_mem(prng_ctx, message, length);
 
             // Generate a signature for that message
-fprintf(stderr, "About to sign...\n");
             SC_TIMER_START(sig_timer);
             siglen = FIXED_BUFFER_SIZE;
             if (SC_FUNC_SUCCESS != safecrypto_sign(sc, message, length, &sig, &siglen)) {
