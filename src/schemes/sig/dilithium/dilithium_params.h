@@ -52,6 +52,9 @@
 #define NUM_DILITHIUM_PRIVKEY_K     2
 #endif
 
+#define USE_DETERMINISTIC_DILITHIUM
+//#define USE_DILITHIUM_COUNTERMEASURE_VERIFY_IN_SIGNATURE
+
 
 SC_STRUCT_PACK_START
 typedef struct dilithium_set_t {

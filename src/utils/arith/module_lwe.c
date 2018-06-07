@@ -28,6 +28,8 @@
 #include "utils/arith/ntt.h"
 #include "utils/arith/sc_math.h"
 #include "utils/sampling/sampling.h"
+#include "utils/entropy/entropy.h"
+#include "utils/entropy/packer.h"
 #ifdef _ENABLE_AVX2_INTRINSICS
 #include <immintrin.h>
 #endif
@@ -130,6 +132,115 @@ void decompose_g(SINT32 *t1, SINT32 *t0, const SINT32 *in, size_t n,
             *t0++ = (t >= 0)? t : t + q;
         }
     }
+}
+
+SINT32 collision_resistant_hash_t1(safecrypto_t *sc, const UINT8 *rho,
+    const SINT32 *t1, size_t n, size_t k, UINT16 bits, UINT8 *hash)
+{
+    utils_crypto_xof_t *xof;
+    UINT8 *msg = 0;
+    size_t msg_len = 0;
+
+    // Create a bit packer to compress the public key
+    sc_packer_t *packer = utils_entropy.pack_create(sc, &sc->coding_pub_key,
+        bits * k * n + 32*8, NULL, 0, &msg, &msg_len);
+    if (NULL == packer) {
+        SC_LOG_ERROR(sc, SC_NULL_POINTER);
+        return SC_FUNC_FAILURE;
+    }
+    entropy_poly_encode_8(packer, 32, rho, 8,
+        UNSIGNED_COEFF, SC_ENTROPY_NONE, 0,
+        NULL);
+    entropy_poly_encode_32(packer, k*n, t1, bits,
+        UNSIGNED_COEFF, SC_ENTROPY_NONE, 0,
+        NULL);
+
+    // Extract the buffer with the message for the XOF
+    utils_entropy.pack_get_buffer(packer, &msg, &msg_len);
+    utils_entropy.pack_destroy(&packer);
+
+    // Create the XOF
+    xof = utils_crypto_xof_create(SC_XOF_SHAKE256);
+
+    // Initialise the XOF
+    xof_init(xof);
+
+    // Absorb the input data to configure the state
+    xof_absorb(xof, msg, msg_len);
+    xof_final(xof);
+
+    // Create 48 bytes of output data
+    xof_squeeze(xof, hash, 48);
+
+    // Destroy the XOF and the message
+    utils_crypto_xof_destroy(xof);
+    SC_FREE(msg, msg_len);
+
+    return SC_FUNC_SUCCESS;
+}
+
+void collision_resistant_hash_message(const UINT8 *mu, const UINT8 *M, size_t length, UINT8 *hash)
+{
+    utils_crypto_xof_t *xof = utils_crypto_xof_create(SC_XOF_SHAKE256);
+
+    // Initialise the XOF
+    xof_init(xof);
+
+    // Absorb the input data to configure the state
+    xof_absorb(xof, mu, 48);
+    xof_absorb(xof, M, length);
+    xof_final(xof);
+
+    // Create 48 bytes of output data
+    xof_squeeze(xof, hash, 48);
+
+    // Destroy the XOF
+    utils_crypto_xof_destroy(xof);
+}
+
+void expand_mask(const UINT8 *K, const UINT8 *mu, UINT16 kappa, SINT32 gamma_1, SINT32 q, size_t l, size_t n, SINT32 *y)
+{
+    size_t i, j = 0, limit = n * l;
+    UINT8 kappa_bytes[2] = {kappa >> 8, kappa & 0xFF};
+    SINT32 thresh = 2 * gamma_1 - 2;
+    SINT32 add    = q + gamma_1 - 1;
+
+    utils_crypto_xof_t *xof = utils_crypto_xof_create(SC_XOF_SHAKE256);
+
+    // Initialise the XOF
+    xof_init(xof);
+
+    // Absorb the input data to configure the state
+    xof_absorb(xof, mu, 48);
+    xof_absorb(xof, K, 32);
+    xof_absorb(xof, kappa_bytes, 2);
+    xof_final(xof);
+
+    while (j < limit) {
+        UINT8 seed[5];
+        UINT32 samples[2];
+        UINT32 cond;
+
+        // Create 5 bytes from which two 20-bit samples are generated
+        xof_squeeze(xof, seed, 5);
+        samples[0] = (((UINT32)seed[2] & 0xF) << 16) | ((UINT32)seed[1] << 8) | ((UINT32)seed[0]);
+        samples[1] = ((UINT32)seed[4] << 12) | ((UINT32)seed[3] << 4) | ((UINT32)seed[2] >> 4);
+
+        // Overwrite the current output index with a sample, incrementing the output index only if
+        // the value lies within the range 0 to 2^20 - 1
+        cond = (samples[0] - thresh) >> 31;
+        y[j] = add - samples[0];
+        j   += cond;
+        if (limit == j) {
+            break;
+        }
+        cond = (samples[1] - thresh) >> 31;
+        y[j] = add - samples[1];
+        j   += cond;
+    }
+
+    // Destroy the XOF
+    utils_crypto_xof_destroy(xof);
 }
 
 // Uniform sampling of an mx1 matrix with coefficients of -eta to +eta
