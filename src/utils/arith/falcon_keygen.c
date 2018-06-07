@@ -3692,7 +3692,8 @@ poly_sub_scaled_ntt(uint32_t *restrict F, size_t Flen, size_t Fstride,
 static const size_t MAX_BL_SMALL2[] = {
 	//1, 1, 2, 2, 4, 7, 14, 27, 53, 106, 212
 	//1, 2, 4, 5, 8, 12, 23, 45, 90, 180, 300   /// GOOD
-	1, 3, 5, 7, 10, 15, 28, 52, 100, 210, 430   /// GOOD for n=512
+	//1, 3, 5, 7, 10, 15, 28, 52, 100, 210, 430   /// GOOD for n=512
+	1, 3, 5, 7, 13, 27, 48, 90, 130, 240, 370   /// GOOD for n=1024
 	///////1, 7, 14, 22, 37, 70, 130, 220, 350, 560, 1000
 	//1, 2, 4, 6, 9, 15, 30, 60, 12, 240, 400
 	//1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024
@@ -3705,7 +3706,7 @@ static const size_t MAX_BL_LARGE2[] = {
 	//4, 4, 10, 14, 24, 44, 85, 160, 314, 620   /// GOOD
 	//4, 4, 10, 14, 24, 44, 85, 160, 300, 560 // GOOD for n=512
 	//7, 14, 22, 37, 70, 130, 220, 350, 740, 1000
-	4, 4, 10, 14, 24, 44, 85, 160, 300, 560
+	4, 8, 10, 17, 33, 56, 120, 160, 350, 520
 
 	//4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048
 	//8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096
@@ -4870,7 +4871,7 @@ solve_NTRU_intermediate(falcon_keygen *fk,
 
 		/*
 		 * Get current maximum bit length of F and G. Adjust
-		 * the world length accordingly (keeping room for a
+		 * the word length accordingly (keeping room for a
 		 * dozen extra bits for intermediate computations).
 		 */
 		maxbl_F = poly_max_bitlength(Ft, FGlen, llen, logn, full);

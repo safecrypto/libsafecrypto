@@ -38,7 +38,7 @@ int main(void)
     gpv_t gpv;
     size_t i;
     static const size_t n = 1024;
-    static const SINT32 q = 5767169;//12289;//1073741824;//51750913;
+    static const SINT32 q = 0x403001;//12289;//1073741824;//51750913;
     utils_sampling_t *sampling;
 
     // Configure the GPV struct and allocate memory

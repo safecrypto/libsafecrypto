@@ -138,6 +138,10 @@ SINT32 dlp_ibe_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
         case 1:  sc->dlp_ibe->params = &param_dlp_ibe_1;
                  sc->dlp_ibe->entropy = sc->coding_encryption.type;
                  break;
+#if 0
+        case 1:  sc->dlp_ibe->params = &param_dlp_ibe_1;
+                 sc->dlp_ibe->entropy = sc->coding_encryption.type;
+                 break;
         case 2:  sc->dlp_ibe->params = &param_dlp_ibe_2;
                  sc->dlp_ibe->entropy = sc->coding_encryption.type;
                  break;
@@ -150,7 +154,6 @@ SINT32 dlp_ibe_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
         case 5:  sc->dlp_ibe->params = &param_dlp_ibe_5;
                  sc->dlp_ibe->entropy = sc->coding_encryption.type;
                  break;
-#if 0
         case 6:  sc->dlp_ibe->params = &param_dlp_ibe_6;
                  sc->dlp_ibe->entropy = sc->coding_encryption.type;
                  break;

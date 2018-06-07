@@ -114,10 +114,12 @@ SC_STRUCT_PACK_END
 
 extern dlp_ibe_set_t param_dlp_ibe_0;
 extern dlp_ibe_set_t param_dlp_ibe_1;
+#if 0
 extern dlp_ibe_set_t param_dlp_ibe_2;
 extern dlp_ibe_set_t param_dlp_ibe_3;
 extern dlp_ibe_set_t param_dlp_ibe_4;
 extern dlp_ibe_set_t param_dlp_ibe_5;
+#endif
 
 #if 0
 extern dlp_ibe_set_t param_dlp_ibe_6;

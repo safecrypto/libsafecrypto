@@ -29,6 +29,20 @@ dlp_ibe_set_t param_dlp_ibe_0 = {
 #endif
 };
 
+#if 1
+
+dlp_ibe_set_t param_dlp_ibe_1 = {
+    1, SC_HASH_SHA3_512, 0x403001, 23, 1024, 10,
+    0x201800, 17, 1332,
+#ifdef USE_RUNTIME_NTT_TABLES
+    NULL, NULL
+#else
+    w5767169_n1024, r5767169_n1024
+#endif
+};
+
+#else
+
 dlp_ibe_set_t param_dlp_ibe_1 = {
     1, SC_HASH_SHA3_512, 10223617, 24, 512, 9,
     5111808, 20, 3981,
@@ -78,6 +92,7 @@ dlp_ibe_set_t param_dlp_ibe_5 = {
     w51750913_n1024, r51750913_n1024
 #endif
 };
+#endif
 
 #if 0
 dlp_ibe_set_t param_dlp_ibe_6 = {

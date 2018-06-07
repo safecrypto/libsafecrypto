@@ -507,7 +507,7 @@ static SINT32 keygen_params(safecrypto_t *sc, UINT16 *n, UINT16 *n_bits, UINT16 
     *nz = sc->bliss->params->nz;
     *w = (sc->bliss->ntt_optimisation >= SC_NTT_REFERENCE_REV)? sc->bliss->params->w_rev : sc->bliss->params->w;
     *w_inv = (sc->bliss->ntt_optimisation >= SC_NTT_REFERENCE_REV)? sc->bliss->params->w_inv : sc->bliss->params->w;
-    *r = (sc->bliss->ntt_optimisation >= SC_NTT_REFERENCE_REV)? sc->bliss->params->r_inv : sc->bliss->params->r;
+    *r = (sc->bliss->ntt_optimisation >= SC_NTT_REFERENCE_REV)? sc->bliss->params->r_rev : sc->bliss->params->r;
 
     return SC_FUNC_SUCCESS;
 }
@@ -532,7 +532,7 @@ static SINT32 signature_params(safecrypto_t *sc, UINT16 *n, UINT16 *n_bits, UINT
     *z2_bits = sc->bliss->params->z2_bits;
     *w = (sc->bliss->ntt_optimisation >= SC_NTT_REFERENCE_REV)? sc->bliss->params->w_rev : sc->bliss->params->w;
     *w_inv = (sc->bliss->ntt_optimisation >= SC_NTT_REFERENCE_REV)? sc->bliss->params->w_inv : sc->bliss->params->w;
-    *r = (sc->bliss->ntt_optimisation >= SC_NTT_REFERENCE_REV)? sc->bliss->params->r_inv : sc->bliss->params->r;
+    *r = (sc->bliss->ntt_optimisation >= SC_NTT_REFERENCE_REV)? sc->bliss->params->r_rev : sc->bliss->params->r;
 
     return SC_FUNC_SUCCESS;
 }
