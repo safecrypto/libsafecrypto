@@ -102,8 +102,8 @@ int main(void)
 #endif
 #endif
 
-    flags[0] = SC_FLAG_NONE;
-    flags[1] = SC_FLAG_NONE;
+    flags[0] |= SC_FLAG_MORE;
+    flags[1] |= SC_FLAG_MORE;
 
     SC_TIMER_INSTANCE(keygen_timer);
     SC_TIMER_INSTANCE(sign_timer);
@@ -148,7 +148,7 @@ int main(void)
                 goto error_return;
             }
 
-#if 0
+#if 1
             // Free all resources for the given SAFEcrypto object
             if (SC_FUNC_SUCCESS != safecrypto_destroy(sc)) {
                 return EXIT_FAILURE;

@@ -760,7 +760,7 @@ fi
 AC_ARG_ENABLE([sig_dilithium_g],
     AC_HELP_STRING([--enable-sig-dilithium-g], [Enable support for the Dilithium Signature scheme (default: enable)]),
     [enable_sig_dilithium_g=$enableval],
-    [enable_sig_dilithium_g=$enable_signatures])
+    [enable_sig_dilithium_g=no])
 AM_CONDITIONAL([WITH_DILITHIUM_G_SIG], [test "x${enable_sig_dilithium_g}" = "xyes"])
 if test "x${enable_sig_dilithium_g}" = "xno"; then
     AC_SUBST([AM_CPPFLAGS], ["$AM_CPPFLAGS -DDISABLE_SIG_DILITHIUM_G"])

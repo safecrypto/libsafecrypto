@@ -1247,6 +1247,9 @@ SINT32 bliss_b_sign(safecrypto_t *sc, const UINT8 *m, size_t m_len,
     const SINT16 *w, *w_inv, *r;
     SINT32 *c_idx = NULL;
     DOUBLE thresh_d, inv_sig2, reject_r;
+#if defined(USE_BLISS_COUNTERMEASURE_VERIFY_IN_SIGNATURE)
+    SINT32 two_pow_dm1, not_equal;
+#endif
 
     if (NULL == sc) {
         SC_LOG_ERROR(sc, SC_NULL_POINTER);
@@ -1442,10 +1445,61 @@ SINT32 bliss_b_sign(safecrypto_t *sc, const UINT8 *m, size_t m_len,
 
         SC_PRINT_1D_UINT8(sc, SC_LEVEL_DEBUG, "Compressed signature", *sigret, *siglen);
 
+        // The signature is verified after the output stream is generated to reduce memory usage
+#ifdef USE_BLISS_COUNTERMEASURE_VERIFY_IN_SIGNATURE
+        // Precompute the rounding factor for z
+        two_pow_dm1 = 1 << (d - 1);
+
+        SC_PRINT_DEBUG(sc, "  Calculate v = t * a (mod x^n + 1)\n");
+#ifdef BLISS_USE_SPARSE_MULTIPLIER
+        sparse_mul_mod_ring(v, a, t, n, ntt);
+#else
+        sc_ntt->fwd_ntt_32_16(v, ntt, t, w);
+        sc_ntt->mul_32_pointwise_16(v, ntt, v, a);
+        sc_ntt->inv_ntt_32_16(v, ntt, v, w_inv, r);
+#endif
+
+        // If v[i] is odd then increment it by q, automatically vectorisable
+        for (i=n; i--;) {
+            v[i] += (v[i] & 1) * q;
+        }
+
+        // v = v + C * q
+        for (i = 0; i < kappa; i++) {
+            BARRETT_REDUCTION(v[c_idx[i]], v[c_idx[i]] + q, ntt_2q->u.ntt32.k,
+                ntt_2q->u.ntt32.m, ntt_2q->u.ntt32.q);
+        }
+        SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "v", v, n);
+
+        // Drop bits and add z
+        for (i=n; i--;) {
+            SINT32 tmp;
+            tmp  = ((v[i] + two_pow_dm1) >> d) + z[i];
+            tmp -= (tmp >= p) * p;
+            tmp += (tmp < 0) * p;
+            z[i] = tmp;
+        }
+        SC_PRINT_1D_INT16(sc, SC_LEVEL_DEBUG, "z", z, n);
+
+        // Generate the oracle data from the v vector
+        if (SC_FUNC_FAILURE == oracle(sc, v, kappa, m, m_len, z, n, mask)) {
+            SC_LOG_ERROR(sc, SC_ERROR);
+            goto sign_failure;
+        }
+
+        // Compare the given oracle data with the received information
+        not_equal = sc_poly->cmp_not_equal_32(v, c_idx, kappa);
+        if (not_equal) {
+            SC_LOG_ERROR(sc, SC_ERROR);
+            goto sign_failure;
+        }
+#endif
+
         SC_MEMZERO(sc->temp, sc->temp_size);
         return SC_FUNC_SUCCESS;
     }
 
+sign_failure:
     if (0 == *siglen) {
         SC_FREE(*sigret, (2 * n + kappa) * sizeof(SINT32));
     }
@@ -1596,7 +1650,6 @@ SINT32 bliss_b_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
 
     SC_PRINT_DEBUG(sc, "  Calculate v = t * a (mod x^n + 1)\n");
 #ifdef BLISS_USE_SPARSE_MULTIPLIER
-    SINT32 tpk[512];
     sparse_mul_mod_ring(v, a, t, n, ntt);
 #else
     sc_ntt->fwd_ntt_32_16(v, ntt, t, w);
