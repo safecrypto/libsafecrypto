@@ -26,6 +26,7 @@
 #include "safecrypto_private.h"
 #include "safecrypto_debug.h"
 #include "poly_fft.h"
+#include "ldl.h"
 
 #include "schemes/sig/falcon/falcon_params.h"
 #include "schemes/sig/ens_dlp/ens_dlp_sig_params.h"
@@ -37,9 +38,9 @@
 
 #include <math.h>
 
-#define DEBUG_GPV               0
-#define CRT_NTRU_SOLVE          0
-#define SP_PUBLIC_KEY_CREATE    0
+#define DEBUG_GPV               1
+#define CRT_NTRU_SOLVE          1
+#define SP_PUBLIC_KEY_CREATE    1
 #if CRT_NTRU_SOLVE == 1 && SP_PUBLIC_KEY_CREATE == 0
 #error "If CRT_NTRU_SOLVE is enabled SP_PUBLIC_KEY_CREATE must also be enabled"
 #endif
@@ -2233,6 +2234,47 @@ SINT32 create_public_key(SINT32 *h, const SINT32 *f, const SINT32 *g, UINT32 q, 
     return SC_FUNC_SUCCESS;
 }
 
+SINT32 create_public_key_32(SINT32 *h, const SINT32 *f, const SINT32 *g, UINT32 q, size_t n)
+{
+    safecrypto_ntt_e ntt_type = SC_NTT_FLOATING_POINT;
+    const utils_arith_ntt_t *sc_ntt = utils_arith_ntt(ntt_type);
+    SINT32 ntt_w[n];
+    SINT32 ntt_r[n];
+    SINT32 temp[n];
+
+    // Dynamically allocate memory for the necessary NTT tables
+    roots_of_unity_s32(ntt_w, ntt_r, n, q, 0);
+
+    ntt_params_t ntt_q;
+    init_reduce(&ntt_q, n, q);
+
+    // Obtain NTT(f) and NTT(g)
+    sc_ntt->fwd_ntt_32_32(h, &ntt_q, f, ntt_w);
+    sc_ntt->fwd_ntt_32_32(temp, &ntt_q, g, ntt_w);
+
+    // Attempt to invert NTT(f)
+    if (SC_FUNC_FAILURE == sc_ntt->invert_32(h, &ntt_q, n)) {
+        return SC_FUNC_FAILURE;
+    }
+
+    // h = g/f and f is invertible, so calculate public key
+    sc_ntt->mul_32_pointwise(h, &ntt_q, temp, h);
+    sc_ntt->inv_ntt_32_32(h, &ntt_q, h, ntt_w, ntt_r);
+    sc_ntt->normalize_32(h, n, &ntt_q);
+
+#if DEBUG_GPV == 1
+    size_t i;
+    fprintf(stderr, "\nh = g/f mod q =\n");
+    for (i=0; i<n; i++) {
+        fprintf(stderr, "%6d ", h[i]);
+        if (15 == (15&i)) fprintf(stderr, "\n");
+    }
+    fprintf(stderr, "\n");
+#endif
+
+    return SC_FUNC_SUCCESS;
+}
+
 SINT32 gpv_gen_basis(safecrypto_t *sc, SINT32 *f, SINT32 *g, SINT32 *h,
     size_t n, SINT32 q,
     utils_sampling_t *sampling, prng_ctx_t *prng_ctx,
@@ -2658,7 +2700,7 @@ step2:
 
     // Step 11. Compute the public key h = g/f mod q
 #if SP_PUBLIC_KEY_CREATE == 1
-    if (SC_FUNC_FAILURE == create_public_key(h, f, g, q, n)) {
+    if (SC_FUNC_FAILURE == create_public_key_32(h, f, g, q, n)) {
         num_retries++;
         goto step2;
     }
@@ -3181,6 +3223,67 @@ SINT32 gaussian_lattice_sample_ldbl(safecrypto_t *sc,
            v2[j] = ci[j];
         }
     }
+
+    return SC_FUNC_SUCCESS;
+}
+
+//fft sampler from FALCON:
+/*
+ * Perform Fast Fourier Sampling for target vector t and LDL tree T.
+ * tmp[] must have size for at least two polynomials of size 2^logn.
+ */
+SINT32 gaussian_lattice_sample_fft(safecrypto_t *sc,
+    DOUBLE *z0, 
+    DOUBLE *z1,
+    DOUBLE *restrict tree,
+    const DOUBLE *restrict t0, const DOUBLE *restrict t1, unsigned logn,
+    DOUBLE *restrict tmp, UINT32 flags)
+{
+    size_t n, hn;
+    DOUBLE *tree0, *tree1;
+    n = (size_t)1 << logn;
+    if (n == 1) {
+        FLOAT sigma = tree[0];
+
+        utils_sampling_t *gauss = NULL;
+        gauss = create_sampler(
+            sc->sampling, SAMPLING_64BIT, sc->blinding, 1, SAMPLING_DISABLE_BOOTSTRAP,
+            sc->prng_ctx[0], 10, sigma);
+        if (NULL == gauss) {
+            fprintf(stderr, "null==gauss \n");
+            return SC_FUNC_FAILURE;
+        }
+   
+        z0[0] = floor(t0[0]) + get_sample(gauss);
+        z1[0] = floor(t1[0]) + get_sample(gauss);
+
+        destroy_sampler(&gauss);
+        return SC_FUNC_SUCCESS;
+    }
+
+    hn = n >> 1;
+    tree0 = tree + n;
+    tree1 = tree + n + ffLDL_treesize(logn - 1);
+
+    // We split t1 into z1 (reused as temporary storage), then do
+    // the recursive invocation, with output in tmp. We finally
+    // merge back into z1.
+    falcon_poly_split_fft(z1, z1 + hn, t1, logn);
+    gaussian_lattice_sample_fft(sc, tmp, tmp + hn,
+            tree1, z1, z1 + hn, logn - 1, tmp + n, flags);
+    falcon_poly_merge_fft(z1, tmp, tmp + hn, logn);
+
+    // Compute tb0 = t0 + (t1 - z1) * L. Value tb0 ends up in tmp[].
+    memcpy(tmp, t1, n * sizeof *t1);
+    falcon_poly_sub_fft(tmp, z1, logn);
+    falcon_poly_mul_fft(tmp, tree, logn);
+    falcon_poly_add_fft(tmp, t0, logn);
+
+    // Second recursive invocation.
+    falcon_poly_split_fft(z0, z0 + hn, tmp, logn);
+    gaussian_lattice_sample_fft(sc, tmp, tmp + hn,
+            tree0, z0, z0 + hn, logn - 1, tmp + n, flags);
+    falcon_poly_merge_fft(z0, tmp, tmp + hn, logn);
 
     return SC_FUNC_SUCCESS;
 }

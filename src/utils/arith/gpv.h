@@ -87,6 +87,7 @@ LONGDOUBLE dot_s64_ldbl(const SINT64 *x, const LONGDOUBLE *y,
 ///@}
 
 SINT32 create_public_key(SINT32 *h, const SINT32 *f, const SINT32 *g, UINT32 q, size_t n);
+SINT32 create_public_key_32(SINT32 *h, const SINT32 *f, const SINT32 *g, UINT32 q, size_t n);
 
 /// Generate the polynomial basis B
 SINT32 gpv_expand_basis(const gpv_t *gpv);
@@ -136,5 +137,11 @@ SINT32 gaussian_lattice_sample_ldbl(safecrypto_t *sc,
     const gpv_t *gpv, const LONGDOUBLE *b_gs, const LONGDOUBLE *b_gs_inv_norm,
     const SINT32 *c, SINT32 *v1, SINT32 *v2,
     UINT32 q, DOUBLE s_f, UINT32 flags);
+SINT32 gaussian_lattice_sample_fft(safecrypto_t *sc,
+    DOUBLE *z0, 
+    DOUBLE *z1,
+    DOUBLE *restrict tree,
+    const DOUBLE *restrict t0, const DOUBLE *restrict t1, unsigned logn,
+    DOUBLE *restrict tmp, UINT32 flags);
 /// @}
 

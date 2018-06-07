@@ -41,9 +41,11 @@ libarith_la_SOURCES       = arith.c \
                             limb_base.h \
                             sc_mp.c \
                             sc_mp.h \
+					        internal.h \
+                            ldl.c \
+                            ldl.h \
 			                falcon_fft.c \
 			                falcon-keygen.c \
-					        internal.h \
 					        fpr-double.h \
 					        shake.h \
 					        shake.c \

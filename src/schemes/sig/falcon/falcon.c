@@ -35,6 +35,7 @@
 
 #include "utils/arith/internal.h"
 #include "utils/arith/gpv.h"
+#include "utils/arith/ldl.h"
 
 #include <math.h>
 
@@ -656,27 +657,6 @@ SINT32 falcon_sig_sign(safecrypto_t *sc, const UINT8 *m, size_t m_len,
 
 #else
 
-static FLOAT get_std_dev(SINT32 *s, size_t n)
-{
-    size_t i;
-    FLOAT mean = 0, sd = 0;
-
-    // Calculate the mean
-    for (i=0; i<n; i++) {
-        mean += s[i];
-    }
-    mean /= n;
-
-    // Calculate the standard deviation
-    for (i=0; i<n; i++) {
-        FLOAT temp = s[i] - mean;
-        sd += temp * temp;
-    }
-    sd /= n - 1;
-
-    return sd;
-}
-
 /* start of imported FALCON functions
  * Convert an integer polynomial (with small values) into the
  * representation with complex numbers.
@@ -715,163 +695,15 @@ skoff_tree(unsigned logn, unsigned ter)
 }
 
 static void
-LDL_fft(DOUBLE *restrict d11, DOUBLE *restrict l10,
-	const DOUBLE *restrict g00, const DOUBLE *restrict g01,
-	const DOUBLE *restrict g11, unsigned logn, DOUBLE *restrict tmp)
-{
-	size_t n;
-	n = (1 + ((0) << 1)) << (logn) - (0);
-	/* Let tmp = mu = G[0,1] / G[0,0]. */
-	memcpy(tmp, g01, n * sizeof *g01);
-	falcon_poly_div_fft(tmp, g00, logn);
-
-	/* Let L[1,0] = adj(mu) and tmp = aux = mu * adj(mu). */
-	memcpy(l10, tmp, n * sizeof *tmp);
-	falcon_poly_adj_fft(l10, logn);
-	falcon_poly_mul_fft(tmp, l10, logn);
-
-	/* D[1,1] = G[1,1] - aux * G[0][0]. */
-	falcon_poly_mul_fft(tmp, g00, logn);
-	memcpy(d11, g11, n * sizeof *g11);
-	falcon_poly_sub_fft(d11, tmp, logn);
-}
-
-
-/*
- * Special case of LDL when G is quasicyclic, i.e. g11 == g00.
- */
-static inline void
-LDLqc_fft(DOUBLE *restrict d11, DOUBLE *restrict l10,
-	const DOUBLE *restrict g00, const DOUBLE *restrict g01, unsigned logn,
-	DOUBLE *restrict tmp)
-{
-//fprintf(stderr, "qc CALLING LDL_fft \n");
-	LDL_fft(d11, l10, g00, g01, g00, logn, tmp);
-}
-
-static void
 smallints_to_double(DOUBLE *r, const SINT32 *t, unsigned logn, unsigned ter)
 {
-	size_t n, u;
+    size_t n, u;
 
-	n = ((size_t)(1 + ((ter) << 1)) << ((logn) - (ter)));
-	for (size_t u = 0; u < n; u ++) {
-		r[u] = (DOUBLE)(t[u]);
-	}
+    n = ((size_t)(1 + ((ter) << 1)) << ((logn) - (ter)));
+    for (size_t u = 0; u < n; u ++) {
+        r[u] = (DOUBLE)(t[u]);
+    }
 }
-
-
-unsigned ffLDL_treesize(unsigned logn)
-{
-	/*
-	 * For logn = 0 (polynomials are constant), the "tree" is a
-	 * single element. Otherwise, the tree node has size 2^logn, and
-	 * has two child trees for size logn-1 each. Thus, treesize s()
-	 * must fulfill these two relations:
-	 *
-	 *   s(0) = 1
-	 *   s(logn) = (2^logn) + 2*s(logn-1)
-	 */
-	return (logn + 1) << logn;
-}
-
-static void
-ffLDL_fft_inner(DOUBLE *restrict tree,
-	DOUBLE *restrict g0, DOUBLE *restrict g1, unsigned logn, DOUBLE *restrict tmp)
-{
-	size_t n, hn;
-
-	n = (1 + ((0) << 1)) << ((logn) - (0));
-	if (n == 1) {
-		tree[0] = g0[0];
-		return;
-	}
-	hn = n >> 1;
-
-	/*
-	 * The LDL decomposition yields L (which is written in the tree)
-	 * and the diagonal of D. Since d00 = g0, we just write d11
-	 * into tmp.
-	 */
-	LDLqc_fft(tmp, tree, g0, g1, logn, tmp + n);
-
-	/*
-	 * Split d00 (currently in g0) and d11 (currently in tmp). We
-	 * reuse g0 and g1 as temporary storage spaces:
-	 *   d00 splits into g1, g1+hn
-	 *   d11 splits into g0, g0+hn
-	 */
-	falcon_poly_split_fft(g1, g1 + hn, g0, logn);
-	falcon_poly_split_fft(g0, g0 + hn, tmp, logn);
-
-	/*
-	 * Each split result is the first row of a new auto-adjoint
-	 * quasicyclic matrix for the next recursive step.
-	 */
-	ffLDL_fft_inner(tree + n,
-		g1, g1 + hn, logn - 1, tmp);
-	ffLDL_fft_inner(tree + n + ffLDL_treesize(logn - 1),
-		g0, g0 + hn, logn - 1, tmp);
-}
-
-static void
-ffLDL_fft(DOUBLE *restrict tree, const DOUBLE *restrict g00,
-	const DOUBLE *restrict g01, const DOUBLE *restrict g11,
-	unsigned logn, DOUBLE *restrict tmp)
-{
-	size_t n, hn;
-	DOUBLE *d00, *d11;
-	n = (1 + ((0) << 1)) << ((logn) - (0));
-	if (n == 1) {
-		tree[0] = g00[0];
-		return;
-	}
-	hn = n >> 1;
-	d00 = tmp;
-	d11 = tmp + n;
-	tmp += n << 1;
-
-	memcpy(d00, g00, n * sizeof *g00);
-	LDL_fft(d11, tree, g00, g01, g11, logn, tmp);
-
-	falcon_poly_split_fft(tmp, tmp + hn, d00, logn);
-	falcon_poly_split_fft(d00, d00 + hn, d11, logn);
-	memcpy(d11, tmp, n * sizeof *tmp);
-	ffLDL_fft_inner(tree + n,
-		d11, d11 + hn, logn - 1, tmp);
-	ffLDL_fft_inner(tree + n + ffLDL_treesize(logn - 1),
-		d00, d00 + hn, logn - 1, tmp);
-}
-
-
-/*
- * Normalize an ffLDL tree: each leaf of value x is replaced with
- * sigma / sqrt(x).
- */
-static void
-ffLDL_binary_normalize(DOUBLE *tree, DOUBLE sigma, unsigned logn)
-{
-	/*
-	 * TODO: make an iterative version.
-	 */
-	size_t n;
-
-	n = (1 + ((0) << 1)) << ((logn) - (0));
-	if (n == 1) {
-		tree[0] = (sigma / sqrt(tree[0]));
-	} else {
-		ffLDL_binary_normalize(tree + n,
-			sigma, logn - 1);
-		ffLDL_binary_normalize(tree + n + ffLDL_treesize(logn - 1),
-			sigma, logn - 1);
-	}
-}
-
-/*
- * Get the size of the LDL tree for an input with polynomials of size
- * 2^logn. The size is expressed in the number of elements.
- */
-
 
 static void
 load_skey(DOUBLE *restrict sk, unsigned q,
@@ -892,10 +724,8 @@ load_skey(DOUBLE *restrict sk, unsigned q,
 	b11  = sk + skoff_b11(logn, ter);
 	tree = sk + skoff_tree(logn, ter);
 
-	/*
-	 * We load the private key elements directly into the B0 matrix,
-	 * since B0 = [[g, -f], [G, -F]].
-	 */
+	// We load the private key elements directly into the B0 matrix,
+	// since B0 = [[g, -f], [G, -F]].
 	f_tmp = b01;
 	g_tmp = b00;
 	F_tmp = b11;
@@ -906,9 +736,7 @@ load_skey(DOUBLE *restrict sk, unsigned q,
 	smallints_to_double(F_tmp, F_src, logn, ter);
 	smallints_to_double(G_tmp, G_src, logn, ter);
 
-	/*
-	 * Compute the FFT for the key elements, and negate f and F
-	 */
+	// Compute the FFT for the key elements, and negate f and F
     falcon_FFT(f_tmp, logn);
 	falcon_FFT(g_tmp, logn);
 	falcon_FFT(F_tmp, logn);
@@ -916,13 +744,11 @@ load_skey(DOUBLE *restrict sk, unsigned q,
 	falcon_poly_neg(f_tmp, logn);
 	falcon_poly_neg(F_tmp, logn);
 
-	/*
-	 * The Gram matrix is G = B·B*. Formulas are:
-	 *   g00 = b00*adj(b00) + b01*adj(b01)
-	 *   g01 = b00*adj(b10) + b01*adj(b11)
-	 *   g10 = b10*adj(b00) + b11*adj(b01)
-	 *   g11 = b10*adj(b10) + b11*adj(b11)
-	 */
+	// The Gram matrix is G = B·B*. Formulas are:
+	//   g00 = b00*adj(b00) + b01*adj(b01)
+	//   g01 = b00*adj(b10) + b01*adj(b11)
+	//   g10 = b10*adj(b00) + b11*adj(b01)
+	//   g11 = b10*adj(b10) + b11*adj(b11)
     {
         DOUBLE *g00, *g01, *g11, *gxx;
 
@@ -949,14 +775,10 @@ load_skey(DOUBLE *restrict sk, unsigned q,
 		falcon_poly_mulselfadj_fft(gxx, logn);
 		falcon_poly_add(g11, gxx, logn);
 
-		/*
-		 * Compute the Falcon tree.
-		 */
+		// Compute the Falcon tree.
 		ffLDL_fft(tree, g00, g01, g11, logn, gxx);
 
-		/*
-		 * Normalize tree with sigma.
-		 */
+		// Normalize tree with sigma.
         sigma = sqrt(q)* (1.55);
 		ffLDL_binary_normalize(tree, sigma, logn);
 
@@ -1100,14 +922,12 @@ restart:
     sc->pubkey->len = n; // Actually 2n as the NTT version is also stored
 
     // Store an NTT domain version of the public key
-#if 1
     sc->sc_ntt->fwd_ntt_32_16(h_ntt, &sc->falcon->ntt,
         h, sc->falcon->params->w);
     sc->sc_ntt->normalize_32(h_ntt, n, &sc->falcon->ntt);
     for (i=n; i--;) {
         pubkey[i + n] = h_ntt[i];
     }
-#endif
 
     // Polynomial basis check
     FLOAT sd = 0;
@@ -1137,81 +957,8 @@ finish_free:
     return SC_FUNC_FAILURE;
 }
 
-//fft sampler from FALCON:
-/*
- * Perform Fast Fourier Sampling for target vector t and LDL tree T.
- * tmp[] must have size for at least two polynomials of size 2^logn.
- */
-SINT32 gaussian_lattice_sample_fft(safecrypto_t *sc,
-    DOUBLE *z0, 
-    DOUBLE *z1,
-    DOUBLE *restrict tree,
-    const DOUBLE *restrict t0, const DOUBLE *restrict t1, unsigned logn,
-    DOUBLE *restrict tmp, UINT32 flags)
-{
-    size_t n, hn;
-    DOUBLE *tree0, *tree1;
-    n = (size_t)1 << logn;
-    if (n == 1) {
-        FLOAT sigma = tree[0];
-
-        utils_sampling_t *gauss = NULL;
-        gauss = create_sampler(
-            sc->sampling, SAMPLING_64BIT, sc->blinding, 1, SAMPLING_DISABLE_BOOTSTRAP,
-            sc->prng_ctx[0], 10, sigma);
-        if (NULL == gauss) {
-            fprintf(stderr, "null==gauss \n");
-            return SC_FUNC_FAILURE;
-        }
-   
-        z0[0] = floor(t0[0]) + get_sample(gauss);
-        z1[0] = floor(t1[0]) + get_sample(gauss);
-
-        destroy_sampler(&gauss);
-        return SC_FUNC_SUCCESS;
-    }
-
-    hn = n >> 1;
-    tree0 = tree + n;
-    tree1 = tree + n + ffLDL_treesize(logn - 1);
-
-    /*
-     * We split t1 into z1 (reused as temporary storage), then do
-     * the recursive invocation, with output in tmp. We finally
-     * merge back into z1.
-     */
-    falcon_poly_split_fft(z1, z1 + hn, t1, logn);
-    gaussian_lattice_sample_fft(sc, tmp, tmp + hn,
-            tree1, z1, z1 + hn, logn - 1, tmp + n, flags);
-    falcon_poly_merge_fft(z1, tmp, tmp + hn, logn);
-
-    /*
-     * Compute tb0 = t0 + (t1 - z1) * L. Value tb0 ends up in tmp[].
-     */
-    memcpy(tmp, t1, n * sizeof *t1);
-    falcon_poly_sub_fft(tmp, z1, logn);
-    falcon_poly_mul_fft(tmp, tree, logn);
-    falcon_poly_add_fft(tmp, t0, logn);
-
-    /*
-     * Second recursive invocation.
-     */
-    falcon_poly_split_fft(z0, z0 + hn, tmp, logn);
-    gaussian_lattice_sample_fft(sc, tmp, tmp + hn,
-            tree0, z0, z0 + hn, logn - 1, tmp + n, flags);
-    falcon_poly_merge_fft(z0, tmp, tmp + hn, logn);
-
-    return SC_FUNC_SUCCESS;
-}
-
 SINT32 falcon_sig_sign(safecrypto_t *sc, const UINT8 *m, size_t m_len, UINT8 **sigret, size_t *siglen)
 {
-    // WITHOUT message recovery:
-    // 2. As per IBE Extract, obtain the polynomials s1 and s2 using a
-    //    Gaussian sampler and the polynomial basis B such that
-    //    hs1 + s2 = t mod q
-    // 3. Return the signature (s1, m)
-
  	SINT32 *s2;	
     DOUBLE *sk = sc->falcon->sk;
     size_t i;
@@ -1225,7 +972,7 @@ SINT32 falcon_sig_sign(safecrypto_t *sc, const UINT8 *m, size_t m_len, UINT8 **s
     gpv_t gpv;
     UINT32 gaussian_flags = 0;
 #if defined(FALCON_USE_EFFICIENT_GAUSSIAN_SAMPLING)
-    gaussian_flags = GPV_GAU h_function_xofSSIAN_SAMPLE_EFFICIENT;
+    gaussian_flags = GPV_GAUSSIAN_SAMPLE_EFFICIENT;
 #elif defined(FALCON_GAUSSIAN_SAMPLE_MW_BOOTSTRAP)
     gaussian_flags = GPV_GAUSSIAN_SAMPLE_MW_BOOTSTRAP;
 #endif
@@ -1398,13 +1145,9 @@ restart:
     sc_ntt->normalize_32(s2, n, &sc->falcon->ntt);
 
     // Calculate s1 = h*s2 - c0
-#if 0
-    small_mul_mod_ring(s1, s2, h, n, q, s2_ntt);
-#else
     sc_ntt->fwd_ntt_32_16(s2_ntt, ntt, s2, w);
     sc_ntt->mul_32_pointwise_16(s1, ntt, s2_ntt, h_ntt);
     sc_ntt->inv_ntt_32_16(s1, ntt, s1, w, r);
-#endif
     sc_poly->sub_32(s1, n, c, s1);
     sc_ntt->center_32(s1, n, ntt);
     sc_ntt->center_32(s2, n, ntt);
@@ -1445,12 +1188,6 @@ SINT32 falcon_sig_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
 SINT32 falcon_sig_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
     const UINT8 *sigbuf, size_t siglen)
 {
-    // WITHOUT message recovery:
-    // 1. Hash the received message, t = H(m)
-    // 2. Compute the s2 polynomial, s2 = t - h*s1 mod q
-    // 3. Compute the norm, ||(s1, s2)||
-    //    ACCEPT if norm < B, REJECT otherwise
-
     size_t i;
     UINT32 n, q, q_bits;
     FLOAT bd;
@@ -1473,9 +1210,7 @@ SINT32 falcon_sig_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
 
     // Obtain pointers to the public key (NTT domain version)
     h        = (SINT16 *) sc->pubkey->key;
-#if 1
     h_ntt    = (SINT16 *) sc->pubkey->key + n;
-#endif
 
     const SINT16 *w        = sc->falcon->params->w;
     const SINT16 *r        = sc->falcon->params->r;
@@ -1511,13 +1246,9 @@ SINT32 falcon_sig_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
     h_function_xof(sc, c, n);
 #endif
 
-#if 0
-    small_mul_mod_ring(s1, s2, h, n, q, s2_ntt);
-#else
     sc_ntt->fwd_ntt_32_16(s2_ntt, ntt, s2, w);
     sc->sc_ntt->mul_32_pointwise_16(s1, ntt, s2_ntt, h_ntt);
     sc_ntt->inv_ntt_32_16(s1, ntt, s1, w, r);
-#endif
     sc_poly->sub_32(s1, n, c, s1);
     sc_ntt->center_32(s1, n, ntt);
     SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "s1", s1, n);

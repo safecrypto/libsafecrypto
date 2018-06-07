@@ -115,318 +115,6 @@ struct falcon_keygen_ {
 
 
 
-
-
-/* see falcon-internal.h */
-size_t
-falcon_encode_12289(void *out, size_t max_out_len,
-	const uint32_t *x, unsigned logn)
-{
-	unsigned char *buf;
-	size_t n, u;
-	uint32_t acc;
-	int acc_len;
-
-	n = (size_t)1 << logn;
-	buf = out;
-	u = 0;
-	acc = 0;
-	acc_len = 0;
-	while (n > 0) {
-		acc = (acc << 14) | (*x ++);
-		n --;
-		acc_len += 14;
-		while (acc_len >= 8) {
-			acc_len -= 8;
-			if (out != NULL) {
-				if (u >= max_out_len) {
-					return 0;
-				}
-				buf[u] = (unsigned char)(acc >> acc_len);
-			}
-			u ++;
-			acc &= (1U << acc_len) - 1U;
-		}
-	}
-	if (acc_len > 0) {
-		if (out != NULL) {
-			if (u >= max_out_len) {
-				return 0;
-			}
-			buf[u] = (unsigned char)(acc << (8 - acc_len));
-		}
-		u ++;
-	}
-	return u;
-}
-
-/* see falcon-internal.h */
-size_t
-falcon_decode_12289(uint32_t *x, unsigned logn, const void *data, size_t len)
-{
-	const unsigned char *buf;
-	size_t n, u;
-	uint32_t acc;
-	int acc_len;
-
-	n = (size_t)1 << logn;
-	buf = data;
-	u = 0;
-	acc = 0;
-	acc_len = 0;
-	while (n > 0) {
-		if (u >= len) {
-			return 0;
-		}
-		acc = (acc << 8) | buf[u ++];
-		acc_len += 8;
-		if (acc_len >= 14) {
-			uint32_t w;
-
-			acc_len -= 14;
-			w = acc >> acc_len;
-			if (w >= 12289) {
-				return 0;
-			}
-			*x ++ = (uint32_t)w;
-			n --;
-			acc &= (1U << acc_len) - 1U;
-		}
-	}
-	if (acc != 0) {
-		return 0;
-	}
-	return len;
-}
-
-/* see falcon-internal.h */
-size_t
-falcon_encode_18433(void *out, size_t max_out_len,
-	const uint32_t *x, unsigned logn)
-{
-	unsigned char *buf;
-	size_t n, u;
-	uint32_t acc;
-	int acc_len;
-
-	n = (size_t)3 << (logn - 1);
-	buf = out;
-	u = 0;
-	acc = 0;
-	acc_len = 0;
-	while (n > 0) {
-		acc = (acc << 15) | (*x ++);
-		n --;
-		acc_len += 15;
-		while (acc_len >= 8) {
-			acc_len -= 8;
-			if (out != NULL) {
-				if (u >= max_out_len) {
-					return 0;
-				}
-				buf[u] = (unsigned char)(acc >> acc_len);
-			}
-			u ++;
-			acc &= (1U << acc_len) - 1U;
-		}
-	}
-	if (acc_len > 0) {
-		if (out != NULL) {
-			if (u >= max_out_len) {
-				return 0;
-			}
-			buf[u] = (unsigned char)(acc << (8 - acc_len));
-		}
-		u ++;
-	}
-	return u;
-}
-
-/* see falcon-internal.h */
-size_t
-falcon_decode_18433(uint32_t *x, unsigned logn, const void *data, size_t len)
-{
-	const unsigned char *buf;
-	size_t n, u;
-	uint32_t acc;
-	int acc_len;
-
-	n = (size_t)3 << (logn - 1);
-	buf = data;
-	u = 0;
-	acc = 0;
-	acc_len = 0;
-	while (n > 0) {
-		if (u >= len) {
-			return 0;
-		}
-		acc = (acc << 8) | buf[u ++];
-		acc_len += 8;
-		if (acc_len >= 15) {
-			uint32_t w;
-
-			acc_len -= 15;
-			w = acc >> acc_len;
-			if (w >= 18433) {
-				return 0;
-			}
-			*x ++ = (uint32_t)w;
-			n --;
-			acc &= (1U << acc_len) - 1U;
-		}
-	}
-	if (acc != 0) {
-		return 0;
-	}
-	return len;
-}
-
-/*
- * Encoding of a small vector, no compression, 16 bits per value.
- */
-static size_t
-compress_none(void *out, size_t max_out_len,
-	unsigned q, const int32_t *x, unsigned logn)
-{
-	size_t len, u;
-	unsigned char *buf;
-
-	if (q == 12289) {
-		len = (size_t)2 << logn;
-	} else {
-		len = (size_t)3 << logn;
-	}
-	if (out == NULL) {
-		return len;
-	}
-	if (max_out_len < len) {
-		return 0;
-	}
-	buf = out;
-	for (u = 0; u < len; u += 2) {
-		unsigned w;
-
-		w = *x ++;
-		buf[u + 0] = (unsigned char)(w >> 8);
-		buf[u + 1] = (unsigned char)w;
-	}
-	return len;
-}
-
-/*
- * Encoding of a small vector, using (sort-of) Huffman codes.
- */
-static size_t
-compress_static(void *out, size_t max_out_len,
-	unsigned q, const int32_t *x, unsigned logn)
-{
-	unsigned char *buf;
-	size_t n, u;
-	unsigned acc, mask;
-	int acc_len, j;
-
-	/*
-	 * Let x be a value to encode. We first encode its sign as 1 bit
-	 * (1 = negative, 0 = positive), and replace x with |x|.
-	 * The low j bits are encoded as-is in the stream (number j depends
-	 * on the modulus q); then we follow with x/(2^j) bits of value 0,
-	 * and a final bit of value 1.
-	 *
-	 * We use j = 7 for q = 12289, j = 8 for q = 18433.
-	 */
-
-	if (q == 12289) {
-		n = (size_t)1 << logn;
-		j = 7;
-	} else {
-		n = (size_t)3 << (logn - 1);
-		j = 8;
-	}
-	mask = (1U << j) - 1U;
-	buf = out;
-	u = 0;
-	acc = 0;
-	acc_len = 0;
-	while (n > 0) {
-		int w;
-		unsigned lo;
-		int ne;
-
-		w = *x ++;
-		n --;
-
-		/*
-		 * First part: 1 bit for sign, and then the 7 low bits of
-		 * the absolute value of the integer.
-		 */
-		if (w < 0) {
-			w = -w;
-			lo = 1U << j;
-		} else {
-			lo = 0;
-		}
-		lo |= w & mask;
-		ne = w >> j;
-		acc = (acc << (j + 1)) | lo;
-		acc_len += j + 1;
-		while (acc_len >= 8) {
-			acc_len -= 8;
-			if (buf != NULL) {
-				if (u >= max_out_len) {
-					return 0;
-				}
-				buf[u] = (unsigned char)(acc >> acc_len);
-			}
-			u ++;
-		}
-
-		/*
-		 * Second part: 'ne' bits of value 0, and one bit of value 1.
-		 */
-		while (ne -- >= 0) {
-			acc <<= 1;
-			acc += ((unsigned)ne >> 15) & 1;
-			if (++ acc_len == 8) {
-				if (buf != NULL) {
-					if (u >= max_out_len) {
-						return 0;
-					}
-					buf[u] = (unsigned char)acc;
-				}
-				u ++;
-				acc_len = 0;
-			}
-		}
-	}
-	if (acc_len > 0) {
-		if (buf != NULL) {
-			if (u >= max_out_len) {
-				return 0;
-			}
-			buf[u] = (unsigned char)(acc << (8 - acc_len));
-		}
-		u ++;
-	}
-	return u;
-}
-
-size_t
-falcon_encode_small(void *out, size_t max_out_len,
-	int comp, unsigned q, const int32_t *x, unsigned logn)
-{
-	switch (comp) {
-	case FALCON_COMP_NONE:
-		return compress_none(out, max_out_len, q, x, logn);
-	case FALCON_COMP_STATIC:
-		return compress_static(out, max_out_len, q, x, logn);
-	default:
-		return 0;
-	}
-}
-
-
-
-
 /* see internal.h */
 int
 falcon_compute_public(falcon_keygen *fk, uint32_t *h,
@@ -453,13 +141,6 @@ falcon_compute_public(falcon_keygen *fk, uint32_t *h,
 	sc_ntt->center_32(h, n, ntt);
 	return 1;
 }
-
-
-
-
-
-
-
 
 
 
@@ -3229,6 +2910,7 @@ zint_bezout(uint32_t *restrict u, uint32_t *restrict v,
 	 *   x and y must be odd.
 	 */
 	if (xlen == 0 || ylen == 0 || (x[0] & y[0] & 1) == 0) {
+		fprintf(stderr, "zint_bezout() all even\n");
 		return 0;
 	}
 
@@ -3445,6 +3127,7 @@ zint_bezout(uint32_t *restrict u, uint32_t *restrict v,
 				 * Arrays u and v are already filled with
 				 * the proper results.
 				 */
+				fprintf(stderr, "zint_bezout() good = %d\n", alen == 1 && a[0] == 1);
 				return alen == 1 && a[0] == 1;
 			}
 		}
@@ -3771,7 +3454,8 @@ poly_big_to_small(int32_t *d, const uint32_t *s, unsigned logn, unsigned ter)
 		int32_t z;
 
 		z = zint_one_to_plain(s + u);
-		if (z < -2047 || z > 2047) {
+		//if (z < -2047 || z > 2047) {
+		if (z < -8191 || z > 8191) {
 			return 0;
 		}
 		d[u] = z;
@@ -4111,12 +3795,24 @@ mkgauss(falcon_keygen *fk, unsigned logn)
 
 static const size_t MAX_BL_SMALL2[] = {
 	//1, 1, 2, 2, 4, 7, 14, 27, 53, 106, 212
-	1, 2, 4, 5, 8, 12, 23, 45, 90, 180, 300
+	//1, 2, 4, 5, 8, 12, 23, 45, 90, 180, 300   /// GOOD
+	1, 3, 5, 7, 10, 15, 28, 52, 100, 210, 430   /// GOOD for n=512
+	///////1, 7, 14, 22, 37, 70, 130, 220, 350, 560, 1000
+	//1, 2, 4, 6, 9, 15, 30, 60, 12, 240, 400
+	//1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024
+	//1, 3, 5, 7, 11, 16, 31, 60, 120, 240, 350
+	//1, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048
 };
 
 static const size_t MAX_BL_LARGE2[] = {
 	//2, 2, 5, 7, 12, 22, 42, 80, 157, 310
-	4, 5, 9, 14, 20, 45, 86, 165, 325, 640
+	//4, 4, 10, 14, 24, 44, 85, 160, 314, 620   /// GOOD
+	//4, 4, 10, 14, 24, 44, 85, 160, 300, 560 // GOOD for n=512
+	//7, 14, 22, 37, 70, 130, 220, 350, 740, 1000
+	4, 4, 10, 14, 24, 44, 85, 160, 300, 560
+
+	//4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048
+	//8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096
 };
 
 static const size_t MAX_BL_SMALL3[] = {
@@ -4181,7 +3877,7 @@ temp_size(unsigned logn)
 			slen = MAX_BL_SMALL2[depth];
 			cur = 8 * slen * sizeof(uint32_t);
 			max = cur > max ? cur : max;
-		} else if (depth == 0 && logn > 2) {
+		/*} else if (depth == 0 && logn > 2) {
 			size_t n, hn;
 
 			n = (size_t)1 << logn;
@@ -4221,7 +3917,7 @@ temp_size(unsigned logn)
 			max = cur > max ? cur : max;
 			cur = ALIGN_FP(2 * n * sizeof(uint32_t))
 				+ 2 * n * sizeof(DOUBLE);
-			max = cur > max ? cur : max;
+			max = cur > max ? cur : max;*/
 		} else {
 			size_t n, hn, slen, llen, tmp1, tmp2;
 
@@ -4893,6 +4589,7 @@ solve_NTRU_deepest(falcon_keygen *fk, const int32_t *f, const int32_t *g)
 	 * if both inputs are odd.
 	 */
 	if (!zint_bezout(Gp, Fp, fp, gp, len, t1)) {
+		fprintf(stderr, "Failed zint_bezout() for len=%zu\n", len);
 		return 0;
 	}
 
@@ -4904,6 +4601,7 @@ solve_NTRU_deepest(falcon_keygen *fk, const int32_t *f, const int32_t *g)
 	if (zint_mul_small(Fp, len, q) != 0
 		|| zint_mul_small(Gp, len, q) != 0)
 	{
+		fprintf(stderr, "Failed zint_mul_small() for len=%zu\n", len);
 		return 0;
 	}
 
@@ -5310,6 +5008,7 @@ solve_NTRU_intermediate(falcon_keygen *fk,
 	maxbl_f = poly_max_bitlength(ft, slen, slen, logn, full);
 	maxbl_g = poly_max_bitlength(gt, slen, slen, logn, full);
 	maxbl_fg = maxbl_f < maxbl_g ? maxbl_g : maxbl_f;
+	fprintf(stderr, "maxbl_f=%d, maxbl_g=%d\n", maxbl_f, maxbl_g);
 
 	/*
 	 * Compute 1/(f*adj(f)+g*adj(g)) in rt5. We also keep adj(f)
@@ -5352,6 +5051,7 @@ solve_NTRU_intermediate(falcon_keygen *fk,
 		while ((FGlen * 31) >= (maxbl_FG + 43)) {
 			FGlen --;
 		}
+		fprintf(stderr, "maxbl_F=%d, maxbl_G=%d\n", maxbl_F, maxbl_G);
 
 		/*
 		 * We stop when F and G have been made smaller than
@@ -5359,6 +5059,7 @@ solve_NTRU_intermediate(falcon_keygen *fk,
 		 * manage to reduce the maximum bit length.
 		 */
 		if (maxbl_FG <= maxbl_fg || maxbl_FG >= prev_maxbl_FG) {
+			fprintf(stderr, "scaling ended %d %d %d\n", maxbl_fg, maxbl_FG , prev_maxbl_FG);
 			break;
 		}
 		prev_maxbl_FG = maxbl_FG;
@@ -5408,6 +5109,7 @@ solve_NTRU_intermediate(falcon_keygen *fk,
 			}
 		}
 		if (max_kx >= ((uint64_t)1 << 62)) {
+			fprintf(stderr, "max_kx >= 1<<62\n");
 			return 0;
 		}
 		scale_k = bitlength((uint32_t)(max_kx >> 31));
@@ -5420,6 +5122,7 @@ solve_NTRU_intermediate(falcon_keygen *fk,
 		if (scale_k + scale_FG < maxbl_fg) {
 			scale_k = maxbl_fg - scale_FG;
 			if (scale_k > 62) {
+				fprintf(stderr, "scale_k = %d is too big\n", scale_k);
 				break;
 			}
 		}
@@ -5467,6 +5170,7 @@ solve_NTRU_intermediate(falcon_keygen *fk,
 	 * this is a failure.
 	 */
 	if (maxbl_FG > (slen * 31)) {
+		fprintf(stderr, "%d could not fit in slen=%d\n", maxbl_FG, slen);
 		return 0;
 	}
 
@@ -6385,9 +6089,8 @@ solve_NTRU_ternary_depth0(falcon_keygen *fk,
 /*
  * Solve the NTRU equation. Returned value is 1 on success, 0 on error.
  */
-int
-solve_NTRU(falcon_keygen *fk, int32_t *F, int32_t *G,
-	const int32_t *f, const int32_t *g)
+int solve_NTRU(falcon_keygen *fk, int32_t *F, int32_t *G,
+    const int32_t *f, const int32_t *g)
 {
 	unsigned logn;
 	size_t n, u;
@@ -6399,7 +6102,7 @@ solve_NTRU(falcon_keygen *fk, int32_t *F, int32_t *G,
 	n = MKN(logn, fk->ternary);
 
 	if (!solve_NTRU_deepest(fk, f, g)) {
-		//fprintf(stderr, "Failed to solve deepest\n");
+		fprintf(stderr, "Failed to solve deepest\n");
 		return 0;
 	}
 
@@ -6409,16 +6112,17 @@ solve_NTRU(falcon_keygen *fk, int32_t *F, int32_t *G,
 	 * do not fit the hypotheses in solve_NTRU_binary_depth0()
 	 * or solve_NTRU_ternary_depth0().
 	 */
-	if (logn <= 2) {
+	{//if (logn <= 2) {
 		unsigned depth;
 
 		depth = logn;
 		while (depth -- > 0) {
 			if (!solve_NTRU_intermediate(fk, f, g, depth)) {
+				fprintf(stderr, "Failed intermediate at depth = %d\n", depth);
 				return 0;
 			}
 		}
-	} else {
+	}/* else {
 		unsigned depth;
 
 		depth = logn;
@@ -6436,7 +6140,7 @@ solve_NTRU(falcon_keygen *fk, int32_t *F, int32_t *G,
 			//fprintf(stderr, "Failed binary depth 0\n");
 			return 0;
 		}
-	}
+	}*/
 
 	/*
 	 * Final F and G are in fk->tmp, one word per coefficient
@@ -6445,6 +6149,7 @@ solve_NTRU(falcon_keygen *fk, int32_t *F, int32_t *G,
 	if (!poly_big_to_small(F, fk->tmp, logn, 0)
 		|| !poly_big_to_small(G, fk->tmp + n, logn, 0))
 	{
+		fprintf(stderr, "Failed big to small\n");
 		return 0;
 	}
 
@@ -6519,205 +6224,3 @@ poly_small_mkgauss(falcon_keygen *fk, int32_t *f, unsigned logn)
 	}
 }
 
-/* see falcon.h */
-int
-falcon_keygen_make(falcon_keygen *fk, int comp,
-	void *privkey, size_t *privkey_len,
-	void *pubkey, size_t *pubkey_len)
-{
-	/*
-	 * Algorithm is the following:
-	 *
-	 *  - Generate f and g with the Gaussian distribution.
-	 *
-	 *  - If either Res(f,phi) or Res(g,phi) is even, try again.
-	 *
-	 *  - If ||(f,g)|| is too large, try again.
-	 *
-	 *  - If ||B~_{f,g}|| is too large, try again.
-	 *
-	 *  - If f is not invertible mod phi mod q, try again.
-	 *
-	 *  - Compute h = g/f mod phi mod q.
-	 *
-	 *  - Solve the NTRU equation fG - gF = q; if the solving fails,
-	 *    try again. Usual failure condition is when Res(f,phi)
-	 *    and Res(g,phi) are not prime to each other.
-	 */
-	unsigned logn, ter;
-	size_t n, u;
-	int32_t f[1024], g[1024], F[1024], G[1024];
-	uint32_t h[1024];
-	size_t klen, skoff;
-	unsigned char *skbuf;
-	int32_t *ske[4];
-	int i;
-
-	logn = fk->logn;
-	ter = fk->ternary;
-	n = MKN(logn, ter);
-
-	/*
-	 * Make sure the RNG is properly seeded and ready to output bits.
-	 */
-	if (!rng_ready(fk)) {
-		return 0;
-	}
-
-	/*
-	 * We need to generate f and g randomly, until we find values
-	 * such that the norm of (g,-f), and of the orthogonalized
-	 * vector, are satisfying. The orthogonalized vector is:
-	 *   (q*adj(f)/(f*adj(f)+g*adj(g)), q*adj(g)/(f*adj(f)+g*adj(g)))
-	 * (it is actually the (N+1)-th row of the Gram-Schmidt basis).
-	 *
-	 * In the binary case, coefficients of f and g are generated
-	 * independently of each other, with a discrete Gaussian
-	 * distribution of standard deviation 1.17*sqrt(q/(2*N)). Then,
-	 * the two vectors have expected norm 1.17*sqrt(q), which is
-	 * also our acceptance bound: we require both vectors to be no
-	 * larger than that (this will be satisfied about 1/4th of the
-	 * time, thus we expect sampling new (f,g) about 4 times for that
-	 * step).
-	 *
-	 * In the ternary case, we need a spheroid in the FFT representation,
-	 * thus we use a rounded Gaussian in that representation. Standard
-	 * deviation is then sigma = sqrt(q/sqrt(8)). The vector norms
-	 * are computed over the FFT representation, with common bound
-	 * 2*sqrt(N)*sigma.
-	 *
-	 * In both cases, we require that Res(f,phi) and Res(g,phi) are
-	 * both odd (the NTRU equation solver requires it).
-	 */
-	for (;;) {
-		DOUBLE *rt1, *rt2, *rt3;
-		DOUBLE bnorm;
-		DOUBLE bound;
-		uint32_t normf, normg, norm;
-
-		/*
-		 * The poly_small_mkgauss() function makes sure
-		 * that the sum of coefficients is 1 modulo 2
-		 * (i.e. the resultant of the polynomial with phi
-		 * will be odd).
-		 */
-		poly_small_mkgauss(fk, f, logn);
-		poly_small_mkgauss(fk, g, logn);
-
-		/*
-		 * Bound is 1.17*sqrt(q). We compute the squared
-		 * norms. With q = 12289, the squared bound is:
-		 *   (1.17^2)* 12289 = 16822.4121
-		 * Since f and g are integral, the squared norm
-		 * of (g,-f) is an integer.
-		 */
-		normf = poly_small_sqnorm(f, logn, ter);
-		normg = poly_small_sqnorm(g, logn, ter);
-		norm = (normf + normg) | -((normf | normg) >> 31);
-		bound = 1.3689 * fk->q;
-		if (norm >= bound) {
-			continue;
-		}
-
-		/*
-		 * We compute the orthogonalized vector norm.
-		 */
-		rt1 = (DOUBLE *)fk->tmp;
-		rt2 = rt1 + n;
-		rt3 = rt2 + n;
-		poly_small_to_fp(rt1, f, logn, 0);
-		poly_small_to_fp(rt2, g, logn, 0);
-		falcon_FFT(rt1, logn);
-		falcon_FFT(rt2, logn);
-		falcon_poly_invnorm2_fft(rt3, rt1, rt2, logn);
-		falcon_poly_adj_fft(rt1, logn);
-		falcon_poly_adj_fft(rt2, logn);
-		falcon_poly_mulconst_fft(rt1, (DOUBLE)fk->q, logn);
-		falcon_poly_mulconst_fft(rt2, (DOUBLE)fk->q, logn);
-		falcon_poly_mul_autoadj_fft(rt1, rt3, logn);
-		falcon_poly_mul_autoadj_fft(rt2, rt3, logn);
-		falcon_iFFT(rt1, logn);
-		falcon_iFFT(rt2, logn);
-		bnorm = (DOUBLE)0;
-		for (u = 0; u < n; u ++) {
-			bnorm = fpr_add(bnorm, fpr_sqr(rt1[u]));
-			bnorm = fpr_add(bnorm, fpr_sqr(rt2[u]));
-		}
-		if (!fpr_lt(bnorm, fpr_div(
-			(DOUBLE)168224121, (DOUBLE)10000)))
-		{
-			continue;
-		}
-
-		/*
-		 * Compute public key h = g/f mod X^N+1 mod q. If this
-		 * fails, we must restart.
-		 */
-		if (!falcon_compute_public(fk, h, f, g, logn)) {
-			continue;
-		}
-
-		/*
-		 * Solve the NTRU equation to get F and G.
-		 */
-		if (!solve_NTRU(fk, F, G, f, g)) {
-			continue;
-		}
-
-		/*
-		 * Key pair is generated.
-		 */
-		break;
-	}
-
-	/*
-	 * Encode private key.
-	 */
-	klen = *privkey_len;
-	skbuf = privkey;
-	if (klen < 1) {
-		return 0;
-	}
-	skbuf[0] = (ter << 7) + (comp << 5) + logn;
-	skoff = 1;
-	ske[0] = f;
-	ske[1] = g;
-	ske[2] = F;
-	ske[3] = G;
-	for (i = 0; i < 4; i ++) {
-		size_t elen;
-
-		elen = falcon_encode_small(skbuf + skoff, klen - skoff,
-			comp, fk->q, ske[i], logn);
-		if (elen == 0) {
-			return 0;
-		}
-		skoff += elen;
-	}
-	*privkey_len = skoff;
-
-	/*
-	 * Encode public key.
-	 */
-	klen = *pubkey_len;
-	if (klen < 1) {
-		return 0;
-	}
-	((unsigned char *)pubkey)[0] = (ter << 7) + logn;
-	if (ter) {
-		klen = falcon_encode_18433(
-			(unsigned char *)pubkey + 1, klen - 1, h, logn);
-	} else {
-		klen = falcon_encode_12289(
-			(unsigned char *)pubkey + 1, klen - 1, h, logn);
-	}
-	if (klen == 0) {
-		return 0;
-	}
-	*pubkey_len = klen + 1;
-
-	/*
-	 * Success!
-	 */
-	return 1;
-}
