@@ -85,6 +85,10 @@ if WITH_KYBER_KEM
 OPTIONAL_LIBS           += schemes/kem/kyber/libkyberkem.la
 endif WITH_KYBER_KEM
 
+if WITH_HW_TEST_KEM
+OPTIONAL_LIBS           += schemes/kem/hw_test/libhwtestkem.la
+endif WITH_HW_TEST_KEM
+
 if BUILD_DLP_ENS_SIG
 OPTIONAL_LIBS           += schemes/sig/ens_dlp/libensdlpsig.la
 endif BUILD_DLP_ENS_SIG

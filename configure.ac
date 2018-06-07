@@ -795,6 +795,15 @@ if test "x${enable_kem_ens}" = "xno"; then
     AC_SUBST([AM_CPPFLAGS], ["$AM_CPPFLAGS -DDISABLE_KEM_ENS"])
 fi
 
+AC_ARG_ENABLE([kem_hw_test],
+    AC_HELP_STRING([--enable-kem-hw-test], [Enable support for the Hardware Test KEM scheme (default: enable)]),
+    [enable_kem_hw_test=$enableval],
+    [enable_kem_hw_test=$enable_kem])
+AM_CONDITIONAL([WITH_HW_TEST_KEM], [test "x${enable_kem_hw_test}" = "xyes"])
+if test "x${enable_kem_hw_test}" = "xno"; then
+    AC_SUBST([AM_CPPFLAGS], ["$AM_CPPFLAGS -DDISABLE_KEM_HW_TEST"])
+fi
+
 AC_ARG_ENABLE([ibe_dlp],
     AC_HELP_STRING([--enable-ibe-dlp], [Enable support for the DLP IBE scheme (default: enable)]),
     [enable_ibe_dlp=$enableval],
@@ -1211,6 +1220,9 @@ if test "x${enable_enc_rlwe}" = "xyes"; then
 fi
 if test "x${enable_kem_ens}" = "xyes"; then
     AC_CONFIG_FILES([src/schemes/kem/ens/Makefile])
+fi
+if test "x${enable_kem_hw_test}" = "xyes"; then
+    AC_CONFIG_FILES([src/schemes/kem/hw_test/Makefile])
 fi
 AC_CONFIG_FILES([src/schemes/dh/ecdh/Makefile])
 AC_CONFIG_FILES([src/schemes/sig/ecdsa/Makefile])

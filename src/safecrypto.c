@@ -60,6 +60,9 @@
 #ifndef DISABLE_ECDSA
 #include "schemes/sig/ecdsa/ecdsa.h"
 #endif
+#ifndef DISABLE_HW_TEST_KEM
+#include "schemes/kem/hw_test/hw_test_kem.h"
+#endif
 
 #include <string.h>
 
@@ -225,6 +228,16 @@ static safecrypto_alg_t safecrypto_algorithms[] = {
       NULL, NULL,
       ecdsa_pubkey_load, ecdsa_privkey_load, ecdsa_pubkey_encode, ecdsa_privkey_encode,
       NULL, NULL, NULL, NULL, NULL, NULL, NULL, ecdsa_sign, ecdsa_verify, NULL, NULL, NULL, NULL, ecdsa_stats },
+#endif
+#if defined(DISABLE_HW_TEST_KEM)
+    { SC_SCHEME_KEM_HW_TEST, NULL, NULL, NULL, NULL, NULL,
+      NULL, NULL, NULL, NULL,
+      NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
+#else
+    { SC_SCHEME_KEM_HW_TEST, hw_test_kem_create, hw_test_kem_destroy, hw_test_kem_keygen,
+      hw_test_kem_set_key_coding, hw_test_kem_get_key_coding,
+      hw_test_kem_pubkey_load, hw_test_kem_privkey_load, hw_test_kem_pubkey_encode, hw_test_kem_privkey_encode,
+      hw_test_kem_encapsulation, hw_test_kem_decapsulation, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, hw_test_kem_stats },
 #endif
 };
 
