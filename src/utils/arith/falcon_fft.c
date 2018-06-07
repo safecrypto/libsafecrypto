@@ -29,15 +29,48 @@
  * @author   Thomas Pornin <thomas.pornin@nccgroup.trust>
  */
 
-#include "internal.h"
-#include "stdio.h"
+#include <stdio.h>
+#include <math.h>
+
+#include "safecrypto_types.h"
 
 /*
  * Load the table of constants for FFT.
  */
 #define FPC(re, im)   re, im
-#include FPR_IMPL
+#include "falcon_fft.h"
 #undef FPC
+
+
+
+static const DOUBLE fpr_log2 = { 0.69314718055994530941723212146 };
+static const DOUBLE fpr_p55 = { 36028797018963968.0 };
+static const DOUBLE fpr_p63 = { 9223372036854775808.0 };
+static const DOUBLE fpr_p64 = { 18446744073709551616.0 };
+
+/*
+ * For w = exp(i*pi/3), real and imaginary parts of w^1, w^2, w^4 and w^5.
+ *
+ *   w^2 and w^4 are the two primitive cubic roots of 1.
+ *
+ *   w^1 and w^5 are the two roots of X^2-X+1.
+ */
+static const DOUBLE fpr_W1R = {  0.500000000000000000000000000 };
+static const DOUBLE fpr_W1I = {  0.866025403784438646763723171 };
+static const DOUBLE fpr_W2R = { -0.500000000000000000000000000 };
+static const DOUBLE fpr_W2I = {  0.866025403784438646763723171 };
+static const DOUBLE fpr_W4R = { -0.500000000000000000000000000 };
+static const DOUBLE fpr_W4I = { -0.866025403784438646763723171 };
+static const DOUBLE fpr_W5R = {  0.500000000000000000000000000 };
+static const DOUBLE fpr_W5I = { -0.866025403784438646763723171 };
+
+
+/*
+ * For w = exp(i*pi/3), the coefficient c = Re(w)/Im(w).
+ */
+static const DOUBLE fpr_IW1I = {  1.154700538379251529018297561 };
+
+
 
 /*
  * Rules for complex number macros:

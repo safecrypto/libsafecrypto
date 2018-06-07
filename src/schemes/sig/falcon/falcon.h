@@ -22,7 +22,7 @@
 #include "utils/arith/gpv.h"
 #include "utils/crypto/hash.h"
 #include "utils/sampling/sampling.h"
-#include "utils/arith/falcon.h"
+#include "utils/arith/falcon_keygen.h"
 
 
 #define FALCON_USE_SINGLE_PREC_FLOATS

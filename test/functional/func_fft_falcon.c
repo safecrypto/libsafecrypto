@@ -24,9 +24,9 @@
 #include <math.h>
 
 //falcon code included
-#include "utils/arith/internal.h"
+#include "utils/arith/falcon_fft.h"
 
-static void
+/*static void
 mk_rand_poly(prng *p, DOUBLE *f, unsigned logn)
 {
 	size_t u, n;
@@ -40,7 +40,7 @@ mk_rand_poly(prng *p, DOUBLE *f, unsigned logn)
 		x &= 0x3FF;
 		f[u] = (x - 512);
 	}
-}
+}*/
 
 //initial read-in test
 /*int main(void)
@@ -63,7 +63,7 @@ printf("g[u]");
 }
 */
 
-//*****my inserted test_fft function****
+/*//*****my inserted test_fft function****
 static void 
 test_fft(unsigned logn)
 {	DOUBLE f[1024], g[1024];
@@ -178,11 +178,11 @@ falcon_poly_merge_fft(g, f0, f1, logn);
 				exit(EXIT_FAILURE);
 			}
 		}
-}
+}*/
 
 int main(void)
 {
-	test_fft(2);
-	test_split(2);
+	//test_fft(2);
+	//test_split(2);
 return 0;
 }	

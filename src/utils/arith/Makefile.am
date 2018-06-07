@@ -41,16 +41,12 @@ libarith_la_SOURCES       = arith.c \
                             limb_base.h \
                             sc_mp.c \
                             sc_mp.h \
-					        internal.h \
-                            ldl.c \
-                            ldl.h \
+                            falcon_ldl.c \
+                            falcon_ldl.h \
 			                falcon_fft.c \
-			                falcon-keygen.c \
-					        fpr-double.h \
-					        shake.h \
-					        shake.c \
-					        falcon.h \
-					        frng.c 
+					        falcon_fft.h \
+			                falcon_keygen.c \
+					        falcon_keygen.h
 #                            ntt_barrett_rev.c \
 #                            ntt_barrett_rev.h \
 #                            ntt_fp_rev.c \

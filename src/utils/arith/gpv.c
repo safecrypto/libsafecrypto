@@ -26,13 +26,13 @@
 #include "safecrypto_private.h"
 #include "safecrypto_debug.h"
 #include "poly_fft.h"
-#include "ldl.h"
+#include "utils/arith/falcon_fft.h"
+#include "utils/arith/falcon_ldl.h"
 
 #include "schemes/sig/falcon/falcon_params.h"
 #include "schemes/sig/ens_dlp/ens_dlp_sig_params.h"
 #include "schemes/ibe/dlp/dlp_ibe_params.h"
 
-#include "internal.h"
 #define NTT_NEEDS_12289
 #include "utils/arith/ntt_tables.h"
 
@@ -3275,9 +3275,9 @@ SINT32 gaussian_lattice_sample_fft(safecrypto_t *sc,
 
     // Compute tb0 = t0 + (t1 - z1) * L. Value tb0 ends up in tmp[].
     memcpy(tmp, t1, n * sizeof *t1);
-    falcon_poly_sub_fft(tmp, z1, logn);
+    falcon_poly_sub(tmp, z1, logn);
     falcon_poly_mul_fft(tmp, tree, logn);
-    falcon_poly_add_fft(tmp, t0, logn);
+    falcon_poly_add(tmp, t0, logn);
 
     // Second recursive invocation.
     falcon_poly_split_fft(z0, z0 + hn, tmp, logn);

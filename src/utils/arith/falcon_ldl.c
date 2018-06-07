@@ -29,9 +29,9 @@
  * @author   Thomas Pornin <thomas.pornin@nccgroup.trust>
  */
 
-#include "ldl.h"
 #include <string.h>
-#include <internal.h>
+#include "utils/arith/falcon_ldl.h"
+#include "utils/arith/falcon_fft.h"
 
 /* =================================================================== */
 

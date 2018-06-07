@@ -30,8 +30,10 @@
  */
 
 #include <stddef.h>
-#include "internal.h"
+#include <math.h>
 #include "safecrypto_private.h"
+#include "utils/arith/falcon_keygen.h"
+#include "utils/arith/falcon_fft.h"
 #include "utils/arith/ntt.h"
 #include "utils/arith/poly_32.h"
 
@@ -99,13 +101,6 @@ struct falcon_keygen_ {
 
 	// The selected modulus
 	unsigned q;
-
-	// RNG:
-	//   seeded    non-zero when a 'replace' seed or system RNG was pushed
-	//   flipped   non-zero when flipped
-	shake_context rng;
-	int seeded;
-	int flipped;
 
 	// Temporary storage for key generation. 'tmp_len' is expressed
 	//   in 32-bit words
@@ -3633,105 +3628,6 @@ poly_sub_scaled_ntt(uint32_t *restrict F, size_t Flen, size_t Fstride,
 /* ==================================================================== */
 
 /*
- * Get a random 8-byte integer from a SHAKE-based RNG. This function
- * ensures consistent interpretation of the SHAKE output so that
- * the same values will be obtained over different platforms, in case
- * a known seed is used.
- */
-static inline uint64_t
-get_rng_u64(shake_context *rng)
-{
-	/*
-	 * On little-endian systems we just interpret the bytes "as is"
-	 * (this is correct because the exact-width types such as
-	 * 'uint64_t' are guaranteed to have no padding and no trap
-	 * representation).
-	 *
-	 * On other systems we enforce little-endian representation.
-	 */
-#if FALCON_LE_U
-	uint64_t r;
-
-	shake_extract(rng, &r, sizeof r);
-	return r;
-#else
-	unsigned char tmp[8];
-
-	shake_extract(rng, tmp, sizeof tmp);
-	return (uint64_t)tmp[0]
-		| ((uint64_t)tmp[1] << 8)
-		| ((uint64_t)tmp[2] << 16)
-		| ((uint64_t)tmp[3] << 24)
-		| ((uint64_t)tmp[4] << 32)
-		| ((uint64_t)tmp[5] << 40)
-		| ((uint64_t)tmp[6] << 48)
-		| ((uint64_t)tmp[7] << 56);
-#endif
-}
-
-/*
- * Table below incarnates a discrete Gaussian distribution:
- *    D(x) = exp(-(x^2)/(2*sigma^2))
- * where sigma = 1.17*sqrt(q/(2*N)), q = 12289, and N = 1024.
- * Element 0 of the table is P(x = 0).
- * For k > 0, element k is P(x >= k+1 | x > 0).
- * Probabilities are scaled up by 2^63.
- */
-static const uint64_t gauss_1024_12289[] = {
-	 1283868770400643928u,  6416574995475331444u,  4078260278032692663u,
-	 2353523259288686585u,  1227179971273316331u,   575931623374121527u,
-	  242543240509105209u,    91437049221049666u,    30799446349977173u,
-	    9255276791179340u,     2478152334826140u,      590642893610164u,
-	     125206034929641u,       23590435911403u,        3948334035941u,
-	        586753615614u,          77391054539u,           9056793210u,
-	           940121950u,             86539696u,              7062824u,
-	              510971u,                32764u,                 1862u,
-	                  94u,                    4u,                    0u
-};
-
-/*
- * Generate a random value with a Gaussian distribution centered on 0.
- * The RNG must be ready for extraction (already flipped).
- *
- * Distribution has standard deviation 1.17*sqrt(q/(2*N)). The
- * precomputed table is for N = 1024. Since the sum of two independent
- * values of standard deviation sigma has standard deviation
- * sigma*sqrt(2), then we can just generate more values and add them
- * together for lower dimensions.
- *
- * This function is only for the binary case.
- */
-static int
-mkgauss(falcon_keygen *fk, unsigned logn)
-{
-	unsigned u, g;
-	int val;
-
-	g = 1U << (10 - logn);
-	val = 0;
-	for (u = 0; u < g; u ++) {
-		uint64_t r;
-		int k, neg;
-
-		r = get_rng_u64(&fk->rng);
-		neg = (int)(r >> 63);
-		r &= ~((uint64_t)1 << 63);
-		if (r < gauss_1024_12289[0]) {
-			continue;
-		}
-		r = get_rng_u64(&fk->rng);
-		r &= ~((uint64_t)1 << 63);
-		k = 1;
-		while (gauss_1024_12289[k] > r) {
-			k ++;
-		}
-		k *= (int)(1 - (neg << 1));
-		val += k;
-	}
-	return val;
-}
-
-/*
  * The MAX_BL_SMALL*[] and MAX_BL_LARGE*[] contain the lengths, in 31-bit
  * words, of intermediate values in the computation:
  *
@@ -3983,9 +3879,6 @@ falcon_keygen_new(safecrypto_t *sc, ntt_params_t *ntt_params, const int16_t *ntt
 	fk->ntt_w = ntt_w;
 	fk->ntt_r = ntt_r;
 	fk->q = ntt_params->u.ntt32.q;
-	shake_init(&fk->rng, 512);
-	fk->seeded = 0;
-	fk->flipped = 0;
 
 	fk->tmp_len = temp_size(logn);
 #if MEMCHECK
@@ -4057,71 +3950,6 @@ falcon_keygen_max_pubkey_size(falcon_keygen *fk)
 	logn = fk->logn;
 	z = fk->ternary ? (45U << (logn - 1)) : (14U << logn);
 	return 1 + ((z + 7) >> 3);
-}
-
-/* see falcon.h */
-void
-falcon_keygen_set_seed(falcon_keygen *fk,
-	const void *seed, size_t len, int replace)
-{
-	if (replace) {
-		shake_init(&fk->rng, 512);
-		shake_inject(&fk->rng, seed, len);
-		fk->seeded = 1;
-		fk->flipped = 0;
-		return;
-	}
-	if (fk->flipped) {
-		unsigned char tmp[32];
-
-		shake_extract(&fk->rng, tmp, sizeof tmp);
-		shake_init(&fk->rng, 512);
-		shake_inject(&fk->rng, tmp, sizeof tmp);
-		fk->flipped = 0;
-	}
-	shake_inject(&fk->rng, seed, len);
-}
-
-static int
-rng_ready(falcon_keygen *fk)
-{
-	if (!fk->seeded) {
-		unsigned char tmp[32];
-
-		if (!falcon_get_seed(tmp, sizeof tmp)) {
-			return 0;
-		}
-		falcon_keygen_set_seed(fk, tmp, sizeof tmp, 0);
-		fk->seeded = 1;
-	}
-	if (!fk->flipped) {
-		shake_flip(&fk->rng);
-		fk->flipped = 1;
-	}
-	return 1;
-}
-
-/*
- * Compute squared norm of a short vector. Returned value is saturated to
- * 2^32-1 if it is not lower than 2^31.
- */
-static uint32_t
-poly_small_sqnorm(const int32_t *f, unsigned logn, unsigned ter)
-{
-	size_t n, u;
-	uint32_t s, ng;
-
-	n = MKN(logn, ter);
-	s = 0;
-	ng = 0;
-	for (u = 0; u < n; u ++) {
-		int32_t z;
-
-		z = f[u];
-		s += (uint32_t)(z * z);
-		ng |= s;
-	}
-	return s | -(ng >> 31);
 }
 
 /*
@@ -5087,7 +4915,7 @@ solve_NTRU_intermediate(falcon_keygen *fk,
 			falcon_FFT(rt2, logn);
 			falcon_poly_mul_fft(rt1, rt3, logn);
 			falcon_poly_mul_fft(rt2, rt4, logn);
-			falcon_poly_add_fft(rt2, rt1, logn);
+			falcon_poly_add(rt2, rt1, logn);
 			falcon_poly_mul_autoadj_fft(rt2, rt5, logn);
 			falcon_iFFT(rt2, logn);
 		}
@@ -6192,35 +6020,5 @@ int solve_NTRU(falcon_keygen *fk, int32_t *F, int32_t *G,
 	}
 
 	return 1;
-}
-
-/*
- * Generate a random polynomial with a Gaussian distribution. This function
- * also makes sure that the resultant of the polynomial with phi is odd.
- *
- * This function is only for the binary case. 
- */
-static void
-poly_small_mkgauss(falcon_keygen *fk, int32_t *f, unsigned logn)
-{
-	size_t n, u;
-	unsigned mod2;
-
-	n = MKN(logn, 0);
-	mod2 = 0;
-	for (u = 0; u < n; u ++) {
-		int s;
-
-	restart:
-		s = mkgauss(fk, logn);
-		if (u == n - 1) {
-			if ((mod2 ^ (unsigned)(s & 1)) == 0) {
-				goto restart;
-			}
-		} else {
-			mod2 ^= (unsigned)(s & 1);
-		}
-		f[u] = s;
-	}
 }
 
