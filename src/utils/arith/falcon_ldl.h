@@ -29,6 +29,8 @@
  * @author   Thomas Pornin <thomas.pornin@nccgroup.trust>
  */
 
+#pragma once
+
 #include "safecrypto_types.h"
 
 

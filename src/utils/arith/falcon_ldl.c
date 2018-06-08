@@ -99,7 +99,7 @@ LDL_fft(DOUBLE *restrict d11, DOUBLE *restrict l10,
 /*
  * Special case of LDL when G is quasicyclic, i.e. g11 == g00.
  */
-inline void
+void
 LDLqc_fft(DOUBLE *restrict d11, DOUBLE *restrict l10,
 	const DOUBLE *restrict g00, const DOUBLE *restrict g01, unsigned logn,
 	DOUBLE *restrict tmp);
@@ -108,7 +108,7 @@ LDLqc_fft(DOUBLE *restrict d11, DOUBLE *restrict l10,
  * Get the size of the LDL tree for an input with polynomials of size
  * 2^logn. The size is expressed in the number of elements.
  */
-inline unsigned ffLDL_treesize(unsigned logn);
+unsigned ffLDL_treesize(unsigned logn);
 
 /*
  * Inner function for ffLDL_fft(). It expects the matrix to be both

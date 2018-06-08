@@ -25,6 +25,7 @@
 #include "safecrypto_types.h"
 #include "safecrypto_private.h"
 #include "safecrypto_debug.h"
+#include "safecrypto_error.h"
 #include "poly_fft.h"
 #include "utils/arith/falcon_fft.h"
 #include "utils/arith/falcon_ldl.h"
@@ -3363,6 +3364,93 @@ SINT32 gaussian_lattice_sample_fft(safecrypto_t *sc,
 
     return SC_FUNC_SUCCESS;
 }
+
+SINT32 gaussian_sample_with_tree(safecrypto_t *sc, DOUBLE *sk, UINT32 n, UINT32 q, UINT32 n_bits,
+    SINT32 *c, UINT32 gaussian_flags, SINT32 *s1, SINT32 *s2)
+{
+    SINT32 retval = SC_FUNC_FAILURE;
+    size_t i;
+    DOUBLE *c0, *c1, *tmp, *z0, *z1;
+    DOUBLE ni;
+    DOUBLE *b00, *b01, *b10, *b11, *tree;
+    unsigned ter = 0; //for binary
+
+    // Assign pointers for the pre-computed Falcon tree
+    b00      = sk + skoff_b00(n_bits, ter);
+    b01      = sk + skoff_b01(n_bits, ter);
+    b10      = sk + skoff_b10(n_bits, ter);
+    b11      = sk + skoff_b11(n_bits, ter);
+    tree     = sk + skoff_tree(n_bits, ter);
+
+    // Allocate memory for FALCON signature sampling_fft
+    c0 = SC_MALLOC(sizeof(DOUBLE) * 11 * n);
+    if (NULL == c0) {
+        SC_LOG_ERROR(sc, SC_NULL_POINTER);
+        return SC_FUNC_FAILURE;
+    }
+    c1       = c0 + n;
+    tmp      = c1 + n;
+    z0       = tmp + 7 * n;
+    z1       = z0 + n;
+
+    // Copy the message ring to a floating point representation for use with
+    // the FFT (c1 is 0, but s modified later so does not require setting to 0 here)
+    for (int i = 0; i < n; i ++) {
+        c0[i] = c[i];
+    }
+
+    /// @todo Is this mapping the message ring to the poly basis of the secret key?
+    falcon_FFT(c0, n_bits);
+    memcpy(c1, c0, n * sizeof(DOUBLE));
+    ni       = fpr_inverse_of(q);
+    falcon_poly_mul_fft(c1, b01, n_bits);
+    falcon_poly_mulconst_fft(c1, fpr_neg(ni), n_bits);
+    falcon_poly_mul_fft(c0, b11, n_bits);
+    falcon_poly_mulconst_fft(c0, ni, n_bits);
+
+    // Generate a sampled polynomial using the polynomial basis
+    SINT32 sample_error;
+    sample_error = gaussian_lattice_sample_fft(sc, z0, z1, tree, c0, c1, n_bits, tmp, gaussian_flags);
+    if (SC_FUNC_FAILURE == sample_error) {
+        SC_LOG_ERROR(sc, SC_ERROR);
+        goto finish;
+    }
+
+    // Get the lattice point of the Gaussian sampled vector
+    memcpy(c0, z0, n * sizeof(DOUBLE));
+    memcpy(c1, z1, n * sizeof(DOUBLE));
+    falcon_poly_mul_fft(z0, b00, n_bits);
+    falcon_poly_mul_fft(z1, b10, n_bits);
+    falcon_poly_add(z0, z1, n_bits);
+    memcpy(z1, c0, n * sizeof(DOUBLE));
+    falcon_poly_mul_fft(z1, b01, n_bits);
+
+    memcpy(c0, z0, n * sizeof(DOUBLE));
+    falcon_poly_mul_fft(c1, b11, n_bits);
+    falcon_poly_add(c1, z1, n_bits);
+
+    // The result is in FFT domain, so convert back
+    falcon_iFFT(c0, n_bits);
+    falcon_iFFT(c1, n_bits);
+
+    // Compute the signature or IBE user key
+    if (s1) {
+        for (int i = 0; i < n; i ++) {
+            s1[i] = (SINT32)(c[i] - llrint(c0[i]));
+        }
+    }
+    for (int i = 0; i < n; i ++) {
+        s2[i] = (SINT32) -llrint(c1[i]);
+    }
+
+    retval = SC_FUNC_SUCCESS;
+
+finish:
+    SC_FREE(c0, sizeof(DOUBLE) * 11 * n);
+
+    return retval;
+}
+
 
 #ifdef DEBUG_ENCRYPTION
 static SINT32 gaussian_lattice_sample_debug(safecrypto_t *sc,

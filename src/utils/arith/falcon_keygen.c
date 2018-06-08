@@ -34,6 +34,7 @@
 #include "safecrypto_private.h"
 #include "utils/arith/falcon_keygen.h"
 #include "utils/arith/falcon_fft.h"
+#include "utils/arith/falcon_ldl.h"
 #include "utils/arith/ntt.h"
 #include "utils/arith/poly_32.h"
 
@@ -6023,3 +6024,115 @@ int solve_NTRU(falcon_keygen *fk, int32_t *F, int32_t *G,
 	return 1;
 }
 
+size_t
+skoff_b00(unsigned logn, unsigned ter);
+
+size_t
+skoff_b01(unsigned logn, unsigned ter);
+
+size_t
+skoff_b10(unsigned logn, unsigned ter);
+
+size_t
+skoff_b11(unsigned logn, unsigned ter);
+
+size_t
+skoff_tree(unsigned logn, unsigned ter);
+
+
+void
+smallints_to_double(DOUBLE *r, const SINT32 *t, unsigned logn, unsigned ter)
+{
+    size_t n, u;
+
+    n = ((size_t)(1 + ((ter) << 1)) << ((logn) - (ter)));
+    for (size_t u = 0; u < n; u ++) {
+        r[u] = (DOUBLE)(t[u]);
+    }
+}
+
+void
+load_skey(DOUBLE *restrict sk, unsigned q,
+	const SINT32 *f_src, const SINT32 *g_src,
+	const SINT32 *F_src, const SINT32 *G_src,
+	unsigned logn, unsigned ter, DOUBLE *restrict tmp) //keep ter=0 for the binary case
+{
+	size_t n;
+	DOUBLE *f_tmp, *g_tmp, *F_tmp, *G_tmp; 
+	DOUBLE *b00, *b01, *b10, *b11;
+	DOUBLE *tree;
+	DOUBLE sigma;
+
+	n    = (1 + ((ter) << 1)) << ((logn) - (ter));
+	b00  = sk + skoff_b00(logn, ter);
+	b01  = sk + skoff_b01(logn, ter);
+	b10  = sk + skoff_b10(logn, ter);
+	b11  = sk + skoff_b11(logn, ter);
+	tree = sk + skoff_tree(logn, ter);
+
+	// We load the private key elements directly into the B0 matrix,
+	// since B0 = [[g, -f], [G, -F]].
+	f_tmp = b01;
+	g_tmp = b00;
+	F_tmp = b11;
+	G_tmp = b10;
+
+	smallints_to_double(f_tmp, f_src, logn, ter); //copies f_src to f_tmp (DOUBLE)
+	smallints_to_double(g_tmp, g_src, logn, ter);
+	smallints_to_double(F_tmp, F_src, logn, ter);
+	smallints_to_double(G_tmp, G_src, logn, ter);
+
+	// Compute the FFT for the key elements, and negate f and F
+    falcon_FFT(f_tmp, logn);
+	falcon_FFT(g_tmp, logn);
+	falcon_FFT(F_tmp, logn);
+	falcon_FFT(G_tmp, logn);
+	falcon_poly_neg(f_tmp, logn);
+	falcon_poly_neg(F_tmp, logn);
+
+	// The Gram matrix is G = B·B*. Formulas are:
+	//   g00 = b00*adj(b00) + b01*adj(b01)
+	//   g01 = b00*adj(b10) + b01*adj(b11)
+	//   g10 = b10*adj(b00) + b11*adj(b01)
+	//   g11 = b10*adj(b10) + b11*adj(b11)
+    {
+        DOUBLE *g00, *g01, *g11, *gxx;
+
+		g00 = tmp;
+		g01 = g00 + n;
+		g11 = g01 + n;
+		gxx = g11 + n;
+
+		memcpy(g00, b00, n * sizeof *b00);
+		falcon_poly_mulselfadj_fft(g00, logn);
+		memcpy(gxx, b01, n * sizeof *b01);
+		falcon_poly_mulselfadj_fft(gxx, logn);
+		falcon_poly_add(g00, gxx, logn);
+
+		memcpy(g01, b00, n * sizeof *b00);
+		falcon_poly_muladj_fft(g01, b10, logn);
+		memcpy(gxx, b01, n * sizeof *b01);
+		falcon_poly_muladj_fft(gxx, b11, logn);
+		falcon_poly_add(g01, gxx, logn);
+
+		memcpy(g11, b10, n * sizeof *b10);
+		falcon_poly_mulselfadj_fft(g11, logn);
+		memcpy(gxx, b11, n * sizeof *b11);
+		falcon_poly_mulselfadj_fft(gxx, logn);
+		falcon_poly_add(g11, gxx, logn);
+
+		// Compute the Falcon tree.
+		ffLDL_fft(tree, g00, g01, g11, logn, gxx);
+
+		// Normalize tree with sigma.
+        sigma = sqrt(q)* (1.55);
+		ffLDL_binary_normalize(tree, sigma, logn);
+
+        FILE * pFile_sc_tree;
+        pFile_sc_tree=fopen("SC_tree.txt", "w");
+        for (size_t u = 0; u < skoff_tree(logn, ter); u ++) {
+            fprintf(pFile_sc_tree, "tree elements: %3.6f \n", tree[u]);
+        }
+        fclose(pFile_sc_tree);
+	}
+}

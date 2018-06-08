@@ -35,6 +35,7 @@
 
 #include "utils/arith/falcon_fft.h"
 #include "utils/arith/falcon_ldl.h"
+#include "utils/arith/falcon_keygen.h"
 
 #include <math.h>
 
@@ -658,140 +659,6 @@ SINT32 falcon_sig_sign(safecrypto_t *sc, const UINT8 *m, size_t m_len,
 
 #else
 
-/******************** Start of imported FALCON functions *********************/
-
-static inline size_t
-skoff_b00(unsigned logn, unsigned ter)
-{
-	(void)logn;
-	(void)ter;
-	return 0;
-}
-
-static inline size_t
-skoff_b01(unsigned logn, unsigned ter)
-{
-	return (1 + ((ter) << 1)) << ((logn) - (ter));
-}
-
-static inline size_t
-skoff_b10(unsigned logn, unsigned ter)
-{
-	return 2 * (1 + ((ter) << 1)) << ((logn) - (ter));
-}
-
-static inline size_t
-skoff_b11(unsigned logn, unsigned ter)
-{
-	return 3 * (1 + ((ter) << 1)) << ((logn) - (ter));
-}
-
-static inline size_t
-skoff_tree(unsigned logn, unsigned ter)
-{
-	return 4 * (1 + ((ter) << 1)) << ((logn) - (ter));
-}
-
-static void
-smallints_to_double(DOUBLE *r, const SINT32 *t, unsigned logn, unsigned ter)
-{
-    size_t n, u;
-
-    n = ((size_t)(1 + ((ter) << 1)) << ((logn) - (ter)));
-    for (size_t u = 0; u < n; u ++) {
-        r[u] = (DOUBLE)(t[u]);
-    }
-}
-
-static void
-load_skey(DOUBLE *restrict sk, unsigned q,
-	const SINT32 *f_src, const SINT32 *g_src,
-	const SINT32 *F_src, const SINT32 *G_src,
-	unsigned logn, unsigned ter, DOUBLE *restrict tmp) //keep ter=0 for the binary case
-{
-	size_t n;
-	DOUBLE *f_tmp, *g_tmp, *F_tmp, *G_tmp; 
-	DOUBLE *b00, *b01, *b10, *b11;
-	DOUBLE *tree;
-	DOUBLE sigma;
-
-	n    = (1 + ((ter) << 1)) << ((logn) - (ter));
-	b00  = sk + skoff_b00(logn, ter);
-	b01  = sk + skoff_b01(logn, ter);
-	b10  = sk + skoff_b10(logn, ter);
-	b11  = sk + skoff_b11(logn, ter);
-	tree = sk + skoff_tree(logn, ter);
-
-	// We load the private key elements directly into the B0 matrix,
-	// since B0 = [[g, -f], [G, -F]].
-	f_tmp = b01;
-	g_tmp = b00;
-	F_tmp = b11;
-	G_tmp = b10;
-
-	smallints_to_double(f_tmp, f_src, logn, ter); //copies f_src to f_tmp (DOUBLE)
-	smallints_to_double(g_tmp, g_src, logn, ter);
-	smallints_to_double(F_tmp, F_src, logn, ter);
-	smallints_to_double(G_tmp, G_src, logn, ter);
-
-	// Compute the FFT for the key elements, and negate f and F
-    falcon_FFT(f_tmp, logn);
-	falcon_FFT(g_tmp, logn);
-	falcon_FFT(F_tmp, logn);
-	falcon_FFT(G_tmp, logn);
-	falcon_poly_neg(f_tmp, logn);
-	falcon_poly_neg(F_tmp, logn);
-
-	// The Gram matrix is G = B·B*. Formulas are:
-	//   g00 = b00*adj(b00) + b01*adj(b01)
-	//   g01 = b00*adj(b10) + b01*adj(b11)
-	//   g10 = b10*adj(b00) + b11*adj(b01)
-	//   g11 = b10*adj(b10) + b11*adj(b11)
-    {
-        DOUBLE *g00, *g01, *g11, *gxx;
-
-		g00 = tmp;
-		g01 = g00 + n;
-		g11 = g01 + n;
-		gxx = g11 + n;
-
-		memcpy(g00, b00, n * sizeof *b00);
-		falcon_poly_mulselfadj_fft(g00, logn);
-		memcpy(gxx, b01, n * sizeof *b01);
-		falcon_poly_mulselfadj_fft(gxx, logn);
-		falcon_poly_add(g00, gxx, logn);
-
-		memcpy(g01, b00, n * sizeof *b00);
-		falcon_poly_muladj_fft(g01, b10, logn);
-		memcpy(gxx, b01, n * sizeof *b01);
-		falcon_poly_muladj_fft(gxx, b11, logn);
-		falcon_poly_add(g01, gxx, logn);
-
-		memcpy(g11, b10, n * sizeof *b10);
-		falcon_poly_mulselfadj_fft(g11, logn);
-		memcpy(gxx, b11, n * sizeof *b11);
-		falcon_poly_mulselfadj_fft(gxx, logn);
-		falcon_poly_add(g11, gxx, logn);
-
-		// Compute the Falcon tree.
-		ffLDL_fft(tree, g00, g01, g11, logn, gxx);
-
-		// Normalize tree with sigma.
-        sigma = sqrt(q)* (1.55);
-		ffLDL_binary_normalize(tree, sigma, logn);
-
-        FILE * pFile_sc_tree;
-        pFile_sc_tree=fopen("SC_tree.txt", "w");
-        for (size_t u = 0; u < skoff_tree(logn, ter); u ++) {
-            fprintf(pFile_sc_tree, "tree elements: %3.6f \n", tree[u]);
-        }
-        fclose(pFile_sc_tree);
-
-	}
-}
-
-/********************* End of imported FALCON functions **********************/
-
 SINT32 falcon_sig_keygen(safecrypto_t *sc)
 {
     SINT32 i, iter;
@@ -960,13 +827,11 @@ finish_free:
 SINT32 falcon_sig_sign(safecrypto_t *sc, const UINT8 *m, size_t m_len, UINT8 **sigret, size_t *siglen)
 {
  	SINT32 *s2;	
-    DOUBLE *sk = sc->falcon->sk;
     size_t i;
     SINT16 *h, *h_ntt;
     SINT32 *s2_ntt;
     UINT32 n, q, q_bits, n_bits;
     SINT32 *f, *g, *F, *G, *c;
-    DOUBLE *c0, *c1, *tmp, *z0, *z1;
     SINT32 *s1;
     SINT32 retval = SC_FUNC_FAILURE;
     gpv_t gpv;
@@ -998,27 +863,7 @@ SINT32 falcon_sig_sign(safecrypto_t *sc, const UINT8 *m, size_t m_len, UINT8 **s
     gpv.G    = G;
     gpv.n    = n;
     FLOAT bd;
-	unsigned ter = 0; //for binary
     
-    // Assign pointers for the pre-computed Falcon tree
-    DOUBLE *b00, *b01, *b10, *b11, *tree;
-	b00 = sk + skoff_b00(n_bits, ter);
-	b01 = sk + skoff_b01(n_bits, ter);
-	b10 = sk + skoff_b10(n_bits, ter);
-	b11 = sk + skoff_b11(n_bits, ter);
-	tree = sk + skoff_tree(n_bits, ter);
-
-	// Allocate memory for FALCON signature sampling_fft
-    c0 =SC_MALLOC(sizeof(DOUBLE) * 11 * n);   /// @todo Move this into the sc->temp heap array to save RAM
-    if (NULL == c0) {
-        SC_LOG_ERROR(sc, SC_NULL_POINTER);
-        return SC_FUNC_FAILURE;
-    }
-    c1       = c0 + n;
-    tmp      = c1 + n;
-    z0       = tmp + 7 * n;
-    z1       = z0 + n;
-
     c        = sc->temp;
     s1       = c + n;
     s2       = s1 + n;
@@ -1044,6 +889,31 @@ restart:
 
     // Translate the message into a polynomial using a random oracle
     map_message_to_ring(sc, m, m_len, c, n);
+
+#if 1
+    // Gaussian sampling over the basis vector to generate the signature polynomials
+    gaussian_sample_with_tree(sc, sc->falcon->sk, n, q, n_bits, c, gaussian_flags, s1, s2);
+#else
+    DOUBLE *c0, *c1, *tmp, *z0, *z1;
+
+    // Assign pointers for the pre-computed Falcon tree
+    DOUBLE *b00, *b01, *b10, *b11, *tree;
+    b00 = sk + skoff_b00(n_bits, ter);
+    b01 = sk + skoff_b01(n_bits, ter);
+    b10 = sk + skoff_b10(n_bits, ter);
+    b11 = sk + skoff_b11(n_bits, ter);
+    tree = sk + skoff_tree(n_bits, ter);
+
+    // Allocate memory for FALCON signature sampling_fft
+    c0 =SC_MALLOC(sizeof(DOUBLE) * 11 * n);   /// @todo Move this into the sc->temp heap array to save RAM
+    if (NULL == c0) {
+        SC_LOG_ERROR(sc, SC_NULL_POINTER);
+        return SC_FUNC_FAILURE;
+    }
+    c1       = c0 + n;
+    tmp      = c1 + n;
+    z0       = tmp + 7 * n;
+    z1       = z0 + n;
 
     // Copy the message ring to a floating point representation for use with
     // the FFT (c1 is 0, but s modified later so does not require setting to 0 here)
@@ -1090,6 +960,9 @@ restart:
 		s1[i] = (SINT32)(c[i] - llrint(c0[i]));
 		s2[i] = (SINT32) -llrint(c1[i]);
 	}
+
+    SC_FREE(c0, sizeof(DOUBLE) * 11 * n);
+#endif
 
     SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "m", m, m_len);
     SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "s1", s1, n);
@@ -1149,7 +1022,6 @@ finish:
 
     // Reset the temporary memory
     SC_MEMZERO(sc->temp, 4 * n * sizeof(SINT32));
-    SC_FREE(c0, sizeof(DOUBLE) * 11 * n);
 
 	return retval;
 }

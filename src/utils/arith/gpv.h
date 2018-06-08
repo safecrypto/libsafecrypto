@@ -143,5 +143,8 @@ SINT32 gaussian_lattice_sample_fft(safecrypto_t *sc,
     DOUBLE *restrict tree,
     const DOUBLE *restrict t0, const DOUBLE *restrict t1, unsigned logn,
     DOUBLE *restrict tmp, UINT32 flags);
+SINT32 gaussian_sample_with_tree(safecrypto_t *sc, DOUBLE *sk,
+    UINT32 n, UINT32 q, UINT32 n_bits,
+    SINT32 *c, UINT32 gaussian_flags, SINT32 *s1, SINT32 *s2);
 /// @}
 

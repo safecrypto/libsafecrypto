@@ -52,7 +52,7 @@
 #define SC_IBE_MESSAGE_LENGTH_N
 
 /// Use FALCON enhanced KeyGen and Extract
-#define DLP_IBE_USE_ENHANCED_EXTRACT   0
+#define DLP_IBE_USE_ENHANCED_EXTRACT   1
 
 /// Use a Hash/CSPRNG to provide a random oracle rather than a XOF
 //#define DLP_USE_RANDOM_ORACLE_CSPRNG
@@ -151,6 +151,7 @@ typedef struct dlp_ibe_cfg_t {
     ntt_params_t              ntt;
     sc_entropy_type_e         entropy;
     DOUBLE                   *master_tree;
+    size_t                    master_tree_len;
     SINT32                    keep_matrices;
     SINT32                   *b;
     GSO_TYPE                 *b_gs SC_DEFAULT_ALIGNED;

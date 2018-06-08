@@ -41,7 +41,7 @@
 #define SC_MAX_FILENAME_LEN   128
 
 /// The maximum number of entries in the algorithm table
-#define ALG_TABLE_MAX   16
+#define ALG_TABLE_MAX   17
 
 /// The maximum number of distributions for lossless compression
 #define ENTROPY_MAX_DIST     8

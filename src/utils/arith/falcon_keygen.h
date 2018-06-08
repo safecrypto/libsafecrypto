@@ -101,6 +101,47 @@ size_t falcon_keygen_max_pubkey_size(falcon_keygen *fk);
 int solve_NTRU(falcon_keygen *fk, int32_t *F, int32_t *G,
 	const int32_t *f, const int32_t *g);
 
+
+
+inline size_t
+skoff_b00(unsigned logn, unsigned ter)
+{
+	(void)logn;
+	(void)ter;
+	return 0;
+}
+
+inline size_t
+skoff_b01(unsigned logn, unsigned ter)
+{
+	return (1 + ((ter) << 1)) << ((logn) - (ter));
+}
+
+inline size_t
+skoff_b10(unsigned logn, unsigned ter)
+{
+	return 2 * (1 + ((ter) << 1)) << ((logn) - (ter));
+}
+
+inline size_t
+skoff_b11(unsigned logn, unsigned ter)
+{
+	return 3 * (1 + ((ter) << 1)) << ((logn) - (ter));
+}
+
+inline size_t
+skoff_tree(unsigned logn, unsigned ter)
+{
+	return 4 * (1 + ((ter) << 1)) << ((logn) - (ter));
+}
+
+void smallints_to_double(DOUBLE *r, const SINT32 *t, unsigned logn, unsigned ter);
+
+void load_skey(DOUBLE *restrict sk, unsigned q,
+	const SINT32 *f_src, const SINT32 *g_src,
+	const SINT32 *F_src, const SINT32 *G_src,
+	unsigned logn, unsigned ter, DOUBLE *restrict tmp);
+
 #ifdef __cplusplus
 }
 #endif
