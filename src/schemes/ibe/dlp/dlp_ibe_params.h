@@ -17,6 +17,7 @@
 
 #pragma once
 
+#if 0
 #ifndef NTT_NEEDS_5767169
 #define NTT_NEEDS_5767169
 #endif
@@ -25,6 +26,11 @@
 #endif
 #ifndef NTT_NEEDS_51750913
 #define NTT_NEEDS_51750913
+#endif
+#else
+#ifndef NTT_NEEDS_4206593
+#define NTT_NEEDS_4206593
+#endif
 #endif
 
 #ifndef NEEDS_GAUSSIAN_ZIGGURAT
@@ -45,6 +51,9 @@
 
 #define SC_IBE_MESSAGE_LENGTH_N
 
+/// Use FALCON enhanced KeyGen and Extract
+#define DLP_IBE_USE_ENHANCED_EXTRACT   0
+
 /// Use a Hash/CSPRNG to provide a random oracle rather than a XOF
 //#define DLP_USE_RANDOM_ORACLE_CSPRNG
 
@@ -52,7 +61,11 @@
 //#define DLP_IBE_USE_CLASSICAL_GSO
 
 /// Retain the GSO matrix and vector of norms in memory for re-use
+#if DLP_IBE_USE_ENHANCED_EXTRACT == 0
 #define DLP_IBE_KEEP_GSO_MATRICES   1
+#else
+#define DLP_IBE_KEEP_GSO_MATRICES   0
+#endif
 
 /// Expand the polynomial basis B, otherwise it is expanded on-the-fly for
 /// sampling over a lattice
@@ -129,7 +142,7 @@ extern dlp_ibe_set_t param_dlp_ibe_9;
 extern dlp_ibe_set_t param_dlp_ibe_10;
 #endif
 
-/// A struct use to store DLP IBE scheme variables
+/// A struct used to store DLP IBE scheme variables
 SC_STRUCT_PACK_START
 typedef struct dlp_ibe_cfg_t {
     dlp_ibe_set_t            *params;
@@ -137,6 +150,7 @@ typedef struct dlp_ibe_cfg_t {
     safecrypto_ntt_e          ntt_optimisation;
     ntt_params_t              ntt;
     sc_entropy_type_e         entropy;
+    DOUBLE                   *master_tree;
     SINT32                    keep_matrices;
     SINT32                   *b;
     GSO_TYPE                 *b_gs SC_DEFAULT_ALIGNED;

@@ -658,10 +658,7 @@ SINT32 falcon_sig_sign(safecrypto_t *sc, const UINT8 *m, size_t m_len,
 
 #else
 
-/* start of imported FALCON functions
- * Convert an integer polynomial (with small values) into the
- * representation with complex numbers.
- */
+/******************** Start of imported FALCON functions *********************/
 
 static inline size_t
 skoff_b00(unsigned logn, unsigned ter)
@@ -792,6 +789,8 @@ load_skey(DOUBLE *restrict sk, unsigned q,
 
 	}
 }
+
+/********************* End of imported FALCON functions **********************/
 
 SINT32 falcon_sig_keygen(safecrypto_t *sc)
 {

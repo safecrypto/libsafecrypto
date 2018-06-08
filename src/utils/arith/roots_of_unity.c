@@ -147,7 +147,6 @@ SINT32 roots_of_unity_s32(SINT32 *fwd, SINT32 *inv, size_t n, sc_ulimb_t p, sc_u
     limb_mod_init(&mod, p);
     if (0 == prim) {
         prim  = find_primitive_root_of_unity(&mod, n);
-        fprintf(stderr, "root of unity for %d is %d\n", p, prim);
     }
     if (0 == prim) {
         return SC_FUNC_FAILURE;

@@ -38,12 +38,8 @@
 
 #include <math.h>
 
-#define DEBUG_GPV               1
+#define DEBUG_GPV               0
 #define CRT_NTRU_SOLVE          1
-#define SP_PUBLIC_KEY_CREATE    1
-#if CRT_NTRU_SOLVE == 1 && SP_PUBLIC_KEY_CREATE == 0
-#error "If CRT_NTRU_SOLVE is enabled SP_PUBLIC_KEY_CREATE must also be enabled"
-#endif
 
 
 typedef struct {
@@ -2275,7 +2271,7 @@ SINT32 create_public_key_32(SINT32 *h, const SINT32 *f, const SINT32 *g, UINT32 
     return SC_FUNC_SUCCESS;
 }
 
-SINT32 gpv_gen_basis(safecrypto_t *sc, SINT32 *f, SINT32 *g, SINT32 *h,
+static SINT32 gpv_gen_basis_original(safecrypto_t *sc, SINT32 *f, SINT32 *g, SINT32 *h,
     size_t n, SINT32 q,
     utils_sampling_t *sampling, prng_ctx_t *prng_ctx,
     SINT32 *F, SINT32 *G, SINT32 recreate_flag)
@@ -2284,7 +2280,6 @@ SINT32 gpv_gen_basis(safecrypto_t *sc, SINT32 *f, SINT32 *g, SINT32 *h,
     DOUBLE sigma;
     DOUBLE gs_norm;
     SINT32 retval = -1, num_retries = 0;
-#if CRT_NTRU_SOLVE == 0
     sc_mpz_t Rf, Rg, gcd1, gcd2;
     sc_poly_mpz_t rho_f, rho_g, rho_dummy;
     sc_mpz_t alpha, beta, mp_q;
@@ -2296,7 +2291,6 @@ SINT32 gpv_gen_basis(safecrypto_t *sc, SINT32 *f, SINT32 *g, SINT32 *h,
     sc_poly_mpz_t temp, num, den, k;
     sc_poly_mpz_t inv_f;
     sc_mpz_t scale;
-#endif
 
     SC_TIMER_INSTANCE(timer);
     SC_TIMER_CREATE(timer);
@@ -2306,7 +2300,6 @@ SINT32 gpv_gen_basis(safecrypto_t *sc, SINT32 *f, SINT32 *g, SINT32 *h,
     SC_TIMER_CREATE(total_timer);
     SC_TIMER_RESET(total_timer);
 
-#if CRT_NTRU_SOLVE == 0
     sc_mpz_init(&Rf);
     sc_mpz_init(&Rg);
     sc_mpz_init(&gcd1);
@@ -2342,7 +2335,6 @@ SINT32 gpv_gen_basis(safecrypto_t *sc, SINT32 *f, SINT32 *g, SINT32 *h,
     sc_poly_mpz_init(&inv_f, n);
 
     sc_mpz_init(&scale);
-#endif
 
     SC_TIMER_START(timer);
     SC_TIMER_START(total_timer);
@@ -2362,12 +2354,6 @@ step2:
     if (0 == recreate_flag) {
         get_vector_32(sampling, f, n, 0);
         get_vector_32(sampling, g, n, 0);
-        /*SINT32 f_set[256] = {-7, 2, 2, -2, 3, 0, -7, 2, 4, 0, 7, -3, -1, -2, 0, 1, -2, -3, -3, -8, -8, 8, -1, -2, 3, 10, 0, -7, -5, -2, 3, 5, 4, -6, -1, -8, 2, 5, 7, 4, 3, 1, -4, -2, 3, 1, 5, 10, -2, -5, -2, 6, 1, 6, -3, -2, 2, 1, 3, 7, 3, 2, -3, -2, 1, 0, 2, 0, 6, 7, 4, -1, 0, -2, 5, -3, -3, 9, -3, -4, 6, -9, -8, -2, 3, -6, -1, 1, 1, 6, -2, 6, -3, -4, -3, -6, 4, 4, 6, 3, -1, 3, 7, 5, -4, -6, 6, 4, 3, 3, -3, -6, 2, 1, 0, -3, 0, -7, 3, 3, 2, 1, 2, -4, -11, 0, -1, 3, 8, 8, 2, -5, 3, -1, 1, -5, -8, 7, 2, -3, -1, 8, 0, -2, 2, -3, 1, -7, 5, 8, -10, 2, -4, 5, 0, 3, -1, -4, -2, -2, 1, 11, 7, -3, -2, 0, 0, 1, 3, -2, 1, -2, -2, 4, 2, 3, -3, -7, 7, 1, 2, -1, -2, -1, -2, 2, 5, 5, 4, -1, 3, -3, -1, 2, 4, -1, 2, 5, -2, 5, 1, 3, -1, -4, 0, 0, 0, -3, 9, 2, -1, 5, -1, 4, 1, 6, 1, 1, -6, 5, 3, -7, 0, 1, 1, 2, 0, 3, 0, 4, -3, -7, 3, 2, 0, -1, -6, -1, -3, -8, -3, 3, 0, 3, 4, 0, -3, 3, 6, -1, -4, -5, 5, 4, 2, 1}; 
-        SINT32 g_set[256] = {10, -1, -6, 1, -5, 2, -2, 4, -5, -3, -11, 3, -1, -1, -1, 8, 3, -7, 4, 4, -3, -3, 3, 1, -2, 12, 5, 2, -2, -1, 6, 3, -1, 2, 6, -6, -3, -2, 5, 2, 6, -13, 3, 1, 2, 9, 3, 2, -15, 0, -4, 1, -3, 0, -2, 5, -2, 6, -3, 3, -1, 1, 0, 13, -4, 8, 2, -2, -6, -12, -7, 7, 9, 4, -5, 5, 9, 4, -3, 6, -4, 3, 1, 0, 0, 5, 6, -1, -6, 0, 3, -1, 1, -2, 0, 5, -4, 2, 2, -8, 3, -3, 0, 7, 6, -1, -4, 0, 8, -4, -7, -4, -2, -5, -2, -14, 0, 7, -5, 3, 5, 1, 3, 0, 6, -3, 4, 6, -6, -5, -2, 2, -1, -3, 4, 1, -7, -1, -2, -4, 0, 0, -5, 2, -8, -2, -2, -3, -3, -2, 5, 0, 0, 0, 3, 4, -3, -3, -3, 0, -6, 1, -3, 2, -3, 3, 6, 5, 2, -4, 1, -1, 6, -1, -2, -3, 2, -1, -4, 4, -3, 2, -6, -5, 2, 2, 6, -1, 10, 2, -5, -3, -2, -5, 3, -2, -1, -4, -6, 3, -6, 0, -1, -6, -1, 4, 1, -2, 5, 3, -5, -5, 6, 0, 9, -1, -3, -2, 4, -2, -5, 5, 4, 7, 6, 0, -2, 2, 10, 8, 5, 2, -1, -11, 7, 0, 8, 6, -3, -5, 3, -3, -5, 6, 2, -6, 8, -4, 0, -2, 3, 2, 3, -15, -1, 8};
-        for (i=0; i<n; i++) {
-            f[i] = f_set[i];
-            g[i] = g_set[i];
-        }*/
     }
     else {
         // If we are recreating the private key and we require a restart then
@@ -2399,7 +2385,6 @@ step2:
     SC_TIMER_START(timer);
 
 
-
     ntt_params_t *ntt_params = (SC_SCHEME_SIG_FALCON == sc->scheme)? &sc->falcon->ntt  :
                                (SC_SCHEME_IBE_DLP    == sc->scheme)? &sc->dlp_ibe->ntt :
                                                                      &sc->ens_dlp_sig->ntt;
@@ -2411,45 +2396,6 @@ step2:
                                                                    sc->ens_dlp_sig->params->r;
     const SINT32 *ntt_w_32 = (SC_SCHEME_IBE_DLP == sc->scheme)? sc->dlp_ibe->params->w : 0;
     const SINT32 *ntt_r_32 = (SC_SCHEME_IBE_DLP == sc->scheme)? sc->dlp_ibe->params->r : 0;
-#if CRT_NTRU_SOLVE == 1
-    /*if (SC_FUNC_SUCCESS != field_norm_ntru_solve(f, g, F, G, q, sc_log2_32(n))) {
-        num_retries++;
-        goto step2;
-    }*/
-
-    falcon_keygen *fk = falcon_keygen_new(sc, ntt_params, ntt_w_16, ntt_r_16, sc_log2_32(n));
-    if (!solve_NTRU(fk, F, G, f, g)) {
-        falcon_keygen_free(fk);
-        goto step2;
-    }
-    falcon_keygen_free(fk);
-
-    /*fprintf(stderr, "\n");
-    fprintf(stderr, "f = \n");
-    for (i=0; i<n; i++) {
-        fprintf(stderr, "%6d ", f[i]);
-        if (15 == (15&i)) fprintf(stderr, "\n");
-    }
-    fprintf(stderr, "\n");
-    fprintf(stderr, "g = \n");
-    for (i=0; i<n; i++) {
-        fprintf(stderr, "%6d ", g[i]);
-        if (15 == (15&i)) fprintf(stderr, "\n");
-    }
-    fprintf(stderr, "\n");
-    fprintf(stderr, "F = \n");
-    for (i=0; i<n; i++) {
-        fprintf(stderr, "%6d ", F[i]);
-        if (15 == (15&i)) fprintf(stderr, "\n");
-    }
-    fprintf(stderr, "\n");
-    fprintf(stderr, "G = \n");
-    for (i=0; i<n; i++) {
-        fprintf(stderr, "%6d ", G[i]);
-        if (15 == (15&i)) fprintf(stderr, "\n");
-    }
-    fprintf(stderr, "\n");*/
-#else
 
     poly_si32_to_mpi(&mp_f, n, f);
     poly_si32_to_mpi(&mp_g, n, g);
@@ -2621,7 +2567,6 @@ step2:
         F[i] = sc_poly_mpz_get_si(&pF, i);
         G[i] = sc_poly_mpz_get_si(&pG, i);
     }
-#endif
 
 
 #if DEBUG_GPV == 1
@@ -2659,21 +2604,6 @@ step2:
 #endif
 
 
-#if CRT_NTRU_SOLVE == 0
-#if SP_PUBLIC_KEY_CREATE == 1
-    if (SC_SCHEME_IBE_DLP == sc->scheme) {
-        if (SC_FUNC_FAILURE == verify_private_key_32(sc, f, g, F, G, q, n, ntt_w_32, ntt_r_32, ntt_params)) {
-            num_retries++;
-            goto step2;
-        }
-    }
-    else {
-        if (SC_FUNC_FAILURE == verify_private_key_16(sc, f, g, F, G, q, n, ntt_w_16, ntt_r_16, ntt_params)) {
-            num_retries++;
-            goto step2;
-        }
-    }
-#else
     poly_si32_to_mpi(&mp_f, n, f);
     poly_si32_to_mpi(&mp_g, n, g);
     poly_si32_to_mpi(&pF, n, F);
@@ -2693,18 +2623,9 @@ step2:
         num_retries++;
         goto step2;
     }
-#endif
-#endif
-
 
 
     // Step 11. Compute the public key h = g/f mod q
-#if SP_PUBLIC_KEY_CREATE == 1
-    if (SC_FUNC_FAILURE == create_public_key_32(h, f, g, q, n)) {
-        num_retries++;
-        goto step2;
-    }
-#else
     sc_mod_t modulus;
     limb_mod_init(&modulus, q);
 
@@ -2748,7 +2669,6 @@ step2:
     }
     fprintf(stderr, "\n");
 #endif
-#endif
 
     retval = num_retries;
 
@@ -2757,7 +2677,6 @@ step2:
 #endif
 
 finish:
-#if CRT_NTRU_SOLVE == 0
     sc_poly_mpz_clear(&inv_f);
     sc_mpz_clear(&Rf);
     sc_mpz_clear(&Rg);
@@ -2783,7 +2702,6 @@ finish:
     sc_poly_mpz_clear(&num);
     sc_poly_mpz_clear(&den);
     sc_poly_mpz_clear(&k);
-#endif
 
     SC_TIMER_STOP(timer);
     SC_TIMER_STOP(total_timer);
@@ -2796,6 +2714,164 @@ finish:
     SC_TIMER_DESTROY(total_timer);
 
     return retval;
+}
+
+static SINT32 gpv_gen_basis_enhanced(safecrypto_t *sc, SINT32 *f, SINT32 *g, SINT32 *h,
+    size_t n, SINT32 q,
+    utils_sampling_t *sampling, prng_ctx_t *prng_ctx,
+    SINT32 *F, SINT32 *G, SINT32 recreate_flag)
+{
+    size_t i, j;
+    DOUBLE sigma;
+    DOUBLE gs_norm;
+    SINT32 retval = -1, num_retries = 0;
+
+    SC_TIMER_INSTANCE(timer);
+    SC_TIMER_CREATE(timer);
+    SC_TIMER_RESET(timer);
+
+    SC_TIMER_INSTANCE(total_timer);
+    SC_TIMER_CREATE(total_timer);
+    SC_TIMER_RESET(total_timer);
+
+    SC_TIMER_START(timer);
+    SC_TIMER_START(total_timer);
+
+    // Step 1. set standard deviation of Gaussian distribution
+    DOUBLE bd;
+    bd  = 1.17*sqrt(q);
+
+    // Step 2. Obtain f, g using Gaussian Samplers
+    sigma  = 1.17 * sqrt(q / (2*n));
+#if DEBUG_GPV == 1
+    fprintf(stderr, "n=%zu, q=%d\n", n, q);
+#endif
+step2:
+    // If f and g are already provided as inputs as we are recreating F and G
+    // then do not sample new distributions
+    if (0 == recreate_flag) {
+        get_vector_32(sampling, f, n, 0);
+        get_vector_32(sampling, g, n, 0);
+    }
+    else {
+        // If we are recreating the private key and we require a restart then
+        // there has been an error
+        goto finish;
+    }
+
+    // Step 3. calculate the GramSchmidt norm
+    gs_norm = gram_schmidt_norm(f, g, n, q, bd);
+    if (isnanl(gs_norm)) {
+        num_retries++;
+        goto step2;
+    }
+
+    // Step 4. check whether norm is small enough; if not, repeat
+    if (gs_norm > bd) {
+        num_retries++;
+        goto step2;
+    }
+#if DEBUG_GPV == 1
+    fprintf(stderr, "GS=%3.3f, threshold=%3.3f\n", gs_norm, bd);
+#endif
+
+    SC_TIMER_STOP(timer);
+#if DEBUG_GPV == 1
+    fprintf(stderr, "Time to compute GS Norm: %3.3f sec\n", SC_TIMER_GET_ELAPSED(timer));
+#endif
+    SC_TIMER_RESET(timer);
+    SC_TIMER_START(timer);
+
+
+    ntt_params_t *ntt_params = (SC_SCHEME_SIG_FALCON == sc->scheme)? &sc->falcon->ntt  :
+                               (SC_SCHEME_IBE_DLP    == sc->scheme)? &sc->dlp_ibe->ntt :
+                                                                     &sc->ens_dlp_sig->ntt;
+    const SINT16 *ntt_w_16 = (SC_SCHEME_SIG_FALCON == sc->scheme)? sc->falcon->params->w  :
+                             (SC_SCHEME_IBE_DLP    == sc->scheme)? 0 :
+                                                                   sc->ens_dlp_sig->params->w;
+    const SINT16 *ntt_r_16 = (SC_SCHEME_SIG_FALCON == sc->scheme)? sc->falcon->params->r  :
+                             (SC_SCHEME_IBE_DLP    == sc->scheme)? 0 :
+                                                                   sc->ens_dlp_sig->params->r;
+    const SINT32 *ntt_w_32 = (SC_SCHEME_IBE_DLP == sc->scheme)? sc->dlp_ibe->params->w : 0;
+    const SINT32 *ntt_r_32 = (SC_SCHEME_IBE_DLP == sc->scheme)? sc->dlp_ibe->params->r : 0;
+
+    falcon_keygen *fk = falcon_keygen_new(sc, ntt_params, ntt_w_16, ntt_r_16, sc_log2_32(n));
+    if (!solve_NTRU(fk, F, G, f, g)) {
+        falcon_keygen_free(fk);
+        goto step2;
+    }
+    falcon_keygen_free(fk);
+
+#if DEBUG_GPV == 1
+    fprintf(stderr, "\n");
+    fprintf(stderr, "f = \n");
+    for (i=0; i<n; i++) {
+        fprintf(stderr, "%6d ", f[i]);
+        if (15 == (15&i)) fprintf(stderr, "\n");
+    }
+    fprintf(stderr, "\n");
+    fprintf(stderr, "g = \n");
+    for (i=0; i<n; i++) {
+        fprintf(stderr, "%6d ", g[i]);
+        if (15 == (15&i)) fprintf(stderr, "\n");
+    }
+    fprintf(stderr, "\n");
+    SINT32 sum = 0;
+    fprintf(stderr, "F = \n");
+    for (i=0; i<n; i++) {
+        sum += F[i] * F[i];
+        fprintf(stderr, "%6d ", F[i]);
+        if (15 == (15&i)) fprintf(stderr, "\n");
+    }
+    fprintf(stderr, "\n(SUM = %d)\n", sum);
+    sum = 0;
+    fprintf(stderr, "G = \n");
+    for (i=0; i<n; i++) {
+        sum += G[i] * G[i];
+        fprintf(stderr, "%6d ", G[i]);
+        if (15 == (15&i)) fprintf(stderr, "\n");
+    }
+    fprintf(stderr, "\n(SUM = %d)\n", sum);
+
+    fprintf(stderr, "Verifying master key ...\n");
+#endif
+
+    // Step 11. Compute the public key h = g/f mod q
+    if (SC_FUNC_FAILURE == create_public_key_32(h, f, g, q, n)) {
+        num_retries++;
+        goto step2;
+    }
+
+    retval = num_retries;
+
+#if DEBUG_GPV == 1
+    fprintf(stderr, "Polynomial basis found\n");
+#endif
+
+finish:
+    SC_TIMER_STOP(timer);
+    SC_TIMER_STOP(total_timer);
+#if DEBUG_GPV == 1
+    fprintf(stderr, "Time to compute F, G and h: %3.3f sec\n", SC_TIMER_GET_ELAPSED(timer));
+    fprintf(stderr, "Total time: %3.3f sec\n", SC_TIMER_GET_ELAPSED(total_timer));
+#endif
+
+    SC_TIMER_DESTROY(timer);
+    SC_TIMER_DESTROY(total_timer);
+
+    return retval;
+}
+
+SINT32 gpv_gen_basis(safecrypto_t *sc, SINT32 *f, SINT32 *g, SINT32 *h,
+    size_t n, SINT32 q,
+    utils_sampling_t *sampling, prng_ctx_t *prng_ctx,
+    SINT32 *F, SINT32 *G, SINT32 recreate_flag)
+{
+#if CRT_NTRU_SOLVE == 0
+    gpv_gen_basis_original(sc, f, g, h, n, q, sampling, prng_ctx, F, G, recreate_flag);
+#else
+    gpv_gen_basis_enhanced(sc, f, g, h, n, q, sampling, prng_ctx, F, G, recreate_flag);
+#endif
 }
 
 SINT32 gaussian_lattice_sample_on_the_fly_flt(safecrypto_t *sc,

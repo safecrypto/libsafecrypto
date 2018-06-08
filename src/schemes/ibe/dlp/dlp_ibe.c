@@ -301,6 +301,8 @@ SINT32 dlp_ibe_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
         }
     }
 
+    sc->dlp_ibe->master_tree = NULL;
+
     return SC_FUNC_SUCCESS;
 }
 
@@ -392,6 +394,7 @@ SINT32 dlp_ibe_keygen(safecrypto_t *sc)
     UINT32 n, n_bits, q;
     const SINT16 *w, *r;
     gpv_t gpv;
+    DOUBLE *temp = NULL;
 
     if (NULL == sc) {
         return SC_FUNC_FAILURE;
@@ -399,8 +402,9 @@ SINT32 dlp_ibe_keygen(safecrypto_t *sc)
 
     SC_PRINT_DEBUG(sc, "SAFEcrypto IBE KeyGen\n");
 
-    n = sc->dlp_ibe->params->n;
-    q = sc->dlp_ibe->params->q;
+    n      = sc->dlp_ibe->params->n;
+    n_bits = sc->dlp_ibe->params->n_bits;
+    q      = sc->dlp_ibe->params->q;
 
     // Allocate temporary memory
     gpv.f = sc->temp;
@@ -452,6 +456,25 @@ SINT32 dlp_ibe_keygen(safecrypto_t *sc)
     sc->privkey->len = 4 * n;
     sc->pubkey->len = n;
 
+#if DLP_IBE_USE_ENHANCED_EXTRACT == 1
+    size_t master_tree_len = ((size_t)(nbits + 5) << nbits) * sizeof(DOUBLE);
+    size_t temp_len = ((size_t)7 << nbits) * sizeof(DOUBLE);
+
+    // Allocate memory for the IBE tree
+    if (NULL == master_tree) {
+        sc->dlp_ibe->master_tree = SC_MALLOC(master_tree_len);
+    }
+    if (NULL == temp) {
+        temp = SC_MALLOC(temp_len);
+    }
+
+    
+
+    // Release memory resources
+    if (temp) {
+        SC_FREE(temp, temp_len);
+    }
+#else
     // Create the polynomial basis matrices if they are to be maintained in memory
     if (sc->dlp_ibe->keep_matrices) {
 #ifdef DLP_IBE_EXPAND_BASIS
@@ -480,17 +503,12 @@ SINT32 dlp_ibe_keygen(safecrypto_t *sc)
         // Precompute the norm of each row of b_gs
         GPV_PRECOMPUTE_INV(sc->dlp_ibe->b_gs, sc->dlp_ibe->b_gs_inv_norm, 2*n);
     }
-
-#ifdef DLP_IBE_USE_SPARSE_MULTIPLICATION
-    {//if (sc->dlp_ibe->params->q_bits >= 26) {
-#else
-    {
 #endif
-        // Store an NTT domain version of the public key
-        sc->sc_ntt->fwd_ntt_32_32_large(key + n, &sc->dlp_ibe->ntt,
-            h, sc->dlp_ibe->params->w);
-        sc->sc_ntt->normalize_32(key + n, n, &sc->dlp_ibe->ntt);
-    }
+
+    // Store an NTT domain version of the public key
+    sc->sc_ntt->fwd_ntt_32_32_large(key + n, &sc->dlp_ibe->ntt,
+        h, sc->dlp_ibe->params->w);
+    sc->sc_ntt->normalize_32(key + n, n, &sc->dlp_ibe->ntt);
 
     SC_PRINT_DEBUG(sc, "Print keys\n");
     SC_PRINT_KEYS(sc, SC_LEVEL_DEBUG, 32);

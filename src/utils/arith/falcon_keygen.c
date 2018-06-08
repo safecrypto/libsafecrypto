@@ -2905,7 +2905,7 @@ zint_bezout(uint32_t *restrict u, uint32_t *restrict v,
 	 *   x and y must be odd.
 	 */
 	if (xlen == 0 || ylen == 0 || (x[0] & y[0] & 1) == 0) {
-		fprintf(stderr, "zint_bezout() all even\n");
+		//fprintf(stderr, "zint_bezout() all even\n");
 		return 0;
 	}
 
@@ -3122,7 +3122,7 @@ zint_bezout(uint32_t *restrict u, uint32_t *restrict v,
 				 * Arrays u and v are already filled with
 				 * the proper results.
 				 */
-				fprintf(stderr, "zint_bezout() good = %d\n", alen == 1 && a[0] == 1);
+				//fprintf(stderr, "zint_bezout() good = %d\n", alen == 1 && a[0] == 1);
 				return alen == 1 && a[0] == 1;
 			}
 		}
@@ -4418,7 +4418,7 @@ solve_NTRU_deepest(falcon_keygen *fk, const int32_t *f, const int32_t *g)
 	 * if both inputs are odd.
 	 */
 	if (!zint_bezout(Gp, Fp, fp, gp, len, t1)) {
-		fprintf(stderr, "Failed zint_bezout() for len=%zu\n", len);
+		//fprintf(stderr, "Failed zint_bezout() for len=%zu\n", len);
 		return 0;
 	}
 
@@ -4430,7 +4430,7 @@ solve_NTRU_deepest(falcon_keygen *fk, const int32_t *f, const int32_t *g)
 	if (zint_mul_small(Fp, len, q) != 0
 		|| zint_mul_small(Gp, len, q) != 0)
 	{
-		fprintf(stderr, "Failed zint_mul_small() for len=%zu\n", len);
+		//fprintf(stderr, "Failed zint_mul_small() for len=%zu\n", len);
 		return 0;
 	}
 
@@ -4837,7 +4837,7 @@ solve_NTRU_intermediate(falcon_keygen *fk,
 	maxbl_f = poly_max_bitlength(ft, slen, slen, logn, full);
 	maxbl_g = poly_max_bitlength(gt, slen, slen, logn, full);
 	maxbl_fg = maxbl_f < maxbl_g ? maxbl_g : maxbl_f;
-	fprintf(stderr, "maxbl_f=%d, maxbl_g=%d\n", maxbl_f, maxbl_g);
+	//fprintf(stderr, "maxbl_f=%d, maxbl_g=%d\n", maxbl_f, maxbl_g);
 
 	/*
 	 * Compute 1/(f*adj(f)+g*adj(g)) in rt5. We also keep adj(f)
@@ -4880,7 +4880,7 @@ solve_NTRU_intermediate(falcon_keygen *fk,
 		while ((FGlen * 31) >= (maxbl_FG + 43)) {
 			FGlen --;
 		}
-		fprintf(stderr, "maxbl_F=%d, maxbl_G=%d\n", maxbl_F, maxbl_G);
+		//fprintf(stderr, "maxbl_F=%d, maxbl_G=%d\n", maxbl_F, maxbl_G);
 
 		/*
 		 * We stop when F and G have been made smaller than
@@ -4888,7 +4888,7 @@ solve_NTRU_intermediate(falcon_keygen *fk,
 		 * manage to reduce the maximum bit length.
 		 */
 		if (maxbl_FG <= maxbl_fg || maxbl_FG >= prev_maxbl_FG) {
-			fprintf(stderr, "scaling ended %d %d %d\n", maxbl_fg, maxbl_FG , prev_maxbl_FG);
+			//fprintf(stderr, "scaling ended %d %d %d\n", maxbl_fg, maxbl_FG , prev_maxbl_FG);
 			break;
 		}
 		prev_maxbl_FG = maxbl_FG;
@@ -4938,7 +4938,7 @@ solve_NTRU_intermediate(falcon_keygen *fk,
 			}
 		}
 		if (max_kx >= ((uint64_t)1 << 62)) {
-			fprintf(stderr, "max_kx >= 1<<62\n");
+			//fprintf(stderr, "max_kx >= 1<<62\n");
 			return 0;
 		}
 		scale_k = bitlength((uint32_t)(max_kx >> 31));
@@ -4951,7 +4951,7 @@ solve_NTRU_intermediate(falcon_keygen *fk,
 		if (scale_k + scale_FG < maxbl_fg) {
 			scale_k = maxbl_fg - scale_FG;
 			if (scale_k > 62) {
-				fprintf(stderr, "scale_k = %d is too big\n", scale_k);
+				//fprintf(stderr, "scale_k = %d is too big\n", scale_k);
 				break;
 			}
 		}
@@ -4999,7 +4999,7 @@ solve_NTRU_intermediate(falcon_keygen *fk,
 	 * this is a failure.
 	 */
 	if (maxbl_FG > (slen * 31)) {
-		fprintf(stderr, "%d could not fit in slen=%d\n", maxbl_FG, slen);
+		//fprintf(stderr, "%d could not fit in slen=%d\n", maxbl_FG, slen);
 		return 0;
 	}
 
@@ -5931,7 +5931,7 @@ int solve_NTRU(falcon_keygen *fk, int32_t *F, int32_t *G,
 	n = MKN(logn, fk->ternary);
 
 	if (!solve_NTRU_deepest(fk, f, g)) {
-		fprintf(stderr, "Failed to solve deepest\n");
+		//fprintf(stderr, "Failed to solve deepest\n");
 		return 0;
 	}
 
@@ -5947,7 +5947,7 @@ int solve_NTRU(falcon_keygen *fk, int32_t *F, int32_t *G,
 		depth = logn;
 		while (depth -- > 0) {
 			if (!solve_NTRU_intermediate(fk, f, g, depth)) {
-				fprintf(stderr, "Failed intermediate at depth = %d\n", depth);
+				//fprintf(stderr, "Failed intermediate at depth = %d\n", depth);
 				return 0;
 			}
 		}
@@ -5978,7 +5978,7 @@ int solve_NTRU(falcon_keygen *fk, int32_t *F, int32_t *G,
 	if (!poly_big_to_small(F, fk->tmp, logn, 0)
 		|| !poly_big_to_small(G, fk->tmp + n, logn, 0))
 	{
-		fprintf(stderr, "Failed big to small\n");
+		//fprintf(stderr, "Failed big to small\n");
 		return 0;
 	}
 
