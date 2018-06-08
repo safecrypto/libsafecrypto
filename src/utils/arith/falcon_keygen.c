@@ -3691,26 +3691,13 @@ poly_sub_scaled_ntt(uint32_t *restrict F, size_t Flen, size_t Fstride,
  */
 
 static const size_t MAX_BL_SMALL2[] = {
-	//1, 1, 2, 2, 4, 7, 14, 27, 53, 106, 212
-	//1, 2, 4, 5, 8, 12, 23, 45, 90, 180, 300   /// GOOD
-	//1, 3, 5, 7, 10, 15, 28, 52, 100, 210, 430   /// GOOD for n=512
-	1, 3, 5, 7, 13, 27, 48, 90, 130, 240, 370   /// GOOD for n=1024
-	///////1, 7, 14, 22, 37, 70, 130, 220, 350, 560, 1000
-	//1, 2, 4, 6, 9, 15, 30, 60, 12, 240, 400
-	//1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024
-	//1, 3, 5, 7, 11, 16, 31, 60, 120, 240, 350
-	//1, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048
+	//1, 1, 2, 2, 4, 7, 14, 27, 53, 106, 212      // Good for Falcon, DLP and ENS
+	1, 3, 5, 7, 13, 27, 48, 90, 130, 240, 370   // Good for IBE
 };
 
 static const size_t MAX_BL_LARGE2[] = {
-	//2, 2, 5, 7, 12, 22, 42, 80, 157, 310
-	//4, 4, 10, 14, 24, 44, 85, 160, 314, 620   /// GOOD
-	//4, 4, 10, 14, 24, 44, 85, 160, 300, 560 // GOOD for n=512
-	//7, 14, 22, 37, 70, 130, 220, 350, 740, 1000
-	4, 8, 10, 17, 33, 56, 120, 160, 350, 520
-
-	//4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048
-	//8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096
+	//2, 2, 5, 7, 12, 22, 42, 80, 157, 310        // Good for Falcon, DLP and ENS
+	4, 8, 10, 17, 33, 56, 120, 160, 350, 520    // Good for IBE
 };
 
 static const size_t MAX_BL_SMALL3[] = {
@@ -3732,7 +3719,7 @@ static const size_t MAX_BL_LARGE3[] = {
  * Returned size is expressed in bytes.
  */
 static size_t
-temp_size(unsigned logn)
+temp_size(unsigned logn, unsigned optimise_depth)
 {
 #define ALIGN_FP(tt)   ((((tt) + sizeof(DOUBLE) - 1) / sizeof(DOUBLE)) * sizeof(DOUBLE))
 #define ALIGN_UW(tt)   ((((tt) + sizeof(uint32_t) - 1) \
@@ -3775,7 +3762,7 @@ temp_size(unsigned logn)
 			slen = MAX_BL_SMALL2[depth];
 			cur = 8 * slen * sizeof(uint32_t);
 			max = cur > max ? cur : max;
-		/*} else if (depth == 0 && logn > 2) {
+		} else if (optimise_depth && depth == 0 && logn > 2) {
 			size_t n, hn;
 
 			n = (size_t)1 << logn;
@@ -3788,7 +3775,7 @@ temp_size(unsigned logn)
 			cur = ALIGN_FP(3 * n * sizeof(uint32_t))
 				+ (n + hn) * sizeof(DOUBLE);
 			max = cur > max ? cur : max;
-		} else if (depth == 1 && logn > 2) {
+		} else if (optimise_depth && depth == 1 && logn > 2) {
 			size_t n, hn, slen, dlen, llen;
 
 			n = (size_t)1 << (logn - 1);
@@ -3815,7 +3802,7 @@ temp_size(unsigned logn)
 			max = cur > max ? cur : max;
 			cur = ALIGN_FP(2 * n * sizeof(uint32_t))
 				+ 2 * n * sizeof(DOUBLE);
-			max = cur > max ? cur : max;*/
+			max = cur > max ? cur : max;
 		} else {
 			size_t n, hn, slen, llen, tmp1, tmp2;
 
@@ -3882,7 +3869,7 @@ falcon_keygen_new(safecrypto_t *sc, ntt_params_t *ntt_params, const int16_t *ntt
 	fk->ntt_r = ntt_r;
 	fk->q = ntt_params->u.ntt32.q;
 
-	fk->tmp_len = temp_size(logn);
+	fk->tmp_len = temp_size(logn, fk->q < 0x10000);
 #if MEMCHECK
 	fk->tmp = malloc(fk->tmp_len + sizeof MEMCHECK_MARK);
 #else
@@ -5920,7 +5907,7 @@ solve_NTRU_ternary_depth0(falcon_keygen *fk,
  * Solve the NTRU equation. Returned value is 1 on success, 0 on error.
  */
 int solve_NTRU(falcon_keygen *fk, int32_t *F, int32_t *G,
-    const int32_t *f, const int32_t *g)
+    const int32_t *f, const int32_t *g, int32_t optimise_depth)
 {
 	unsigned logn;
 	size_t n, u;
@@ -5942,7 +5929,7 @@ int solve_NTRU(falcon_keygen *fk, int32_t *F, int32_t *G,
 	 * do not fit the hypotheses in solve_NTRU_binary_depth0()
 	 * or solve_NTRU_ternary_depth0().
 	 */
-	{//if (logn <= 2) {
+	if (!optimise_depth || logn <= 2) {
 		unsigned depth;
 
 		depth = logn;
@@ -5952,7 +5939,7 @@ int solve_NTRU(falcon_keygen *fk, int32_t *F, int32_t *G,
 				return 0;
 			}
 		}
-	}/* else {
+	} else {
 		unsigned depth;
 
 		depth = logn;
@@ -5970,7 +5957,7 @@ int solve_NTRU(falcon_keygen *fk, int32_t *F, int32_t *G,
 			//fprintf(stderr, "Failed binary depth 0\n");
 			return 0;
 		}
-	}*/
+	}
 
 	/*
 	 * Final F and G are in fk->tmp, one word per coefficient

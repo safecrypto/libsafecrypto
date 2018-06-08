@@ -25,7 +25,8 @@
 #include <string.h>
 
 
-#define MAX_ITER    1024
+#define MAX_KEYGEN_ITER   1024
+#define MAX_ITER          1024
 
 #define USE_FIXED_BUFFERS     0
 #if USE_FIXED_BUFFERS == 1
@@ -35,13 +36,13 @@
 #endif
 
 
-void show_progress(int32_t count, int32_t max)
+void show_progress(char *msg, int32_t count, int32_t max)
 {
     int i;
-    int barWidth = 70;
+    int barWidth = 50;
     double progress = (double) count / max;
 
-    printf("[");
+    printf("%-20s [", msg);
     int pos = barWidth * progress;
     for (i = 0; i < barWidth; ++i) {
         if (i < pos) printf("=");
@@ -98,6 +99,8 @@ int main(void)
         SC_PRNG_THREADING_NONE, 0x00100000);
     prng_init(prng_ctx, NULL, 0);
 
+    char disp_msg[128];
+
     printf("FALCON Signature Scheme\n");
 
     SC_TIMER_INSTANCE(keygen_timer);
@@ -127,15 +130,23 @@ int main(void)
 #endif
         flags[0] |= SC_FLAG_MORE;
         flags[1] |= SC_FLAG_1_CSPRNG_AES_CTR_DRBG;
+
         // Create a SAFEcrypto object
         sc = safecrypto_create(SC_SCHEME_SIG_FALCON, i, flags);
+
         // Create a key pair
+        snprintf(disp_msg, 128, "%-20s", "KeyGen");
         SC_TIMER_START(keygen_timer);
-        if (SC_FUNC_SUCCESS != safecrypto_keygen(sc)) {
-            fprintf(stderr, "ERROR! Key generation failed\n");
-            goto error_return;
+        for (j=0; j<MAX_KEYGEN_ITER; j++) {
+            if (SC_FUNC_SUCCESS != safecrypto_keygen(sc)) {
+                fprintf(stderr, "ERROR! Key generation failed\n");
+                goto error_return;
+            }
+
+            if ((j & 0x1F) == 0x1F) show_progress(disp_msg, j, MAX_KEYGEN_ITER);
         }
         SC_TIMER_STOP(keygen_timer);
+        show_progress(disp_msg, MAX_KEYGEN_ITER, MAX_KEYGEN_ITER);
 
         safecrypto_set_key_coding(sc, coding, coding);
         pubkeylen = FIXED_BUFFER_SIZE;
@@ -156,6 +167,8 @@ int main(void)
 #else
         free(privkey);
 #endif
+
+        snprintf(disp_msg, 128, "%-20s", "Sign/Verify");
 
         for (j=0; j<MAX_ITER; j++) {
             
@@ -218,10 +231,10 @@ int main(void)
             sig = NULL;
 #endif
 
-            if ((j & 0x1F) == 0x1F) show_progress(j, MAX_ITER);
+            if ((j & 0x1F) == 0x1F) show_progress(disp_msg, j, MAX_ITER);
         }
 
-        show_progress(MAX_ITER, MAX_ITER);
+        show_progress(disp_msg, MAX_ITER, MAX_ITER);
 
         const char *stats = safecrypto_processing_stats(sc);
         printf("%s", stats);
@@ -232,7 +245,7 @@ int main(void)
         }
 
         double elapsed = SC_TIMER_GET_ELAPSED(keygen_timer);
-        printf("KeyGen time:        %f (%f per sec)\n", elapsed, 1.0 / elapsed);
+        printf("KeyGen time:        %f (%f per sec)\n", elapsed, (double)MAX_KEYGEN_ITER / elapsed);
         elapsed = SC_TIMER_GET_ELAPSED(sig_timer);
         printf("Signature time:     %f (%f per sec)\n", elapsed, (double)MAX_ITER / elapsed);
         elapsed = SC_TIMER_GET_ELAPSED(ver_timer);

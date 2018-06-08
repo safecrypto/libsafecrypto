@@ -93,7 +93,8 @@ TESTS                   += func_alg_dilithium \
 endif BUILD_DILITHIUM
 
 if WITH_FALCON_SIG
-TESTS                   += func_falcon_sig 
+TESTS                   += func_alg_falcon \
+                           func_alg_falcon_huffman
 endif WITH_FALCON_SIG
 
 TESTS                   += func_alg_ecdh
@@ -182,10 +183,16 @@ func_alg_dlp_sig_recovery_huffman_LDFLAGS = -static
 endif
 
 if WITH_FALCON_SIG
-func_falcon_sig_SOURCES             = func_falcon_sig.c \
+func_alg_falcon_SOURCES             = func_alg_falcon.c \
                                        $(top_srcdir)/include/safecrypto.h
-func_falcon_sig_LDADD               = $(top_builddir)/libs/libsafecrypto.la -lm
-func_falcon_sig_LDFLAGS             = -static
+func_alg_falcon_LDADD               = $(top_builddir)/libs/libsafecrypto.la -lm
+func_alg_falcon_LDFLAGS             = -static
+
+func_alg_falcon_huffman_SOURCES     = func_alg_falcon.c \
+                                       $(top_srcdir)/include/safecrypto.h
+func_alg_falcon_huffman_LDADD       = $(top_builddir)/libs/libsafecrypto.la -lm
+func_alg_falcon_huffman_CFLAGS      = -DUSE_HUFFMAN_STATIC_ENTROPY
+func_alg_falcon_huffman_LDFLAGS     = -static
 endif 
 
 if WITH_DILITHIUM_SIG

@@ -571,45 +571,26 @@ static void h_function_csprng(safecrypto_t *sc, const UINT8 *md, SINT32 *c, size
 static void h_function_xof(safecrypto_t *sc, SINT32 *c, size_t n)
 {
     size_t i;
-    const SINT32 q      = sc->falcon->params->q;
-    const SINT32 q_bits = sc->falcon->params->q_bits;
+    const UINT32 q        = sc->falcon->params->q;
+    const SINT32 q_bits   = sc->falcon->params->q_bits;
+    const SINT32 buf_size = 32;
+    UINT32       mask     = (1 << q_bits) - 1;
+    SINT32      *x        = c;
+    size_t       xof_len  = buf_size * sizeof(SINT32);
 
-    for (int j=0; j < n/32; j++){
-	    SINT32 c_tmp[32];
-        UINT32 mask = (1 << q_bits) - 1;
-        xof_squeeze(sc->xof, c_tmp, 32 *sizeof(SINT32));
+    SINT32 c_tmp[buf_size];
+
+    for (int j=0; j < n/buf_size; j++){
+	    //SINT32 c_tmp[buf_size];
+        xof_squeeze(sc->xof, c_tmp, xof_len);
 
         // Generate polynomial coefficients mod q from the CSPRNG
-        for (i=0; i<32; i++) {
-            c_tmp[i] &= mask;
-            c_tmp[i] -= ((UINT32)(q - c_tmp[i]) >> 31) * q;
-	        c[j*32 + i] = c_tmp[i];
+        for (i=0; i<buf_size; i++) {
+            UINT32 y = c_tmp[i] & mask;
+            y -= ((SINT32)(q - y) >> 31) * q;
+	        *x++ = y;
         }
 	}
-}
-
-static void small_mul_mod_ring(SINT32 *r, const SINT32 *a, const SINT16 *b_sparse,
-    size_t n, UINT32 q, SINT32 *sparse)
-{
-    size_t j, k;
-
-    // Reset the output to zero
-    for (j=2*n-1; j--;) {
-        sparse[j] = 0;
-    }
-
-    // Accumulate the a coefficients with the sparse b coefficient with the
-    // knowledge that they only have the values -1, 0 or 1.
-    for (j=0; j<n; j++) {
-        for (k=0; k<n; k++) {
-            sparse[j+k] += a[k] * b_sparse[j];
-        }
-    }
-
-    // Perform the ring modular reduction
-    for (j=n; j--;) {
-        r[j] = sparse[j] - sparse[j + n];
-    }
 }
 
 SINT32 falcon_sig_set_key_coding(safecrypto_t *sc, sc_entropy_type_e pub,
@@ -890,79 +871,8 @@ restart:
     // Translate the message into a polynomial using a random oracle
     map_message_to_ring(sc, m, m_len, c, n);
 
-#if 1
     // Gaussian sampling over the basis vector to generate the signature polynomials
     gaussian_sample_with_tree(sc, sc->falcon->sk, n, q, n_bits, c, gaussian_flags, s1, s2);
-#else
-    DOUBLE *c0, *c1, *tmp, *z0, *z1;
-
-    // Assign pointers for the pre-computed Falcon tree
-    DOUBLE *b00, *b01, *b10, *b11, *tree;
-    b00 = sk + skoff_b00(n_bits, ter);
-    b01 = sk + skoff_b01(n_bits, ter);
-    b10 = sk + skoff_b10(n_bits, ter);
-    b11 = sk + skoff_b11(n_bits, ter);
-    tree = sk + skoff_tree(n_bits, ter);
-
-    // Allocate memory for FALCON signature sampling_fft
-    c0 =SC_MALLOC(sizeof(DOUBLE) * 11 * n);   /// @todo Move this into the sc->temp heap array to save RAM
-    if (NULL == c0) {
-        SC_LOG_ERROR(sc, SC_NULL_POINTER);
-        return SC_FUNC_FAILURE;
-    }
-    c1       = c0 + n;
-    tmp      = c1 + n;
-    z0       = tmp + 7 * n;
-    z1       = z0 + n;
-
-    // Copy the message ring to a floating point representation for use with
-    // the FFT (c1 is 0, but s modified later so does not require setting to 0 here)
-    for (int i = 0; i < n; i ++) {
-		c0[i] = c[i];
-    }
-
-    /// @todo Is this mapping the message ring to the poly basis of the secret key?
-    falcon_FFT(c0, n_bits);
-    memcpy(c1, c0, n * sizeof(DOUBLE));
-    DOUBLE ni = fpr_inverse_of(q);
-    falcon_poly_mul_fft(c1, b01, n_bits);
-    falcon_poly_mulconst_fft(c1, fpr_neg(ni), n_bits);
-    falcon_poly_mul_fft(c0, b11, n_bits);
-    falcon_poly_mulconst_fft(c0, ni, n_bits);
-
-    // Generate a sampled polynomial using the polynomial basis
-    SINT32 sample_error;
-    sample_error = gaussian_lattice_sample_fft(sc, z0, z1, tree, c0, c1, n_bits, tmp, gaussian_flags);
-    if (SC_FUNC_FAILURE == sample_error) {
-        SC_LOG_ERROR(sc, SC_ERROR);
-        goto finish;
-    }
-
-	// Get the lattice point of the Gaussian sampled vector
-	memcpy(c0, z0, n * sizeof(DOUBLE));
-	memcpy(c1, z1, n * sizeof(DOUBLE));
-	falcon_poly_mul_fft(z0, b00, n_bits);
-	falcon_poly_mul_fft(z1, b10, n_bits);
-	falcon_poly_add(z0, z1, n_bits);
-	memcpy(z1, c0, n * sizeof(DOUBLE));
-	falcon_poly_mul_fft(z1, b01, n_bits);
-
-	memcpy(c0, z0, n * sizeof(DOUBLE));
-	falcon_poly_mul_fft(c1, b11, n_bits);
-	falcon_poly_add(c1, z1, n_bits);
-
-    // The result is in FFT domain, so convert back
-	falcon_iFFT(c0, n_bits);
-	falcon_iFFT(c1, n_bits);
-
-	// Compute the signature
-	for (int i = 0; i < n; i ++) {
-		s1[i] = (SINT32)(c[i] - llrint(c0[i]));
-		s2[i] = (SINT32) -llrint(c1[i]);
-	}
-
-    SC_FREE(c0, sizeof(DOUBLE) * 11 * n);
-#endif
 
     SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "m", m, m_len);
     SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "s1", s1, n);
@@ -989,14 +899,14 @@ restart:
     }
 
     // Send s1
-    entropy_poly_encode_32(packer, n, s2, q_bits,
+    entropy_poly_encode_32(packer, n, s2, q_bits-2,
         SIGNED_COEFF, sc->coding_signature.type, 3, &sc->stats.components[SC_STAT_SIGNATURE][0].bits_coded);
 
-    sc->stats.components[SC_STAT_SIGNATURE][0].bits += q_bits*n;
+    sc->stats.components[SC_STAT_SIGNATURE][0].bits += (q_bits-2)*n;
     utils_entropy.pack_get_buffer(packer, sigret, siglen);
     utils_entropy.pack_destroy(&packer);
 
-#if 1
+#if 0
     // Verification of the signature as a countermeasure to fault attack
 
     // Calculate s1 = h*s2 - c0
@@ -1081,7 +991,7 @@ SINT32 falcon_sig_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
     }
 
     // Decode s1
-    entropy_poly_decode_32(ipacker, n, s2, q_bits,
+    entropy_poly_decode_32(ipacker, n, s2, q_bits-2,
         SIGNED_COEFF, sc->coding_signature.type, 3);
     sc_ntt->center_32(s2, n, ntt);
 

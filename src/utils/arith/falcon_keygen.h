@@ -99,7 +99,7 @@ size_t falcon_keygen_max_pubkey_size(falcon_keygen *fk);
 
 
 int solve_NTRU(falcon_keygen *fk, int32_t *F, int32_t *G,
-	const int32_t *f, const int32_t *g);
+	const int32_t *f, const int32_t *g, int32_t optimise_depth);
 
 
 
