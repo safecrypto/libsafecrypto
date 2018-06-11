@@ -1,6 +1,6 @@
 
 # List the subdirectories that are conditionally built
-if ENABLE_KEM
+if WITH_ECDH_KEM
 MAYBE_ECDH=ecdh
 endif
 

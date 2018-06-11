@@ -16,7 +16,9 @@ if BUILD_DLP_ENS_SIG
 MAYBE_ENS_DLP=ens_dlp
 endif
 
+if WITH_ECDSA_SIG
 MAYBE_ECDSA=ecdsa
+endif
 
 # Define the subdirectories that must be built, including conditionally
 SUBDIRS = $(MAYBE_BLISS_B) $(MAYBE_RING_TESLA) $(MAYBE_DILITHIUM) $(MAYBE_ENS_DLP) $(MAYBE_ECDSA)
