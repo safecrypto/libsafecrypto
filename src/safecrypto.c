@@ -20,6 +20,7 @@
 #include "safecrypto_error.h"
 #include "safecrypto_version.h"
 
+#include "utils/crypto/xof.h"
 #include "utils/crypto/prng.h"
 #include "utils/crypto/aes/aes.h"
 #ifdef HAVE_MULTITHREADING
@@ -206,7 +207,7 @@ static safecrypto_alg_t safecrypto_algorithms[] = {
       dlp_ibe_pubkey_load, dlp_ibe_privkey_load, dlp_ibe_pubkey_encode, dlp_ibe_privkey_encode,
       NULL, NULL, dlp_ibe_secret_key, dlp_ibe_extract, dlp_ibe_encrypt, NULL, dlp_ibe_decrypt, NULL, NULL, NULL, NULL, NULL, NULL, dlp_ibe_stats },
 #endif
-#if defined(DISABLE_DH) || defined(DISABLE_ECDH)
+#if defined(DISABLE_KEM) || defined(DISABLE_ECDH)
     { SC_SCHEME_DH_ECDH, NULL, NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },

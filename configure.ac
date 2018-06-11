@@ -827,6 +827,25 @@ AM_CONDITIONAL([WITH_DLP_SIG], [test "x${enable_sig_dlp}" = "xyes"])
 AM_CONDITIONAL([WITH_ENS_SIG], [test "x${enable_sig_ens}" = "xyes"])
 AM_CONDITIONAL([BUILD_DLP_ENS_SIG], [test "x${enable_sig_ens}" = "xyes" || test "x${enable_sig_dlp}" = "xyes"])
 
+AC_ARG_ENABLE([kem_ecdh],
+    AC_HELP_STRING([--enable-kem-ecdh], [Enable support for ECDH (default: enable)]),
+    [enable_kem_ecdh=$enableval],
+    [enable_kem_ecdh=$enable_kem])
+AM_CONDITIONAL([WITH_ECDH_KEM], [test "x${enable_kem_ecdh}" = "xyes"])
+if test "x${enable_kem_ecdh}" = "xno"; then
+    AC_SUBST([AM_CPPFLAGS], ["$AM_CPPFLAGS -DDISABLE_KEM_ECDH"])
+fi
+
+AC_ARG_ENABLE([sig_ecdsa],
+    AC_HELP_STRING([--enable-sig-ecdsa], [Enable support for ECDSA (default: enable)]),
+    [enable_sig_ecdsa=$enableval],
+    [enable_sig_ecdsa=$enable_signatures])
+AM_CONDITIONAL([WITH_ECDSA_SIG], [test "x${enable_sig_ecdsa}" = "xyes"])
+if test "x${enable_sig_ecdsa}" = "xno"; then
+    AC_SUBST([AM_CPPFLAGS], ["$AM_CPPFLAGS -DDISABLE_SIG_ECDSA"])
+fi
+
+
 
 # Determine which of the sub-functions are required
 AM_CONDITIONAL([WITH_ARITH_MLWE],
@@ -1212,8 +1231,12 @@ fi
 if test "x${enable_kem_ens}" = "xyes"; then
     AC_CONFIG_FILES([src/schemes/kem/ens/Makefile])
 fi
-AC_CONFIG_FILES([src/schemes/dh/ecdh/Makefile])
-AC_CONFIG_FILES([src/schemes/sig/ecdsa/Makefile])
+if test "x${enable_kem_ecdh}" = "xyes"; then
+    AC_CONFIG_FILES([src/schemes/dh/ecdh/Makefile])
+fi
+if test "x${enable_sig_ecdsa}" = "xyes"; then
+    AC_CONFIG_FILES([src/schemes/sig/ecdsa/Makefile])
+fi
 
 #AC_CONFIG_SUBDIRS([src/utils/crypto])
 #AX_SUBDIRS_CONFIGURE([src/utils/crypto])

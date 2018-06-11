@@ -1,5 +1,6 @@
 if ENABLE_KEM
 MAYBE_KEM=kem
+MAYBE_DH=dh
 endif
 
 if ENABLE_IBE
@@ -13,8 +14,6 @@ endif
 if ENABLE_SIGNATURES
 MAYBE_SIG=sig
 endif
-
-MAYBE_DH=dh
 
 SUBDIRS = helloworld $(MAYBE_SIG) $(MAYBE_ENC) $(MAYBE_KEM) $(MAYBE_DH) $(MAYBE_IBE)
 DIST_SUBDIRS = helloworld $(MAYBE_SIG) $(MAYBE_ENC) $(MAYBE_KEM) $(MAYBE_DH) $(MAYBE_IBE)
