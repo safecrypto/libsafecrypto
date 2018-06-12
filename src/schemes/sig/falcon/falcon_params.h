@@ -20,9 +20,9 @@
 #ifndef NTT_NEEDS_12289
 #define NTT_NEEDS_12289
 #endif
-/*#ifndef NTT_NEEDS_18433
+#ifndef NTT_NEEDS_18433
 #define NTT_NEEDS_18433
-#endif*/
+#endif
 
 #ifndef NEEDS_GAUSSIAN_CDF
 #define NEEDS_GAUSSIAN_CDF
@@ -57,7 +57,7 @@ SC_STRUCT_PACK_END
 
 
 extern falcon_set_t param_falcon_0;
-//extern falcon_set_t param_falcon_1;
+extern falcon_set_t param_falcon_1;
 extern falcon_set_t param_falcon_2;
 
 

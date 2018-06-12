@@ -25,7 +25,7 @@
 #include <string.h>
 
 
-#define MAX_KEYGEN_ITER   1024
+#define MAX_KEYGEN_ITER   1
 #define MAX_ITER          1024
 
 #define USE_FIXED_BUFFERS     0
@@ -110,8 +110,8 @@ int main(void)
     SC_TIMER_CREATE(sig_timer);
     SC_TIMER_CREATE(ver_timer);
 
-    for (i=0; i<3; i++) {
-        if (i == 1) continue;
+    for (i=1; i<3; i++) {
+        //if (i == 1) continue;
 
         SC_TIMER_RESET(keygen_timer);
 

@@ -113,9 +113,9 @@ SINT32 falcon_sig_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
         case 0:  sc->falcon->params  = &param_falcon_0;
                  sc->falcon->entropy = sc->coding_signature.type;
                  break;
-        /*case 1:  sc->falcon->params  = &param_falcon_1;
+        case 1:  sc->falcon->params  = &param_falcon_1;
                  sc->falcon->entropy = sc->coding_signature.type;
-                 break;*/
+                 break;
         case 2:  sc->falcon->params  = &param_falcon_2;
                  sc->falcon->entropy = sc->coding_signature.type;
                  break;
@@ -644,8 +644,7 @@ SINT32 falcon_sig_keygen(safecrypto_t *sc)
 {
     SINT32 i, iter;
     SINT32 *f, *g, *F, *G, *h, *h_ntt;
-    DOUBLE *f_tmp, *g_tmp, *F_tmp, *G_tmp;
-    UINT32 n, q, logn;
+    UINT32 n, q, logn, ter;
     gpv_t gpv;
     UINT32 gaussian_flags = 0;
 #if defined(FALCON_USE_EFFICIENT_GAUSSIAN_SAMPLING)
@@ -687,13 +686,7 @@ SINT32 falcon_sig_keygen(safecrypto_t *sc)
     G     = f + 3 * n;
     h     = f + 4 * n;
     h_ntt = f + 5 * n;
-    f_tmp     = (DOUBLE *)(f + 6 *n);
-    g_tmp     = f_tmp + n;
-    F_tmp     = f_tmp + 2 * n;
-    G_tmp    = f_tmp + 3 * n;
-	
-
-    unsigned ter = 0; //for binary case
+    ter   = 1 == sc->falcon->params->set;
  	
     gpv.f = f;
     gpv.g = g;
@@ -701,19 +694,26 @@ SINT32 falcon_sig_keygen(safecrypto_t *sc)
     gpv.G = G;
     gpv.n = n;
     
-	size_t sk_len = ((size_t)(logn + 5) << logn) * sizeof(DOUBLE);
-	size_t tmp_len = ((size_t)7 << logn) * sizeof(DOUBLE);
+	size_t sk_len, tmp_len;
+    if (ter) {
+        sk_len  = ((size_t)(3*(logn + 6)) << (logn - 1)) * sizeof(DOUBLE);
+	    tmp_len = ((size_t)21 << (logn - 1)) * sizeof(DOUBLE);
+    }
+    else {
+        sk_len  = ((size_t)(logn + 5) << logn) * sizeof(DOUBLE);
+        tmp_len = ((size_t)7 << logn) * sizeof(DOUBLE);
+    }
 	
     DOUBLE *sk = NULL, *tmp = NULL;
 	sk = SC_MALLOC(sk_len);
 	if (sk == NULL) {
-		fprintf(stderr, "bad_skey");
+		SC_LOG_ERROR(sc, SC_NULL_POINTER);
         goto finish_free;
 	} 
 	sc->falcon->sk = sk;
 	tmp = SC_MALLOC(tmp_len);
 	if (tmp == NULL) {
-		fprintf(stderr, "bad_skey");
+		SC_LOG_ERROR(sc, SC_NULL_POINTER);
         goto finish_free;
 	} 
     if (NULL == sc->privkey->key) {
@@ -728,7 +728,7 @@ SINT32 falcon_sig_keygen(safecrypto_t *sc)
     iter = 0;
 restart:
     iter += gpv_gen_basis(sc, f, g, h, n, q,
-        sc->sc_gauss, sc->prng_ctx[0], F, G, 0); //RECREATE_FLAG CHANGE BACK TO 0
+        sc->sc_gauss, sc->prng_ctx[0], F, G, 0);
 
     // If short basis generation is unsuccessful then restart
     if (iter < 0) {
@@ -750,12 +750,8 @@ restart:
         }
     }
 
-    smallints_to_double(f_tmp, f, logn, ter); //copies f to f_tmp (DOUBLE)
-    smallints_to_double(g_tmp, g, logn, ter);
-    smallints_to_double(F_tmp, F, logn, ter);
-    smallints_to_double(G_tmp, G, logn, ter);
-
-    load_skey(sk, q, f, g, F, G, logn, 0, tmp);
+    // Load the secret key and convert to the Falcon tree
+    load_skey(sk, q, f, g, F, G, logn, ter, tmp);
 
     // Store the key pair in the SAFEcrypto structure for future use
     SINT32 *privkey = (SINT32*) sc->privkey->key;
@@ -791,7 +787,7 @@ restart:
     }
 
     // Clear the temporary memory used for generation
-    SC_MEMZERO(f, 6 * n * sizeof(SINT32) + 4 * n *sizeof(DOUBLE));
+    SC_MEMZERO(f, 6 * n * sizeof(SINT32));
     return SC_FUNC_SUCCESS;
 
 finish_free:
@@ -801,7 +797,7 @@ finish_free:
     if (tmp) {
         SC_FREE(tmp, tmp_len);
     }
-    SC_MEMZERO(f, 6 * n * sizeof(SINT32) + 4 * n *sizeof(DOUBLE));
+    SC_MEMZERO(f, 6 * n * sizeof(SINT32));
     return SC_FUNC_FAILURE;
 }
 
@@ -811,7 +807,7 @@ SINT32 falcon_sig_sign(safecrypto_t *sc, const UINT8 *m, size_t m_len, UINT8 **s
     size_t i;
     SINT16 *h, *h_ntt;
     SINT32 *s2_ntt;
-    UINT32 n, q, q_bits, n_bits;
+    UINT32 n, q, q_bits, n_bits, ter;
     SINT32 *f, *g, *F, *G, *c;
     SINT32 *s1;
     SINT32 retval = SC_FUNC_FAILURE;
@@ -833,6 +829,7 @@ SINT32 falcon_sig_sign(safecrypto_t *sc, const UINT8 *m, size_t m_len, UINT8 **s
     q        = sc->falcon->params->q;
     q_bits   = sc->falcon->params->q_bits;
     n_bits   = sc->falcon->params->n_bits;
+    ter      = 1 == sc->falcon->params->set;
 
     f        = sc->privkey->key;
     g        = f + n;
@@ -870,11 +867,11 @@ restart:
 
     // Translate the message into a polynomial using a random oracle
     map_message_to_ring(sc, m, m_len, c, n);
+    SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "m", m, m_len);
+    SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "c", c, n);
 
     // Gaussian sampling over the basis vector to generate the signature polynomials
-    gaussian_sample_with_tree(sc, sc->falcon->sk, n, q, n_bits, c, gaussian_flags, s1, s2);
-
-    SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "m", m, m_len);
+    gaussian_sample_with_tree(sc, sc->falcon->sk, ter, n, q, n_bits, c, gaussian_flags, s1, s2);
     SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "s1", s1, n);
     SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "s2", s2, n);
 
@@ -906,7 +903,7 @@ restart:
     utils_entropy.pack_get_buffer(packer, sigret, siglen);
     utils_entropy.pack_destroy(&packer);
 
-#if 0
+#if 1
     // Verification of the signature as a countermeasure to fault attack
 
     // Calculate s1 = h*s2 - c0

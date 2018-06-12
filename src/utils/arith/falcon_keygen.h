@@ -72,7 +72,7 @@ typedef struct falcon_keygen_ falcon_keygen;
  * Returned value is the new context, or NULL on error. Errors include
  * out-of-range parameters, and memory allocation errors.
  */
-falcon_keygen *falcon_keygen_new(safecrypto_t *sc, ntt_params_t *ntt_params,
+falcon_keygen *falcon_keygen_new(safecrypto_t *sc, SINT32 ternary, ntt_params_t *ntt_params,
 	const int16_t *ntt_w, const int16_t *ntt_r, unsigned logn);
 
 /*

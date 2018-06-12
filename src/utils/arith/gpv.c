@@ -39,7 +39,7 @@
 
 #include <math.h>
 
-#define DEBUG_GPV               0
+#define DEBUG_GPV               1
 #define CRT_NTRU_SOLVE          1
 
 
@@ -1384,7 +1384,8 @@ finish:
     return retval;
 }
 
-SINT32 create_public_key(SINT32 *h, const SINT32 *f, const SINT32 *g, UINT32 q, size_t n)
+SINT32 create_public_key(SINT32 *h, const SINT32 *f, const SINT32 *g,
+    UINT32 q, size_t n, SINT32 ternary)
 {
     safecrypto_ntt_e ntt_type = SC_NTT_FLOATING_POINT;
     const utils_arith_ntt_t *sc_ntt = utils_arith_ntt(ntt_type);
@@ -1393,7 +1394,7 @@ SINT32 create_public_key(SINT32 *h, const SINT32 *f, const SINT32 *g, UINT32 q, 
     SINT32 temp[n];
 
     // Dynamically allocate memory for the necessary NTT tables
-    roots_of_unity_s16(ntt_w, ntt_r, n, q, 0);
+    roots_of_unity_s16(ntt_w, ntt_r, n, q, 0, ternary);
 
     ntt_params_t ntt_q;
     init_reduce(&ntt_q, n, q);
@@ -1425,7 +1426,8 @@ SINT32 create_public_key(SINT32 *h, const SINT32 *f, const SINT32 *g, UINT32 q, 
     return SC_FUNC_SUCCESS;
 }
 
-SINT32 create_public_key_32(SINT32 *h, const SINT32 *f, const SINT32 *g, UINT32 q, size_t n)
+SINT32 create_public_key_32(SINT32 *h, const SINT32 *f, const SINT32 *g,
+    UINT32 q, size_t n, SINT32 ternary)
 {
     safecrypto_ntt_e ntt_type = SC_NTT_FLOATING_POINT;
     const utils_arith_ntt_t *sc_ntt = utils_arith_ntt(ntt_type);
@@ -1434,7 +1436,7 @@ SINT32 create_public_key_32(SINT32 *h, const SINT32 *f, const SINT32 *g, UINT32 
     SINT32 temp[n];
 
     // Dynamically allocate memory for the necessary NTT tables
-    roots_of_unity_s32(ntt_w, ntt_r, n, q, 0);
+    roots_of_unity_s32(ntt_w, ntt_r, n, q, 0, ternary);
 
     ntt_params_t ntt_q;
     init_reduce(&ntt_q, n, q);
@@ -1920,6 +1922,7 @@ static SINT32 gpv_gen_basis_enhanced(safecrypto_t *sc, SINT32 *f, SINT32 *g, SIN
     DOUBLE sigma;
     DOUBLE gs_norm;
     SINT32 retval = -1, num_retries = 0;
+    UINT32 ter = n == 768;
 
 #if DEBUG_GPV == 1
     SC_TIMER_INSTANCE(timer);
@@ -1946,7 +1949,7 @@ static SINT32 gpv_gen_basis_enhanced(safecrypto_t *sc, SINT32 *f, SINT32 *g, SIN
     const SINT32 *ntt_w_32 = (SC_SCHEME_IBE_DLP == sc->scheme)? sc->dlp_ibe->params->w : 0;
     const SINT32 *ntt_r_32 = (SC_SCHEME_IBE_DLP == sc->scheme)? sc->dlp_ibe->params->r : 0;
 
-    falcon_keygen *fk = falcon_keygen_new(sc, ntt_params, ntt_w_16, ntt_r_16, sc_log2_32(n));
+    falcon_keygen *fk = falcon_keygen_new(sc, 768 == n, ntt_params, ntt_w_16, ntt_r_16, sc_log2_32(n));
 
     // Step 1. set standard deviation of Gaussian distribution
     DOUBLE bd;
@@ -1961,14 +1964,158 @@ step2:
     // If f and g are already provided as inputs as we are recreating F and G
     // then do not sample new distributions
     if (0 == recreate_flag) {
-        get_vector_32(sampling, f, n, 0);
-        get_vector_32(sampling, g, n, 0);
+    if (ter)
+    {
+        for (;;) {
+            size_t u;
+            DOUBLE *rt1, *rt2, *rt3;
+            size_t hn;
+            DOUBLE sigma, norm, bound;
+            size_t logn = 9;
+
+            hn = n >> 1;
+
+            /*
+             * Generate f and g in FFT representation (in rt1
+             * and rt2, respectively); we must then convert
+             * them back to non-FFT to apply rounding.
+             */
+            DOUBLE temp[3*n];
+            rt1 = temp;
+            rt2 = rt1 + n;
+            rt3 = rt2 + n;
+            sigma = sqrt(18433 / sqrt(8));
+#if 1
+            get_vector_32(sampling, f, n, 0);
+            get_vector_32(sampling, g, n, 0);
+#else
+            /*
+             * Generate f and g in FFT representation (in rt1
+             * and rt2, respectively); we must then convert
+             * them back to non-FFT to apply rounding.
+             */
+            for (u = 0; u < hn; u ++) {
+                uint32_t a, b;
+                uint64_t c;
+
+                c = prng_64(prng_ctx);
+                a = (uint32_t)c;
+                b = (uint32_t)(c >> 32);
+                fpr_gauss(&rt1[u], &rt1[u + hn], sigma, a, b);
+                c = prng_64(prng_ctx);
+                a = (uint32_t)c;
+                b = (uint32_t)(c >> 32);
+                fpr_gauss(&rt2[u], &rt2[u + hn], sigma, a, b);
+            }
+            falcon_iFFT3(rt1, logn, 1);
+            falcon_iFFT3(rt2, logn, 1);
+            for (u = 0; u < n; u ++) {
+                f[u] = (int16_t)fpr_rint(rt1[u]);
+                g[u] = (int16_t)fpr_rint(rt2[u]);
+            }
+#endif
+
+            if (mod2_res_ternary(f, logn) == 0) {
+                continue;
+            }
+            if (mod2_res_ternary(g, logn) == 0) {
+                continue;
+            }
+
+            /*
+             * Convert back to FFT to compute norms. Bound on
+             * the squared norm of (g,-f) (in FFT representation)
+             * is 4*N*q/sqrt(8).
+             *
+             * Note that our FFT contains only half the values,
+             * so we must double the sum.
+             */
+            bound = (DOUBLE)(73732L * (long)n) / sqrt(8.0);
+
+            poly_small_to_fp(rt1, f, logn, 1);
+            poly_small_to_fp(rt2, g, logn, 1);
+
+            /*fprintf(stderr, "\n");
+    fprintf(stderr, "f = \n");
+    for (i=0; i<n; i++) {
+        fprintf(stderr, "%d ", f[i]);
+        if (15 == (15&i)) fprintf(stderr, "\n");
+    }
+    fprintf(stderr, "\n");
+    fprintf(stderr, "g = \n");
+    for (i=0; i<n; i++) {
+        fprintf(stderr, "%d ", g[i]);
+        if (15 == (15&i)) fprintf(stderr, "\n");
+    }
+    fprintf(stderr, "\n");
+
+            fprintf(stderr, "\n");
+    fprintf(stderr, "f = \n");
+    for (i=0; i<n; i++) {
+        fprintf(stderr, "%f ", rt1[i]);
+        if (15 == (15&i)) fprintf(stderr, "\n");
+    }
+    fprintf(stderr, "\n");
+    fprintf(stderr, "g = \n");
+    for (i=0; i<n; i++) {
+        fprintf(stderr, "%f ", rt2[i]);
+        if (15 == (15&i)) fprintf(stderr, "\n");
+    }
+    fprintf(stderr, "\n");*/
+
+            falcon_FFT3(rt1, logn, 1);
+            falcon_FFT3(rt2, logn, 1);
+            norm = 0.0;
+            for (u = 0; u < n; u ++) {
+                norm = fpr_add(norm, fpr_sqr(rt1[u]));
+                norm = fpr_add(norm, fpr_sqr(rt2[u]));
+            }
+            norm = fpr_double(norm);
+
+            if (!fpr_lt(norm, bound)) {
+                continue;
+            }
+
+            /*
+             * Orthogonalized vector.
+             */
+            falcon_poly_invnorm2_fft3(rt3, rt1, rt2, logn, 1);
+            falcon_poly_adj_fft3(rt1, logn, 1);
+            falcon_poly_adj_fft3(rt2, logn, 1);
+            falcon_poly_mulconst_fft3(rt1, 18433, logn, 1);
+            falcon_poly_mulconst_fft3(rt2, 18433, logn, 1);
+            falcon_poly_mul_autoadj_fft3(rt1, rt3, logn, 1);
+            falcon_poly_mul_autoadj_fft3(rt2, rt3, logn, 1);
+            norm = 0.0;
+            for (u = 0; u < n; u ++) {
+                norm = fpr_add(norm, fpr_sqr(rt1[u]));
+                norm = fpr_add(norm, fpr_sqr(rt2[u]));
+            }
+            norm = fpr_double(norm);
+
+            if (!fpr_lt(norm, bound)) {
+                continue;
+            }
+
+    /*fprintf(stderr, "\n");
+    fprintf(stderr, "f = \n");
+    for (i=0; i<n; i++) {
+        fprintf(stderr, "%6d ", f[i]);
+        if (15 == (15&i)) fprintf(stderr, "\n");
+    }
+    fprintf(stderr, "\n");
+    fprintf(stderr, "g = \n");
+    for (i=0; i<n; i++) {
+        fprintf(stderr, "%6d ", g[i]);
+        if (15 == (15&i)) fprintf(stderr, "\n");
+    }
+    fprintf(stderr, "\n");*/
+            break;
+        }
     }
     else {
-        // If we are recreating the private key and we require a restart then
-        // there has been an error
-        goto finish;
-    }
+        get_vector_32(sampling, f, n, 0);
+        get_vector_32(sampling, g, n, 0);
 
     // Step 3. calculate the GramSchmidt norm
     gs_norm = gram_schmidt_norm(f, g, n, q, bd);
@@ -1984,17 +2131,24 @@ step2:
     }
 #if DEBUG_GPV == 1
     fprintf(stderr, "GS=%3.3f, threshold=%3.3f\n", gs_norm, bd);
-#endif
 
-#if DEBUG_GPV == 1
     SC_TIMER_STOP(timer);
     fprintf(stderr, "Time to compute GS Norm: %3.3f sec\n", SC_TIMER_GET_ELAPSED(timer));
     SC_TIMER_RESET(timer);
     SC_TIMER_START(timer);
 #endif
 
+    }
+    }
+    else {
+        // If we are recreating the private key and we require a restart then
+        // there has been an error
+        goto finish;
+    }
+
     // Steps 5, 6, 7, 8, 9 and 10
     if (!solve_NTRU(fk, F, G, f, g, q < 0x10000)) {
+        num_retries++;
         goto step2;
     }
 
@@ -2033,7 +2187,7 @@ step2:
 #endif
 
     // Step 11. Compute the public key h = g/f mod q
-    if (SC_FUNC_FAILURE == create_public_key_32(h, f, g, q, n)) {
+    if (SC_FUNC_FAILURE == create_public_key_32(h, f, g, q, n, ter)) {
         num_retries++;
         goto step2;
     }
@@ -2559,7 +2713,253 @@ SINT32 gaussian_lattice_sample_fft(safecrypto_t *sc,
     return SC_FUNC_SUCCESS;
 }
 
-SINT32 gaussian_sample_with_tree(safecrypto_t *sc, DOUBLE *sk, UINT32 n, UINT32 q, UINT32 n_bits,
+static SINT32
+ffSampling_inner_fft3(safecrypto_t *sc,
+    DOUBLE *restrict z0, DOUBLE *restrict z1,
+    const DOUBLE *restrict tree,
+    const DOUBLE *restrict t0, const DOUBLE *restrict t1,
+    unsigned logn, DOUBLE *restrict tmp)
+{
+    size_t n, hn;
+    DOUBLE *x0, *x1, *y0, *y1;
+    const DOUBLE *tree0, *tree1;
+
+    /*
+     * For tree construction, recursion stopped at n = 2, but it
+     * produced a tree which also covers n = 1. For sampling, we use
+     * the fact that the split() and merge() function
+     * implementations actually supports logn = 1.
+     */
+    if (logn == 0) {
+        DOUBLE r0, r1, rx;
+        DOUBLE sigma = tree[0];
+        fprintf(stderr, "sigma = %f\n", sigma);
+
+        utils_sampling_t *gauss = create_sampler(
+            sc->sampling, SAMPLING_64BIT, sc->blinding, 1, SAMPLING_DISABLE_BOOTSTRAP,
+            sc->prng_ctx[0], 10, fpr_IW1I * sigma);
+        if (NULL == gauss) {
+            fprintf(stderr, "null==gauss \n");
+            return SC_FUNC_FAILURE;
+        }
+
+        r1 = *t1;
+        r0 = *t0;
+        r1 = - (DOUBLE) get_sample(gauss);
+        destroy_sampler(&gauss);
+        
+        gauss = create_sampler(
+            sc->sampling, SAMPLING_64BIT, sc->blinding, 1, SAMPLING_DISABLE_BOOTSTRAP,
+            sc->prng_ctx[0], 10, sigma);
+        if (NULL == gauss) {
+            fprintf(stderr, "null==gauss \n");
+            return SC_FUNC_FAILURE;
+        }
+
+        rx = r1 * 0.5;
+        r0 = r0 + rx;
+        r0 = - (DOUBLE) get_sample(gauss);
+        destroy_sampler(&gauss);
+
+        r0 = r0 - rx;
+        *z0 = r0;
+        *z1 = r1;
+        return SC_FUNC_SUCCESS;
+    }
+
+    n = (size_t)1 << logn;
+    hn = n >> 1;
+    y0 = tmp;
+    y1 = y0 + hn;
+
+    tree0 = tree + n;
+    tree1 = tree + n + (logn << (logn - 1));
+
+    /*
+     * Split t1, recurse, merge into z1.
+     */
+    x0 = z1;
+    x1 = x0 + hn;
+    falcon_poly_split_deep_fft3(x0, x1, t1, logn);
+    ffSampling_inner_fft3(sc,
+        y0, y1, tree1, x0, x1, logn - 1, tmp + n);
+    falcon_poly_merge_deep_fft3(z1, y0, y1, logn);
+
+    /*
+     * Compute t0b = t0 + z1 * l10 (into tmp[]).
+     * FIXME: save z1 * l10 instead of recomputing it later on.
+     */
+    memcpy(tmp, z1, n * sizeof *t1);
+    falcon_poly_mul_fft3(tmp, tree, logn, 0);
+    falcon_poly_add_fft3(tmp, t0, logn, 0);
+
+    /*
+     * Split t0b, recurse, merge into z0.
+     */
+    x0 = z0;
+    x1 = x0 + hn;
+    falcon_poly_split_deep_fft3(x0, x1, tmp, logn);
+    ffSampling_inner_fft3(sc,
+        y0, y1, tree0, x0, x1, logn - 1, tmp + n);
+    falcon_poly_merge_deep_fft3(z0, y0, y1, logn);
+
+    /*
+     * Subtract z1 * l10 from z0.
+     */
+    memcpy(tmp, z1, n * sizeof *z1);
+    falcon_poly_mul_fft3(tmp, tree, logn, 0);
+    falcon_poly_sub_fft3(z0, tmp, logn, 0);
+
+    return SC_FUNC_SUCCESS;
+}
+
+static void
+ffSampling_depth1_fft3(safecrypto_t *sc,
+    DOUBLE *restrict z0, DOUBLE *restrict z1, DOUBLE *restrict z2,
+    const DOUBLE *restrict tree,
+    const DOUBLE *restrict t0, const DOUBLE *restrict t1, const DOUBLE *restrict t2,
+    unsigned logn, DOUBLE *restrict tmp)
+{
+    size_t n, hn;
+    DOUBLE *x0, *x1, *y0, *y1;
+    const DOUBLE *tree0, *tree1, *tree2;
+
+    n = (size_t)1 << logn;
+    hn = n >> 1;
+
+    tree0 = tree + 3 * n;
+    tree1 = tree0 + (logn << (logn - 1));
+    tree2 = tree1 + (logn << (logn - 1));
+    y0 = tmp;
+    y1 = y0 + hn;
+
+    /*
+     * Split t2, recurse, merge into z2.
+     */
+    x0 = z2;
+    x1 = x0 + hn;
+    falcon_poly_split_deep_fft3(x0, x1, t2, logn);
+    ffSampling_inner_fft3(sc,
+        y0, y1, tree2, x0, x1, logn - 1, tmp + n);
+    falcon_poly_merge_deep_fft3(z2, y0, y1, logn);
+
+    /*
+     * Compute t1b = t1 + z2 * l21 (into tmp[]).
+     * FIXME: save z2 * l21 instead of recomputing it later on.
+     */
+    memcpy(tmp, z2, n * sizeof *z2);
+    falcon_poly_mul_fft3(tmp, tree + 2 * n, logn, 0);
+    falcon_poly_add_fft3(tmp, t1, logn, 0);
+
+    /*
+     * Split t1b, recurse, merge into z1, and subtract z2 * l21.
+     */
+    x0 = z1;
+    x1 = x0 + hn;
+    falcon_poly_split_deep_fft3(x0, x1, tmp, logn);
+    ffSampling_inner_fft3(sc,
+        y0, y1, tree1, x0, x1, logn - 1, tmp + n);
+    falcon_poly_merge_deep_fft3(z1, y0, y1, logn);
+    memcpy(tmp, z2, n * sizeof *z2);
+    falcon_poly_mul_fft3(tmp, tree + 2 * n, logn, 0);
+    falcon_poly_sub_fft3(z1, tmp, logn, 0);
+
+    /*
+     * Compute t0b = t0 + z1 * l10 + z2 * l20 (into z0).
+     * We use z0 as extra temporary.
+     * FIXME: save z1 * l10 + z2 * l20 instead of recomputing it later on.
+     */
+    memcpy(z0, t0, n * sizeof *t0);
+    memcpy(tmp, z1, n * sizeof *z1);
+    falcon_poly_mul_fft3(tmp, tree, logn, 0);
+    falcon_poly_add_fft3(z0, tmp, logn, 0);
+    memcpy(tmp, z2, n * sizeof *z1);
+    falcon_poly_mul_fft3(tmp, tree + n, logn, 0);
+    falcon_poly_add_fft3(z0, tmp, logn, 0);
+
+    /*
+     * Split t0b, recurse, merge into z0.
+     */
+    x0 = z0;
+    x1 = x0 + hn;
+    memcpy(tmp, z0, n * sizeof *z0);
+    falcon_poly_split_deep_fft3(x0, x1, tmp, logn);
+    ffSampling_inner_fft3(sc,
+        y0, y1, tree0, x0, x1, logn - 1, tmp + n);
+    falcon_poly_merge_deep_fft3(z0, y0, y1, logn);
+
+    /*
+     * Subtract z1 * l10 and z2 * l20 from z0.
+     */
+    memcpy(tmp, z1, n * sizeof *z1);
+    falcon_poly_mul_fft3(tmp, tree, logn, 0);
+    falcon_poly_sub_fft3(z0, tmp, logn, 0);
+    memcpy(tmp, z2, n * sizeof *z1);
+    falcon_poly_mul_fft3(tmp, tree + n, logn, 0);
+    falcon_poly_sub_fft3(z0, tmp, logn, 0);
+}
+
+SINT32 gaussian_lattice_sample_fft3(safecrypto_t *sc,
+    DOUBLE *z0, DOUBLE *z1, DOUBLE *restrict tree,
+    const DOUBLE *restrict t0, const DOUBLE *restrict t1, unsigned logn,
+    DOUBLE *restrict tmp, UINT32 flags)
+{
+    size_t n, tn;
+    DOUBLE *x0, *x1, *x2, *y0, *y1, *y2;
+    const DOUBLE *tree0, *tree1;
+
+    n = (size_t)3 << (logn - 1);
+    tn = (size_t)1 << (logn - 1);
+
+    tree0 = tree + n;
+    tree1 = tree0 + 3 * ((logn + 1) << (logn - 2));
+    y0 = tmp;
+    y1 = y0 + tn;
+    y2 = y1 + tn;
+
+    /*
+     * We split t1 three ways for recursive invocation. We use
+     * z0 and z1 as temporary storage areas; final merge yields z1.
+     */
+    x0 = z1;
+    x1 = x0 + tn;
+    x2 = x1 + tn;
+    falcon_poly_split_top_fft3(x0, x1, x2, t1, logn);
+    ffSampling_depth1_fft3(sc,
+        y0, y1, y2, tree1, x0, x1, x2, logn - 1, tmp + n);
+    falcon_poly_merge_top_fft3(z1, y0, y1, y2, logn);
+
+    /*
+     * Compute t0b = t0 + z1 * L (in tmp[]).
+     * FIXME: save z1 * L instead of recomputing it later on.
+     */
+    memcpy(tmp, z1, n * sizeof *z1);
+    falcon_poly_mul_fft3(tmp, tree, logn, 1);
+    falcon_poly_add_fft3(tmp, t0, logn, 1);
+
+    /*
+     * Split t0b, recurse, and merge into z0.
+     */
+    x0 = z0;
+    x1 = x0 + tn;
+    x2 = x1 + tn;
+    falcon_poly_split_top_fft3(x0, x1, x2, tmp, logn);
+    ffSampling_depth1_fft3(sc,
+        y0, y1, y2, tree0, x0, x1, x2, logn - 1, tmp + n);
+    falcon_poly_merge_top_fft3(z0, y0, y1, y2, logn);
+
+    /*
+     * Subtract z1 * L from z0.
+     */
+    memcpy(tmp, z1, n * sizeof *z1);
+    falcon_poly_mul_fft3(tmp, tree, logn, 1);
+    falcon_poly_sub_fft3(z0, tmp, logn, 1);
+
+    return SC_FUNC_SUCCESS;
+}
+
+SINT32 gaussian_sample_with_tree(safecrypto_t *sc, DOUBLE *sk, UINT32 ter,
+    UINT32 n, UINT32 q, UINT32 n_bits,
     SINT32 *c, UINT32 gaussian_flags, SINT32 *s1, SINT32 *s2)
 {
     SINT32 retval = SC_FUNC_FAILURE;
@@ -2567,7 +2967,6 @@ SINT32 gaussian_sample_with_tree(safecrypto_t *sc, DOUBLE *sk, UINT32 n, UINT32 
     DOUBLE *c0, *c1, *tmp, *z0, *z1;
     DOUBLE ni;
     DOUBLE *b00, *b01, *b10, *b11, *tree;
-    unsigned ter = 0; //for binary
 
     // Assign pointers for the pre-computed Falcon tree
     b00      = sk + skoff_b00(n_bits, ter);
@@ -2593,48 +2992,93 @@ SINT32 gaussian_sample_with_tree(safecrypto_t *sc, DOUBLE *sk, UINT32 n, UINT32 
         c0[i] = c[i];
     }
 
-    /// @todo Is this mapping the message ring to the poly basis of the secret key?
-    falcon_FFT(c0, n_bits);
-    memcpy(c1, c0, n * sizeof(DOUBLE));
     ni       = fpr_inverse_of(q);
-    falcon_poly_mul_fft(c1, b01, n_bits);
-    falcon_poly_mulconst_fft(c1, fpr_neg(ni), n_bits);
-    falcon_poly_mul_fft(c0, b11, n_bits);
-    falcon_poly_mulconst_fft(c0, ni, n_bits);
 
-    // Generate a sampled polynomial using the polynomial basis
-    SINT32 sample_error;
-    sample_error = gaussian_lattice_sample_fft(sc, z0, z1, tree, c0, c1, n_bits, tmp, gaussian_flags);
-    if (SC_FUNC_FAILURE == sample_error) {
-        SC_LOG_ERROR(sc, SC_ERROR);
-        goto finish;
-    }
+    if (ter) {
+        falcon_FFT3(c0, n_bits, 1);
+        memcpy(c1, c0, n * sizeof(DOUBLE));
+        falcon_poly_mul_fft3(c1, b01, n_bits, 1);
+        falcon_poly_mulconst_fft3(c1, fpr_neg(ni), n_bits, 1);
+        falcon_poly_mul_fft3(c0, b11, n_bits, 1);
+        falcon_poly_mulconst_fft3(c0, ni, n_bits, 1);
 
-    // Get the lattice point of the Gaussian sampled vector
-    memcpy(c0, z0, n * sizeof(DOUBLE));
-    memcpy(c1, z1, n * sizeof(DOUBLE));
-    falcon_poly_mul_fft(z0, b00, n_bits);
-    falcon_poly_mul_fft(z1, b10, n_bits);
-    falcon_poly_add(z0, z1, n_bits);
-    memcpy(z1, c0, n * sizeof(DOUBLE));
-    falcon_poly_mul_fft(z1, b01, n_bits);
+        // Generate a sampled polynomial using the polynomial basis
+        SINT32 sample_error;
+        sample_error = gaussian_lattice_sample_fft3(sc, z0, z1, tree, c0, c1, n_bits, tmp, gaussian_flags);
+        if (SC_FUNC_FAILURE == sample_error) {
+            SC_LOG_ERROR(sc, SC_ERROR);
+            goto finish;
+        }
 
-    memcpy(c0, z0, n * sizeof(DOUBLE));
-    falcon_poly_mul_fft(c1, b11, n_bits);
-    falcon_poly_add(c1, z1, n_bits);
+        // Get the lattice point of the Gaussian sampled vector
+        memcpy(c0, z0, n * sizeof(DOUBLE));
+        memcpy(c1, z1, n * sizeof(DOUBLE));
+        falcon_poly_mul_fft3(z0, b00, n_bits, 1);
+        falcon_poly_mul_fft3(z1, b10, n_bits, 1);
+        falcon_poly_add_fft3(z0, z1, n_bits, 1);
+        memcpy(z1, c0, n * sizeof(DOUBLE));
+        falcon_poly_mul_fft3(z1, b01, n_bits, 1);
 
-    // The result is in FFT domain, so convert back
-    falcon_iFFT(c0, n_bits);
-    falcon_iFFT(c1, n_bits);
+        memcpy(c0, z0, n * sizeof(DOUBLE));
+        falcon_poly_mul_fft3(c1, b11, n_bits, 1);
+        falcon_poly_add_fft3(c1, z1, n_bits, 1);
 
-    // Compute the signature or IBE user key
-    if (s1) {
+        falcon_iFFT3(c0, n_bits, 1);
+        falcon_iFFT3(c1, n_bits, 1);
+
+        // Compute the signature or IBE user key
+        if (s1) {
+            for (int i = 0; i < n; i ++) {
+                s1[i] = (SINT32) llrint(c0[i]);
+            }
+        }
         for (int i = 0; i < n; i ++) {
-            s1[i] = (SINT32)(c[i] - llrint(c0[i]));
+            s2[i] = (SINT32) llrint(c1[i]);
         }
     }
-    for (int i = 0; i < n; i ++) {
-        s2[i] = (SINT32) -llrint(c1[i]);
+    else {
+        /// @todo Is this mapping the message ring to the poly basis of the secret key?
+        falcon_FFT(c0, n_bits);
+        memcpy(c1, c0, n * sizeof(DOUBLE));
+        falcon_poly_mul_fft(c1, b01, n_bits);
+        falcon_poly_mulconst_fft(c1, fpr_neg(ni), n_bits);
+        falcon_poly_mul_fft(c0, b11, n_bits);
+        falcon_poly_mulconst_fft(c0, ni, n_bits);
+
+        // Generate a sampled polynomial using the polynomial basis
+        SINT32 sample_error;
+        sample_error = gaussian_lattice_sample_fft(sc, z0, z1, tree, c0, c1, n_bits, tmp, gaussian_flags);
+        if (SC_FUNC_FAILURE == sample_error) {
+            SC_LOG_ERROR(sc, SC_ERROR);
+            goto finish;
+        }
+
+        // Get the lattice point of the Gaussian sampled vector
+        memcpy(c0, z0, n * sizeof(DOUBLE));
+        memcpy(c1, z1, n * sizeof(DOUBLE));
+        falcon_poly_mul_fft(z0, b00, n_bits);
+        falcon_poly_mul_fft(z1, b10, n_bits);
+        falcon_poly_add(z0, z1, n_bits);
+        memcpy(z1, c0, n * sizeof(DOUBLE));
+        falcon_poly_mul_fft(z1, b01, n_bits);
+
+        memcpy(c0, z0, n * sizeof(DOUBLE));
+        falcon_poly_mul_fft(c1, b11, n_bits);
+        falcon_poly_add(c1, z1, n_bits);
+
+        // The result is in FFT domain, so convert back
+        falcon_iFFT(c0, n_bits);
+        falcon_iFFT(c1, n_bits);
+
+        // Compute the signature or IBE user key
+        if (s1) {
+            for (int i = 0; i < n; i ++) {
+                s1[i] = (SINT32)(c[i] - llrint(c0[i]));
+            }
+        }
+        for (int i = 0; i < n; i ++) {
+            s2[i] = (SINT32) -llrint(c1[i]);
+        }
     }
 
     retval = SC_FUNC_SUCCESS;

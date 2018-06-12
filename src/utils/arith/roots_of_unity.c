@@ -104,7 +104,7 @@ static sc_ulimb_t find_inverse_primitive_root(sc_mod_t *mod, size_t n)
 
 /// Generate the n roots of unity for prime number p
 SINT32 roots_of_unity_slimb(sc_slimb_t *fwd, sc_slimb_t *inv,
-    size_t n, sc_ulimb_t p, sc_ulimb_t prim)
+    size_t n, sc_ulimb_t p, sc_ulimb_t prim, SINT32 ternary)
 {
     size_t i;
     sc_ulimb_t inv_p;
@@ -138,7 +138,8 @@ SINT32 roots_of_unity_slimb(sc_slimb_t *fwd, sc_slimb_t *inv,
 }
 
 
-SINT32 roots_of_unity_s32(SINT32 *fwd, SINT32 *inv, size_t n, sc_ulimb_t p, sc_ulimb_t prim)
+SINT32 roots_of_unity_s32(SINT32 *fwd, SINT32 *inv,
+    size_t n, sc_ulimb_t p, sc_ulimb_t prim, SINT32 ternary)
 {
     size_t i;
     sc_ulimb_t inv_p;
@@ -171,7 +172,8 @@ SINT32 roots_of_unity_s32(SINT32 *fwd, SINT32 *inv, size_t n, sc_ulimb_t p, sc_u
     return SC_FUNC_SUCCESS;
 }
 
-SINT32 roots_of_unity_s16(SINT16 *fwd, SINT16 *inv, size_t n, sc_ulimb_t p, sc_ulimb_t prim)
+SINT32 roots_of_unity_s16(SINT16 *fwd, SINT16 *inv,
+    size_t n, sc_ulimb_t p, sc_ulimb_t prim, SINT32 ternary)
 {
     size_t i;
     sc_ulimb_t inv_p;
@@ -204,7 +206,7 @@ SINT32 roots_of_unity_s16(SINT16 *fwd, SINT16 *inv, size_t n, sc_ulimb_t p, sc_u
     return SC_FUNC_SUCCESS;
 }
 
-SINT32 inv_root_square_s32(SINT32 *fwd, size_t n, sc_ulimb_t p, sc_ulimb_t prim)
+SINT32 inv_root_square_s32(SINT32 *fwd, size_t n, sc_ulimb_t p, sc_ulimb_t prim, SINT32 ternary)
 {
     size_t i;
     sc_ulimb_t g2, inv_g2;//, inv_g2_2;
@@ -231,7 +233,7 @@ SINT32 inv_root_square_s32(SINT32 *fwd, size_t n, sc_ulimb_t p, sc_ulimb_t prim)
     }
 }
 
-SINT32 inv_root_square_s16(SINT16 *fwd, size_t n, sc_ulimb_t p, sc_ulimb_t prim)
+SINT32 inv_root_square_s16(SINT16 *fwd, size_t n, sc_ulimb_t p, sc_ulimb_t prim, SINT32 ternary)
 {
     size_t i;
     sc_ulimb_t g2, inv_g2;//, inv_g2_2;

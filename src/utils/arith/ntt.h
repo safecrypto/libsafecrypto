@@ -332,7 +332,7 @@ void inverse_shuffle(sc_slimb_t *v, size_t n);
 void init_reduce(ntt_params_t *p, size_t n, SINT32 q);
 void barrett_init(ntt_params_t *p);
 
-SINT32 roots_of_unity_slimb(sc_slimb_t *fwd, sc_slimb_t *inv, size_t n, sc_ulimb_t p, sc_ulimb_t prim);
-SINT32 roots_of_unity_s32(SINT32 *fwd, SINT32 *inv, size_t n, sc_ulimb_t p, sc_ulimb_t prim);
-SINT32 roots_of_unity_s16(SINT16 *fwd, SINT16 *inv, size_t n, sc_ulimb_t p, sc_ulimb_t prim);
+SINT32 roots_of_unity_slimb(sc_slimb_t *fwd, sc_slimb_t *inv, size_t n, sc_ulimb_t p, sc_ulimb_t prim, SINT32 ternary);
+SINT32 roots_of_unity_s32(SINT32 *fwd, SINT32 *inv, size_t n, sc_ulimb_t p, sc_ulimb_t prim, SINT32 ternary);
+SINT32 roots_of_unity_s16(SINT16 *fwd, SINT16 *inv, size_t n, sc_ulimb_t p, sc_ulimb_t prim, SINT32 ternary);
 

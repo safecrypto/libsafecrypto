@@ -370,7 +370,7 @@ SINT32 bliss_b_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
     sc->bliss->params->r     = temp + 2*n;
     sc->bliss->params->r_rev = temp + 3*n;
     roots_of_unity_s16(sc->bliss->params->w, sc->bliss->params->r,
-        n, sc->bliss->params->q, 0);
+        n, sc->bliss->params->q, 0, 0);
 #endif
 
     // Dynamically allocate memory for temporary storage

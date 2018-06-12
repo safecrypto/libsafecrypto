@@ -147,8 +147,8 @@ falcon_compute_public(falcon_keygen *fk, uint32_t *h,
  * Compute resultant of polynomial f with phi, modulo 2. This function
  * is for phi = X^N-X(N/2)+1, where N = 1.5*2^logn.
  */
-static unsigned
-mod2_res_ternary(const int16_t *f, unsigned logn)
+unsigned
+mod2_res_ternary(const int32_t *f, unsigned logn)
 {
 	/*
 	 * We lower down the degree to 6, by successive degree halving:
@@ -3719,7 +3719,7 @@ static const size_t MAX_BL_LARGE3[] = {
  * Returned size is expressed in bytes.
  */
 static size_t
-temp_size(unsigned logn, unsigned optimise_depth)
+temp_size(unsigned logn, SINT32 ternary, unsigned optimise_depth)
 {
 #define ALIGN_FP(tt)   ((((tt) + sizeof(DOUBLE) - 1) / sizeof(DOUBLE)) * sizeof(DOUBLE))
 #define ALIGN_UW(tt)   ((((tt) + sizeof(uint32_t) - 1) \
@@ -3736,17 +3736,26 @@ temp_size(unsigned logn, unsigned optimise_depth)
 	for (depth = 0; depth < logn; depth ++) {
 		size_t cur;
 
-		size_t n, slen, tlen;
+		if (depth == 0 && ternary) {
+			size_t n, dn, tn;
+ 
+            n    = (size_t)3 << (logn - 1);
+            dn   = (size_t)1 << logn;
+            tn   = (size_t)1 << (logn - 1);
+            cur  = (2 * tn + 2 * n + 2 * dn) * sizeof(uint32_t);
+            gmax = cur > gmax ? cur : gmax;
+		}
+		else {
+			size_t n, slen, tlen;
 
-		n = (size_t)1 << (logn - depth);
-		slen = MAX_BL_SMALL2[depth];
-		tlen = MAX_BL_SMALL2[depth + 1];
-		cur = (n * tlen + 2 * n * slen + 3 * n)
-			* sizeof(uint32_t);
-		gmax = cur > gmax ? cur : gmax;
-		cur = (n * tlen + 2 * n * slen + slen)
-			* sizeof(uint32_t);
-		gmax = cur > gmax ? cur : gmax;
+			n    = (size_t)1 << (logn - depth);
+			slen = ternary? MAX_BL_SMALL3[depth] : MAX_BL_SMALL2[depth];
+			tlen = ternary? MAX_BL_SMALL3[depth+1] : MAX_BL_SMALL2[depth + 1];
+			cur  = (n * tlen + 2 * n * slen + 3 * n) * sizeof(uint32_t);
+			gmax = cur > gmax ? cur : gmax;
+			cur  = (n * tlen + 2 * n * slen + slen) * sizeof(uint32_t);
+			gmax = cur > gmax ? cur : gmax;
+		}
 	}
 
 	/*
@@ -3759,10 +3768,26 @@ temp_size(unsigned logn, unsigned optimise_depth)
 		if (depth == logn) {
 			size_t slen;
 
-			slen = MAX_BL_SMALL2[depth];
+			slen = ternary? MAX_BL_SMALL3[depth] : MAX_BL_SMALL2[depth];
 			cur = 8 * slen * sizeof(uint32_t);
 			max = cur > max ? cur : max;
-		} else if (optimise_depth && depth == 0 && logn > 2) {
+		}
+		else if (ternary && optimise_depth && depth == 0 && logn > 2) {
+            size_t n, tn, hn;
+
+            n = (size_t)3 << (logn - 1);
+            tn = (size_t)1 << (logn - 1);
+            hn = n >> 1;
+            cur = ALIGN_FP(2 * tn * sizeof(uint32_t))
+                    + (2 * n + hn) * sizeof(DOUBLE);
+            max = cur > max ? cur : max;
+            cur = (hn + 4 * n) * sizeof(DOUBLE);
+            max = cur > max ? cur : max;
+            cur = ALIGN_FP(2 * n * sizeof(uint32_t))
+                    + 2 * n * sizeof(DOUBLE);
+            max = cur > max ? cur : max;
+		}
+		else if (!ternary && optimise_depth && depth == 0 && logn > 2) {
 			size_t n, hn;
 
 			n = (size_t)1 << logn;
@@ -3775,7 +3800,8 @@ temp_size(unsigned logn, unsigned optimise_depth)
 			cur = ALIGN_FP(3 * n * sizeof(uint32_t))
 				+ (n + hn) * sizeof(DOUBLE);
 			max = cur > max ? cur : max;
-		} else if (optimise_depth && depth == 1 && logn > 2) {
+		}
+		else if (!ternary && optimise_depth && depth == 1 && logn > 2) {
 			size_t n, hn, slen, dlen, llen;
 
 			n = (size_t)1 << (logn - 1);
@@ -3803,13 +3829,27 @@ temp_size(unsigned logn, unsigned optimise_depth)
 			cur = ALIGN_FP(2 * n * sizeof(uint32_t))
 				+ 2 * n * sizeof(DOUBLE);
 			max = cur > max ? cur : max;
-		} else {
+		}
+		else {
 			size_t n, hn, slen, llen, tmp1, tmp2;
 
-			n = (size_t)1 << (logn - depth);
-			hn = n >> 1;
-			slen = MAX_BL_SMALL2[depth];
-			llen = MAX_BL_LARGE2[depth];
+			if (ternary && depth == 0 && logn == 2) {
+				n  = 6;
+				hn = 2;
+			}
+			else {
+				n  = (size_t)1 << (logn - depth);
+				hn = n >> 1;
+			}
+			if (ternary) {
+				slen = MAX_BL_SMALL3[depth];
+				llen = MAX_BL_LARGE3[depth];
+			}
+			else {
+				slen = MAX_BL_SMALL2[depth];
+				llen = MAX_BL_LARGE2[depth];
+			}
+
 			cur = (2 * n * llen + 2 * n * slen + 4 * n)
 				* sizeof(uint32_t);
 			max = cur > max ? cur : max;
@@ -3850,26 +3890,33 @@ static const char MEMCHECK_MARK[] = "memcheck";
 
 /* see falcon.h */
 falcon_keygen *
-falcon_keygen_new(safecrypto_t *sc, ntt_params_t *ntt_params, const int16_t *ntt_w, const int16_t *ntt_r, unsigned logn)
+falcon_keygen_new(safecrypto_t *sc, SINT32 ternary, ntt_params_t *ntt_params, const int16_t *ntt_w, const int16_t *ntt_r, unsigned logn)
 {
 	falcon_keygen *fk;
 
-	if (logn < 1 || logn > 10) {
-		return NULL;
+	if (ternary) {
+		if (logn < 3 || logn > 9) {
+			return NULL;
+		}
+	}
+	else {
+		if (logn < 1 || logn > 10) {
+			return NULL;
+		}
 	}
 	fk = malloc(sizeof *fk);
 	if (fk == NULL) {
 		return NULL;
 	}
 	fk->logn = logn;
-	fk->ternary = 0;
+	fk->ternary = ternary;
 	fk->sc = sc;
 	fk->ntt_params = ntt_params;
 	fk->ntt_w = ntt_w;
 	fk->ntt_r = ntt_r;
 	fk->q = ntt_params->u.ntt32.q;
 
-	fk->tmp_len = temp_size(logn, fk->q < 0x10000);
+	fk->tmp_len = temp_size(logn, fk->ternary, fk->q < 0x10000);
 #if MEMCHECK
 	fk->tmp = malloc(fk->tmp_len + sizeof MEMCHECK_MARK);
 #else
@@ -3984,14 +4031,14 @@ align_u32(void *base, void *data)
 /*
  * Convert a small vector to floating point.
  */
-static void
+void
 poly_small_to_fp(DOUBLE *x, const int32_t *f, unsigned logn, unsigned ter)
 {
 	size_t n, u;
 
 	n = MKN(logn, ter);
 	for (u = 0; u < n; u ++) {
-		x[u] = 1 / (DOUBLE) f[u];
+		x[u] = (DOUBLE) f[u];
 	}
 }
 
@@ -4876,7 +4923,7 @@ solve_NTRU_intermediate(falcon_keygen *fk,
 		 * manage to reduce the maximum bit length.
 		 */
 		if (maxbl_FG <= maxbl_fg || maxbl_FG >= prev_maxbl_FG) {
-			//fprintf(stderr, "scaling ended %d %d %d\n", maxbl_fg, maxbl_FG , prev_maxbl_FG);
+			fprintf(stderr, "scaling ended %d %d %d\n", maxbl_fg, maxbl_FG , prev_maxbl_FG);
 			break;
 		}
 		prev_maxbl_FG = maxbl_FG;
@@ -4939,7 +4986,7 @@ solve_NTRU_intermediate(falcon_keygen *fk,
 		if (scale_k + scale_FG < maxbl_fg) {
 			scale_k = maxbl_fg - scale_FG;
 			if (scale_k > 62) {
-				//fprintf(stderr, "scale_k = %d is too big\n", scale_k);
+				fprintf(stderr, "scale_k = %d is too big\n", scale_k);
 				break;
 			}
 		}
@@ -4987,7 +5034,7 @@ solve_NTRU_intermediate(falcon_keygen *fk,
 	 * this is a failure.
 	 */
 	if (maxbl_FG > (slen * 31)) {
-		//fprintf(stderr, "%d could not fit in slen=%d\n", maxbl_FG, slen);
+		fprintf(stderr, "%d could not fit in slen=%d\n", maxbl_FG, slen);
 		return 0;
 	}
 
@@ -5919,7 +5966,7 @@ int solve_NTRU(falcon_keygen *fk, int32_t *F, int32_t *G,
 	n = MKN(logn, fk->ternary);
 
 	if (!solve_NTRU_deepest(fk, f, g)) {
-		//fprintf(stderr, "Failed to solve deepest\n");
+		fprintf(stderr, "Failed to solve deepest\n");
 		return 0;
 	}
 
@@ -5935,7 +5982,7 @@ int solve_NTRU(falcon_keygen *fk, int32_t *F, int32_t *G,
 		depth = logn;
 		while (depth -- > 0) {
 			if (!solve_NTRU_intermediate(fk, f, g, depth)) {
-				//fprintf(stderr, "Failed intermediate at depth = %d\n", depth);
+				fprintf(stderr, "Failed intermediate at depth = %d\n", depth);
 				return 0;
 			}
 		}
@@ -5943,19 +5990,33 @@ int solve_NTRU(falcon_keygen *fk, int32_t *F, int32_t *G,
 		unsigned depth;
 
 		depth = logn;
-		while (depth -- > 2) {
-			if (!solve_NTRU_intermediate(fk, f, g, depth)) {
-				//fprintf(stderr, "Failed intermediate at depth %u\n", depth);
+		if (fk->ternary) {
+			while (depth -- > 1) {
+				if (!solve_NTRU_intermediate(fk, f, g, depth)) {
+					fprintf(stderr, "Failed intermediate at depth %u\n", depth);
+					return 0;
+				}
+			}
+			if (!solve_NTRU_ternary_depth0(fk, f, g)) {
+				fprintf(stderr, "Failed binary depth 0\n");
 				return 0;
 			}
 		}
-		if (!solve_NTRU_binary_depth1(fk, f, g)) {
-			//fprintf(stderr, "Failed binary depth 1\n");
-			return 0;
-		}
-		if (!solve_NTRU_binary_depth0(fk, f, g)) {
-			//fprintf(stderr, "Failed binary depth 0\n");
-			return 0;
+		else {
+			while (depth -- > 2) {
+				if (!solve_NTRU_intermediate(fk, f, g, depth)) {
+					fprintf(stderr, "Failed intermediate at depth %u\n", depth);
+					return 0;
+				}
+			}
+			if (!solve_NTRU_binary_depth1(fk, f, g)) {
+				fprintf(stderr, "Failed binary depth 1\n");
+				return 0;
+			}
+			if (!solve_NTRU_binary_depth0(fk, f, g)) {
+				fprintf(stderr, "Failed binary depth 0\n");
+				return 0;
+			}
 		}
 	}
 
@@ -5963,10 +6024,10 @@ int solve_NTRU(falcon_keygen *fk, int32_t *F, int32_t *G,
 	 * Final F and G are in fk->tmp, one word per coefficient
 	 * (signed value over 31 bits).
 	 */
-	if (!poly_big_to_small(F, fk->tmp, logn, 0)
-		|| !poly_big_to_small(G, fk->tmp + n, logn, 0))
+	if (!poly_big_to_small(F, fk->tmp, logn, fk->ternary)
+		|| !poly_big_to_small(G, fk->tmp + n, logn, fk->ternary))
 	{
-		//fprintf(stderr, "Failed big to small\n");
+		fprintf(stderr, "Failed big to small\n");
 		return 0;
 	}
 
@@ -5983,21 +6044,35 @@ int solve_NTRU(falcon_keygen *fk, int32_t *F, int32_t *G,
 	Gt = Ft + n;
 	gm = Gt + n;
 
-	primes = PRIMES2;
+	primes = (fk->ternary)? PRIMES3 : PRIMES2;
 	p = primes[0].p;
 	p0i = modp_ninv31(p);
-	modp_mkgm2(gm, ft, logn, primes[0].g, p, p0i);
+	if (fk->ternary) {
+		modp_mkgm3(gm, ft, logn, 1, primes[0].g, p, p0i);
+	}
+	else {
+		modp_mkgm2(gm, ft, logn, primes[0].g, p, p0i);
+	}
 	for (u = 0; u < n; u ++) {
 		ft[u] = modp_set(f[u], p);
 		gt[u] = modp_set(g[u], p);
 		Ft[u] = modp_set(F[u], p);
 		Gt[u] = modp_set(G[u], p);
 	}
-	modp_NTT2(ft, gm, logn, p, p0i);
-	modp_NTT2(gt, gm, logn, p, p0i);
-	modp_NTT2(Ft, gm, logn, p, p0i);
-	modp_NTT2(Gt, gm, logn, p, p0i);
-	r = modp_montymul(fk->q, 1, p, p0i);
+	if (fk->ternary) {
+		modp_NTT3(ft, gm, logn, 1, p, p0i);
+		modp_NTT3(gt, gm, logn, 1, p, p0i);
+		modp_NTT3(Ft, gm, logn, 1, p, p0i);
+		modp_NTT3(Gt, gm, logn, 1, p, p0i);
+		r = modp_montymul(fk->q, 1, p, p0i);
+	}
+	else {
+		modp_NTT2(ft, gm, logn, p, p0i);
+		modp_NTT2(gt, gm, logn, p, p0i);
+		modp_NTT2(Ft, gm, logn, p, p0i);
+		modp_NTT2(Gt, gm, logn, p, p0i);
+		r = modp_montymul(fk->q, 1, p, p0i);
+	}
 	for (u = 0; u < n; u ++) {
 		uint32_t z;
 
@@ -6011,21 +6086,11 @@ int solve_NTRU(falcon_keygen *fk, int32_t *F, int32_t *G,
 	return 1;
 }
 
-size_t
-skoff_b00(unsigned logn, unsigned ter);
-
-size_t
-skoff_b01(unsigned logn, unsigned ter);
-
-size_t
-skoff_b10(unsigned logn, unsigned ter);
-
-size_t
-skoff_b11(unsigned logn, unsigned ter);
-
-size_t
-skoff_tree(unsigned logn, unsigned ter);
-
+size_t skoff_b00(unsigned logn, unsigned ter);
+size_t skoff_b01(unsigned logn, unsigned ter);
+size_t skoff_b10(unsigned logn, unsigned ter);
+size_t skoff_b11(unsigned logn, unsigned ter);
+size_t skoff_tree(unsigned logn, unsigned ter);
 
 void
 smallints_to_double(DOUBLE *r, const SINT32 *t, unsigned logn, unsigned ter)
@@ -6042,7 +6107,7 @@ void
 load_skey(DOUBLE *restrict sk, unsigned q,
 	const SINT32 *f_src, const SINT32 *g_src,
 	const SINT32 *F_src, const SINT32 *G_src,
-	unsigned logn, unsigned ter, DOUBLE *restrict tmp) //keep ter=0 for the binary case
+	unsigned logn, unsigned ter, DOUBLE *restrict tmp)
 {
 	size_t n;
 	DOUBLE *f_tmp, *g_tmp, *F_tmp, *G_tmp; 
@@ -6050,7 +6115,7 @@ load_skey(DOUBLE *restrict sk, unsigned q,
 	DOUBLE *tree;
 	DOUBLE sigma;
 
-	n    = (1 + ((ter) << 1)) << ((logn) - (ter));
+	n    = MKN(logn, ter);
 	b00  = sk + skoff_b00(logn, ter);
 	b01  = sk + skoff_b01(logn, ter);
 	b10  = sk + skoff_b10(logn, ter);
@@ -6070,19 +6135,62 @@ load_skey(DOUBLE *restrict sk, unsigned q,
 	smallints_to_double(G_tmp, G_src, logn, ter);
 
 	// Compute the FFT for the key elements, and negate f and F
-    falcon_FFT(f_tmp, logn);
-	falcon_FFT(g_tmp, logn);
-	falcon_FFT(F_tmp, logn);
-	falcon_FFT(G_tmp, logn);
-	falcon_poly_neg(f_tmp, logn);
-	falcon_poly_neg(F_tmp, logn);
+	if (ter) {
+    	falcon_FFT3(f_tmp, logn, 1);
+		falcon_FFT3(g_tmp, logn, 1);
+		falcon_FFT3(F_tmp, logn, 1);
+		falcon_FFT3(G_tmp, logn, 1);
+		falcon_poly_neg3(f_tmp, logn, 1);
+		falcon_poly_neg3(F_tmp, logn, 1);
+    }
+    else {
+    	falcon_FFT(f_tmp, logn);
+		falcon_FFT(g_tmp, logn);
+		falcon_FFT(F_tmp, logn);
+		falcon_FFT(G_tmp, logn);
+		falcon_poly_neg(f_tmp, logn);
+		falcon_poly_neg(F_tmp, logn);
+	}
 
 	// The Gram matrix is G = B·B*. Formulas are:
 	//   g00 = b00*adj(b00) + b01*adj(b01)
 	//   g01 = b00*adj(b10) + b01*adj(b11)
 	//   g10 = b10*adj(b00) + b11*adj(b01)
 	//   g11 = b10*adj(b10) + b11*adj(b11)
-    {
+	if (ter) {
+		DOUBLE *g00, *g10, *g11, *gxx;
+
+		g00 = tmp;
+		g10 = g00 + n;
+		g11 = g10 + n;
+		gxx = g11 + n;
+
+		memcpy(g00, b00, n * sizeof *b00);
+		falcon_poly_mulselfadj_fft3(g00, logn, 1);
+		memcpy(gxx, b01, n * sizeof *b01);
+		falcon_poly_mulselfadj_fft3(gxx, logn, 1);
+		falcon_poly_add_fft3(g00, gxx, logn, 1);
+
+		memcpy(g10, b10, n * sizeof *b00);
+		falcon_poly_muladj_fft3(g10, b00, logn, 1);
+		memcpy(gxx, b11, n * sizeof *b11);
+		falcon_poly_muladj_fft3(gxx, b01, logn, 1);
+		falcon_poly_add_fft3(g10, gxx, logn, 1);
+
+		memcpy(g11, b10, n * sizeof *b10);
+		falcon_poly_mulselfadj_fft3(g11, logn, 1);
+		memcpy(gxx, b11, n * sizeof *b11);
+		falcon_poly_mulselfadj_fft3(gxx, logn, 1);
+		falcon_poly_add_fft3(g11, gxx, logn, 1);
+
+		// Compute the Falcon tree.
+		ffLDL_fft3(tree, g00, g10, g11, logn, gxx);
+
+		// Normalize tree with sigma
+        sigma = sqrt(q * 1.414213562) * (1.32);
+		ffLDL_ternary_normalize(tree, sigma, logn);
+	}
+	else {
         DOUBLE *g00, *g01, *g11, *gxx;
 
 		g00 = tmp;
@@ -6108,18 +6216,18 @@ load_skey(DOUBLE *restrict sk, unsigned q,
 		falcon_poly_mulselfadj_fft(gxx, logn);
 		falcon_poly_add(g11, gxx, logn);
 
-		// Compute the Falcon tree.
+		// Compute the Falcon tree
 		ffLDL_fft(tree, g00, g01, g11, logn, gxx);
 
-		// Normalize tree with sigma.
-        sigma = sqrt(q)* (1.55);
+		// Normalize tree with sigma
+        sigma = sqrt(q) * (1.55);
 		ffLDL_binary_normalize(tree, sigma, logn);
 
-        FILE * pFile_sc_tree;
+        /*FILE * pFile_sc_tree;
         pFile_sc_tree=fopen("SC_tree.txt", "w");
         for (size_t u = 0; u < skoff_tree(logn, ter); u ++) {
             fprintf(pFile_sc_tree, "tree elements: %3.6f \n", tree[u]);
         }
-        fclose(pFile_sc_tree);
+        fclose(pFile_sc_tree);*/
 	}
 }

@@ -65,12 +65,6 @@ static const DOUBLE fpr_W5R = {  0.500000000000000000000000000 };
 static const DOUBLE fpr_W5I = { -0.866025403784438646763723171 };
 
 
-/*
- * For w = exp(i*pi/3), the coefficient c = Re(w)/Im(w).
- */
-static const DOUBLE fpr_IW1I = {  1.154700538379251529018297561 };
-
-
 
 /*
  * Rules for complex number macros:
@@ -267,8 +261,6 @@ falcon_FFT(DOUBLE *f, unsigned logn)
 			s_re = fpr_gm_tab[((m + i1) << 1) + 0];
 			s_im = fpr_gm_tab[((m + i1) << 1) + 1];
 			j2 = j1 + ht;
-//FILE * pFile;
-//pFile=fopen("SAFEcrypto_fft_POINT1.txt", "w");
 			for (j = j1; j < j2; j ++) {
 				DOUBLE x_re, x_im, y_re, y_im;
 
@@ -276,21 +268,13 @@ falcon_FFT(DOUBLE *f, unsigned logn)
 				x_im = f[j + hn];
 				y_re = f[j + ht];
 				y_im = f[j + ht + hn];
-//fprintf(pFile, "  %3.3g \t  %3.3g \t  %3.3g \t %3.3g \n", x_re, x_im, y_re, y_im);
 
 				FPC_MUL(y_re, y_im, y_re, y_im, s_re, s_im);
-//fprintf(pFile, " FPC_MUL %3.3g \t  %3.3g \n", y_re, y_im);
-
 				FPC_ADD(f[j], f[j + hn],
 					x_re, x_im, y_re, y_im);
-//fprintf(pFile, " FPC_ADD %3.3g \t  %3.3g \n", f[j], f[j + hn]);
-
 				FPC_SUB(f[j + ht], f[j + ht + hn],
 					x_re, x_im, y_re, y_im);
-//fprintf(pFile, " FPC_SUB %3.3g \t  %3.3g \n", f[j + ht], f[j + ht + hn]);
-
 			}
-//fclose(pFile);
 		}
 		t = ht;
 	}
@@ -995,7 +979,7 @@ falcon_iFFT3(DOUBLE *a, unsigned logn, unsigned full)
 		xr = a[u];
 		xi = a[u + hn];
 		a1 = xi * fpr_IW1I;
-		a0 = xr- (a1 * 0.5);
+		a0 = xr - (a1 * 0.5);
 		a[u] = a0;
 		a[u + hn] = a1;
 	}
@@ -1003,7 +987,7 @@ falcon_iFFT3(DOUBLE *a, unsigned logn, unsigned full)
 	/*
 	 * We have an accumulated N/2 multiplier to remove.
 	 */
-	ni = 1/(n >> 1);
+	ni = 1.0/((DOUBLE)(n >> 1));
 	for (u = 0; u < n; u ++) {
 		a[u] = ni * a[u];
 	}
@@ -1322,6 +1306,7 @@ falcon_poly_split_top_fft3(
 	const DOUBLE *restrict f, unsigned logn)
 {
 	size_t n, hn, qn, u, v;
+	DOUBLE inv3 = 1.0 / 3.0;
 
 	n = (size_t)3 << (logn - 1);
 	hn = n >> 1;
@@ -1357,12 +1342,12 @@ falcon_poly_split_top_fft3(
 		FPC_ADD(fB2r, fB2i, fB2r, fB2i, fAr, fAi);
 		FPC_MUL(t2r, t2i, xr, xi, fB2r, fB2i);
 
-		f0[v] = t0r * (1/3);
-		f0[v + qn] = t0i * (1/3);
-		f1[v] = t1r * (1/3);
-		f1[v + qn] = t1i * (1/3);
-		f2[v] = t2r * (1/3);
-		f2[v + qn] = t2i * (1/3);
+		f0[v] = t0r * inv3;
+		f0[v + qn] = t0i * inv3;
+		f1[v] = t1r * inv3;
+		f1[v + qn] = t1i * inv3;
+		f2[v] = t2r * inv3;
+		f2[v + qn] = t2i * inv3;
 	}
 }
 

@@ -1992,6 +1992,12 @@ static const DOUBLE fpr_gm3_cubic[] = {
 
 #endif
 
+/*
+ * For w = exp(i*pi/3), the coefficient c = Re(w)/Im(w).
+ */
+static const DOUBLE fpr_IW1I = {  1.154700538379251529018297561 };
+
+
 
 /* ==================================================================== */
 /*

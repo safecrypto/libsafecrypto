@@ -20,6 +20,8 @@ static const table_params_t params[] = {
 	{16, 7681, 256},
 	{16, 12289, 512},
 	{16, 12289, 1024},
+	{16, 18433, 512},
+	{16, 18433, 1024},
 	{32, 4206593, 512},
 	{32, 4206593, 1024},
 	{32, 5767169, 512},
@@ -195,12 +197,17 @@ int main(int argc, char *argv[])
 	fprintf(fp, "#endif\n");
 	fprintf(fp, "\n\n");
 
+	fprintf(fp, "#ifndef DISABLE_SIG_FALCON\n");
+	fprintf(fp, "#include \"schemes/sig/falcon/falcon_params.h\"\n");
+	fprintf(fp, "#endif\n");
+	fprintf(fp, "\n\n");
+
 	for (j=0; j<sizeof(params)/sizeof(table_params_t); j++) {
 
 		fprintf(fp, "#ifdef NTT_NEEDS_%zu\n", params[j].modulus);
 
 		if (16 == params[j].type) {
-			retval = roots_of_unity_s16(fwd16, inv16, params[j].n, params[j].modulus, seed);
+			retval = roots_of_unity_s16(fwd16, inv16, params[j].n, params[j].modulus, seed, 0);
 			if (SC_FUNC_SUCCESS != retval) {
 				fprintf(stderr, "ERROR! Could not generate roots of unity table for (p=" FMT_LIMB ",N=" FMT_LIMB ")\n",
 					params[j].modulus, params[j].n);
@@ -240,7 +247,7 @@ int main(int argc, char *argv[])
     		}
     		fprintf(fp, "};\n\n");
 
-    		inv_root_square_s16(fwd16, params[j].n, params[j].modulus, seed);
+    		inv_root_square_s16(fwd16, params[j].n, params[j].modulus, seed, 0);
 			inverse_shuffle_16(fwd16, params[j].n/2);
 
 			fprintf(fp, "const SINT16 inv_w" FMT_LIMB "_n" FMT_LIMB "[" FMT_LIMB "] = {\n",
@@ -264,7 +271,7 @@ int main(int argc, char *argv[])
     		fprintf(fp, "};\n\n");
     	}
     	else {
-			retval = roots_of_unity_s32(fwd32, inv32, params[j].n, params[j].modulus, seed);
+			retval = roots_of_unity_s32(fwd32, inv32, params[j].n, params[j].modulus, seed, 0);
 			if (SC_FUNC_SUCCESS != retval) {
 				fprintf(stderr, "ERROR! Could not generate roots of unity table for (p=" FMT_LIMB ",N=" FMT_LIMB ")\n",
 					params[j].modulus, params[j].n);
@@ -304,7 +311,7 @@ int main(int argc, char *argv[])
     		}
     		fprintf(fp, "};\n\n");
 
-    		inv_root_square_s32(fwd32, params[j].n, params[j].modulus, seed);
+    		inv_root_square_s32(fwd32, params[j].n, params[j].modulus, seed, 0);
 			inverse_shuffle_32(fwd32, params[j].n);
 
 			fprintf(fp, "const SINT32 inv_w" FMT_LIMB "_n" FMT_LIMB "[" FMT_LIMB "] = {\n",

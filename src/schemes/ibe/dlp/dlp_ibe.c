@@ -978,7 +978,7 @@ SINT32 dlp_ibe_extract(safecrypto_t *sc, size_t idlen, const UINT8 *id,
 
     // Generate a sampled polynomial using the polynomial basis
 #if DLP_IBE_USE_ENHANCED_EXTRACT == 1
-    gaussian_sample_with_tree(sc, sc->dlp_ibe->master_tree, n, q, n_bits, c, gaussian_flags, NULL, v);
+    gaussian_sample_with_tree(sc, sc->dlp_ibe->master_tree, 0, n, q, n_bits, c, gaussian_flags, NULL, v);
 #else
     sig = 2.0L / b_gs_inv_norm[0];
     SC_PRINT_DEBUG(sc, "Extract() sigma = %3.6Lf\n", sig);

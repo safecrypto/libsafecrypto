@@ -1417,7 +1417,7 @@ START_TEST(test_roots_of_unity)
 
     w = SC_MALLOC(sizeof(sc_slimb_t) * n);
     r = SC_MALLOC(sizeof(sc_slimb_t) * n);
-    roots_of_unity_slimb(w, r, n, q, 0);
+    roots_of_unity_slimb(w, r, n, q, 0, 0);
     /*fprintf(stderr, "w = ");
     for (i=0; i<n; i++) {
         fprintf(stderr, "%lu ", w[i]);
@@ -1514,7 +1514,7 @@ START_TEST(test_roots_of_unity_2)
 
     w = SC_MALLOC(sizeof(SINT32) * n);
     r = SC_MALLOC(sizeof(SINT32) * n);
-    roots_of_unity_s32(w, r, n, q, 0);
+    roots_of_unity_s32(w, r, n, q, 0, 0);
 
     /*fprintf(stderr, "w = ");
     for (i=0; i<n; i++) {
@@ -1606,7 +1606,7 @@ START_TEST(test_roots_of_unity_3)
 
     w = SC_MALLOC(sizeof(SINT16) * n);
     r = SC_MALLOC(sizeof(SINT16) * n);
-    roots_of_unity_s16(w, r, n, q, 0);
+    roots_of_unity_s16(w, r, n, q, 0, 0);
 
     prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_AES_CTR_DRBG,
         SC_PRNG_THREADING_NONE, 0x00100000);
@@ -1671,6 +1671,104 @@ START_TEST(test_roots_of_unity_3)
 }
 END_TEST
 
+START_TEST(test_roots_of_unity_ternary_1)
+{
+    sc_slimb_t *w, *r;
+    size_t i, iter, n=768;
+    UINT32 q = 18443;
+    const utils_arith_ntt_t *sc_ntt = utils_arith_ntt(SC_NTT_FLOATING_POINT);
+    ntt_params_t ntt;
+    ntt.n = n;
+    ntt.u.nttlimb.q = q;
+    ntt.u.nttlimb.k = 30;
+    ntt.u.nttlimb.m = (1 << ntt.u.nttlimb.k) / q;
+    ntt.q_dbl = ntt.u.nttlimb.q;
+    ntt.inv_q_dbl = 1.0f / ntt.q_dbl;
+
+    w = SC_MALLOC(sizeof(sc_slimb_t) * n);
+    r = SC_MALLOC(sizeof(sc_slimb_t) * n);
+    roots_of_unity_slimb(w, r, n, q, 0, 1);
+    fprintf(stderr, "w = ");
+    for (i=0; i<n; i++) {
+        fprintf(stderr, "%lu ", w[i]);
+    }
+    fprintf(stderr, "\n");
+    fprintf(stderr, "r = ");
+    for (i=0; i<n; i++) {
+        fprintf(stderr, "%lu ", r[i]);
+    }
+    fprintf(stderr, "\n");
+
+    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_AES_CTR_DRBG,
+        SC_PRNG_THREADING_NONE, 0x00100000);
+    prng_init(prng_ctx, NULL, 0);
+
+    sc_slimb_t *g = SC_MALLOC(4 * n * sizeof(sc_slimb_t));
+    sc_slimb_t *u = g + n;
+    sc_slimb_t *s = g + 3 * n;
+
+    for (iter=0; iter<999; iter++) {
+
+        // Create a random polynomial g
+        small_rand_dist(prng_ctx, g, coeff_len, 12, n, 10);
+        fprintf(stderr, "HERE %zu\n", iter);
+    
+        // Attempt to invert g
+        sc_ntt->mul_limb_pointwise(s, &ntt, g, w);
+        fprintf(stderr, "HERE DONE 1\n");
+        sc_ntt->fft_limb(s, &ntt, w);
+
+        fprintf(stderr, "HERE DONE 2\n");
+    
+        for (i=0; i<n; i++) {
+            sc_slimb_t x = sc_ntt->modn_limb(s[i], &ntt);
+            if (x == 0) {
+                break;
+            }
+            x = sc_ntt->pwr_limb(x, q - 2, &ntt);
+            u[i] = x;
+        }
+        if (i < n) {
+            continue;
+        }
+
+        fprintf(stderr, "HERE DONE 3\n");
+
+        // Ensure that each element contains the multiplicative inverse by
+        // multiplying with the original value and checking that the result is 1
+        for (i=0; i<n; i++) {
+            sc_slimb_t temp_a = s[i];
+            sc_slimb_t temp_b = u[i];
+            sc_slimb_t one    = (sc_slimb_t)(((sc_slimb_big_t)temp_a * (sc_slimb_big_t)temp_b) % q);
+            if (one < 0) one += q;
+            ck_assert_int_eq(one, 1);
+        }
+
+        // Calculate the product of g and 1/g
+        sc_ntt->mul_limb_pointwise(s, &ntt, s, u);
+
+        // Perform an inverse NTT
+        inverse_shuffle(s, n);
+        sc_ntt->fft_limb(s, &ntt, w);
+        sc_ntt->mul_limb_pointwise(s, &ntt, s, r);
+        sc_ntt->flip_limb(s, &ntt);
+
+        // Check that the result is 1
+        ck_assert_int_eq(s[0], 1);
+        for (i=1; i<n; i++) {
+            ck_assert_int_eq(s[i], 0);
+        }
+
+        break;
+    }
+
+    prng_destroy(prng_ctx);
+    SC_FREE(g, 4 * n * sizeof(sc_slimb_t));
+    SC_FREE(w, sizeof(sc_ulimb_t) * n);
+    SC_FREE(r, sizeof(sc_ulimb_t) * n);
+}
+END_TEST
+
 #ifndef DISABLE_IBE_DLP
 START_TEST(test_ibe)
 {
@@ -1684,7 +1782,7 @@ START_TEST(test_ibe)
     SINT32 q = 8399873;
     SINT32 *w = SC_MALLOC(sizeof(SINT32) * n);//        = w8399873_n512;
     SINT32 *r = SC_MALLOC(sizeof(SINT32) * n);//        = r8399873_n512;
-    roots_of_unity_s32(w, r, n, q, 0);
+    roots_of_unity_s32(w, r, n, q, 0, 0);
     const utils_arith_ntt_t *sc_ntt = utils_arith_ntt(SC_NTT_FLOATING_POINT);
     const utils_arith_poly_t *sc_poly  = utils_arith_poly();
     ntt_params_t ntt;
@@ -1904,6 +2002,7 @@ Suite *ntt32_suite(void)
     tcase_add_test(tc_tables, test_roots_of_unity);
     tcase_add_test(tc_tables, test_roots_of_unity_2);
     tcase_add_test(tc_tables, test_roots_of_unity_3);
+    //tcase_add_test(tc_tables, test_roots_of_unity_ternary_1);
     suite_add_tcase(s, tc_tables);
     tcase_set_timeout(tc_tables, 40);
 
