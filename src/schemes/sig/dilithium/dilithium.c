@@ -83,7 +83,7 @@ SINT32 dilithium_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
     }
 
     // Configure the statistics resources - these are free at the interface layer
-    if (SC_FUNC_FAILURE == sc_init_stats(sc, 2, 4, 3, 0, 0, 0)) {
+    if (SC_FUNC_FAILURE == sc_init_stats(sc, 3, 5, 4, 0, 0, 0)) {
         return SC_FUNC_FAILURE;
     }
 
@@ -656,7 +656,13 @@ SINT32 dilithium_privkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
     sc->stats.components[SC_STAT_PRIV_KEY][1].bits += (eta_bits + 1) * k * n;
     sc->stats.components[SC_STAT_PRIV_KEY][2].bits += q_bits * k * n;
     sc->stats.components[SC_STAT_PRIV_KEY][3].bits += 32*8;
-    sc->stats.components[SC_STAT_PRIV_KEY][4].bits += ((eta_bits + 1) * (l + k) + q_bits * k) * n + 32*8;
+#ifdef USE_DETERMINISTIC_DILITHIUM
+    sc->stats.components[SC_STAT_PRIV_KEY][4].bits += 32*8;
+    sc->stats.components[SC_STAT_PRIV_KEY][5].bits += 48*8;
+    sc->stats.components[SC_STAT_PRIV_KEY][6].bits += ((eta_bits + 1) * (l + k) + q_bits * k) * n + 32*8 + 32*8 + 48*8;
+#else
+    sc->stats.components[SC_STAT_PRIV_KEY][6].bits += ((eta_bits + 1) * (l + k) + q_bits * k) * n + 32*8;
+#endif
 
     SINT32 *temp = privkey;
 
@@ -704,7 +710,7 @@ SINT32 dilithium_privkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
     utils_entropy.pack_get_buffer(packer, key, key_len);
     utils_entropy.pack_destroy(&packer);
 
-    sc->stats.components[SC_STAT_PRIV_KEY][4].bits_coded += *key_len * 8;
+    sc->stats.components[SC_STAT_PRIV_KEY][6].bits_coded += *key_len * 8;
 
     return SC_FUNC_SUCCESS;
 }
@@ -1891,12 +1897,13 @@ restart:
 
 
     // Pack the output signature and perform any entropy coding
-    size_t packer_bits;
+    size_t packer_bits, h_bits;
     if (SC_SCHEME_SIG_DILITHIUM_G == sc->scheme) {
         packer_bits = l*n*z_bits + 9*k*n + 2*n;
     }
     else {
-        packer_bits = l*n*z_bits + k*n + 2*n;
+        h_bits      = 8 + ((k + 1) >> 1);
+        packer_bits = l*n*z_bits + omega_bits + num_ones*h_bits + 2*n;
     }
     if (SC_SCHEME_SIG_DILITHIUM_G == sc->scheme) {
         packer_bits += 8 * k*n;
@@ -1920,11 +1927,10 @@ restart:
         sc->stats.components[SC_STAT_SIGNATURE][3].bits += 9*k*n;
     }
     else {
-        size_t h_bits = 8 + ((k + 1) >> 1);
         i = 0;
         utils_entropy.pack_insert(packer, num_ones, omega_bits);
-        sc->stats.components[SC_STAT_SIGNATURE][1].bits += num_ones * h_bits;
-        sc->stats.components[SC_STAT_SIGNATURE][1].bits_coded += num_ones * h_bits;
+        sc->stats.components[SC_STAT_SIGNATURE][1].bits += num_ones * h_bits + omega_bits;
+        sc->stats.components[SC_STAT_SIGNATURE][1].bits_coded += num_ones * h_bits + omega_bits;
         sc->stats.components[SC_STAT_SIGNATURE][3].bits += num_ones * h_bits + omega_bits;
         while (num_ones) {
             if (h[i]) {
@@ -1944,6 +1950,7 @@ restart:
     // Statistics
     sc->stats.sig_num++;
     sc->stats.components[SC_STAT_SIGNATURE][0].bits += l*n*z_bits;
+    //fprintf(stderr, "bits = %d\n", sc->stats.components[SC_STAT_SIGNATURE][0].bits);
     sc->stats.components[SC_STAT_SIGNATURE][2].bits += 2*n;
     sc->stats.components[SC_STAT_SIGNATURE][3].bits_coded += *siglen * 8;
 
@@ -2238,6 +2245,35 @@ char * dilithium_stats(safecrypto_t *sc)
 {
     static const char* param_set_name[] = {"0", "I", "II", "III", "G-0", "G-I", "G-II", "G-III"};
     static char stats[2048];
+#ifdef USE_DETERMINISTIC_DILITHIUM
+    snprintf(stats, 2047, "\nDilithium Signature (Dilithium-%s):\n\
+Keys           %8" FMT_LIMB " key-pairs  / %8" FMT_LIMB " trials [%.6f trials per key-pair]\n\
+Signatures     %8" FMT_LIMB " signatures / %8" FMT_LIMB " trials [%.6f trials per signature]\n\
+Verifications  %8" FMT_LIMB " passed     / %8" FMT_LIMB " failed\n\n\
+Sampler:                 %s\n\
+PRNG:                    %s\n\
+Oracle Hash:             %s\n\n\
+Public Key compression:  %s\n\
+           Uncoded bits   Coded bits   Compression Ratio\n\
+   t1      %10.2f%13.2f%16.3f%%\n\
+   rho     %10.2f%13.2f%16.3f%%\n\
+   total   %10.2f%13.2f%16.3f%%\n\n\
+Private Key compression: %s\n\
+           Uncoded bits   Coded bits   Compression Ratio\n\
+   s1      %10.2f%13.2f%16.3f%%\n\
+   s2      %10.2f%13.2f%16.3f%%\n\
+   t       %10.2f%13.2f%16.3f%%\n\
+   rho     %10.2f%13.2f%16.3f%%\n\
+   K       %10.2f%13.2f%16.3f%%\n\
+   tr      %10.2f%13.2f%16.3f%%\n\
+   total   %10.2f%13.2f%16.3f%%\n\n\
+Signature compression:   %s\n\
+           Uncoded bits   Coded bits   Compression Ratio\n\
+   z       %10.2f%13.2f%16.3f%%\n\
+   h       %10.2f%13.2f%16.3f%%\n\
+   c       %10.2f%13.2f%16.3f%%\n\
+   total   %10.2f%13.2f%16.3f%%\n\n",
+#else
     snprintf(stats, 2047, "\nDilithium Signature (Dilithium-%s):\n\
 Keys           %8" FMT_LIMB " key-pairs  / %8" FMT_LIMB " trials [%.6f trials per key-pair]\n\
 Signatures     %8" FMT_LIMB " signatures / %8" FMT_LIMB " trials [%.6f trials per signature]\n\
@@ -2263,6 +2299,7 @@ Signature compression:   %s\n\
    h       %10.2f%13.2f%16.3f%%\n\
    c       %10.2f%13.2f%16.3f%%\n\
    total   %10.2f%13.2f%16.3f%%\n\n",
+#endif
         (SC_SCHEME_SIG_DILITHIUM_G == sc->scheme)?
             param_set_name[sc->dilithium->params->set + 4] :
             param_set_name[sc->dilithium->params->set],
@@ -2300,9 +2337,17 @@ Signature compression:   %s\n\
         sc->stats.priv_keys_encoded? (DOUBLE)sc->stats.components[SC_STAT_PRIV_KEY][3].bits/(DOUBLE)sc->stats.priv_keys_encoded : 0,
         sc->stats.priv_keys_encoded? (DOUBLE)sc->stats.components[SC_STAT_PRIV_KEY][3].bits_coded/(DOUBLE)sc->stats.priv_keys_encoded : 0,
         sc->stats.priv_keys_encoded? 100 * (DOUBLE)sc->stats.components[SC_STAT_PRIV_KEY][3].bits_coded/(DOUBLE)sc->stats.components[SC_STAT_PRIV_KEY][3].bits : 0,
+#ifdef USE_DETERMINISTIC_DILITHIUM
         sc->stats.priv_keys_encoded? (DOUBLE)sc->stats.components[SC_STAT_PRIV_KEY][4].bits/(DOUBLE)sc->stats.priv_keys_encoded : 0,
         sc->stats.priv_keys_encoded? (DOUBLE)sc->stats.components[SC_STAT_PRIV_KEY][4].bits_coded/(DOUBLE)sc->stats.priv_keys_encoded : 0,
         sc->stats.priv_keys_encoded? 100 * (DOUBLE)sc->stats.components[SC_STAT_PRIV_KEY][4].bits_coded/(DOUBLE)sc->stats.components[SC_STAT_PRIV_KEY][4].bits : 0,
+        sc->stats.priv_keys_encoded? (DOUBLE)sc->stats.components[SC_STAT_PRIV_KEY][5].bits/(DOUBLE)sc->stats.priv_keys_encoded : 0,
+        sc->stats.priv_keys_encoded? (DOUBLE)sc->stats.components[SC_STAT_PRIV_KEY][5].bits_coded/(DOUBLE)sc->stats.priv_keys_encoded : 0,
+        sc->stats.priv_keys_encoded? 100 * (DOUBLE)sc->stats.components[SC_STAT_PRIV_KEY][5].bits_coded/(DOUBLE)sc->stats.components[SC_STAT_PRIV_KEY][5].bits : 0,
+#endif
+        sc->stats.priv_keys_encoded? (DOUBLE)sc->stats.components[SC_STAT_PRIV_KEY][6].bits/(DOUBLE)sc->stats.priv_keys_encoded : 0,
+        sc->stats.priv_keys_encoded? (DOUBLE)sc->stats.components[SC_STAT_PRIV_KEY][6].bits_coded/(DOUBLE)sc->stats.priv_keys_encoded : 0,
+        sc->stats.priv_keys_encoded? 100 * (DOUBLE)sc->stats.components[SC_STAT_PRIV_KEY][6].bits_coded/(DOUBLE)sc->stats.components[SC_STAT_PRIV_KEY][6].bits : 0,
         sc_entropy_names[(int)sc->coding_signature.type],
         (DOUBLE)sc->stats.components[SC_STAT_SIGNATURE][0].bits/(DOUBLE)sc->stats.sig_num,
         (DOUBLE)sc->stats.components[SC_STAT_SIGNATURE][0].bits_coded/(DOUBLE)sc->stats.sig_num,

@@ -353,7 +353,7 @@ typedef struct _sc_statistics {
 #if 0
     sc_stat_coding_t *components[6];
 #else
-    sc_stat_coding_t components[6][5];
+    sc_stat_coding_t components[6][6];
 #endif
 } SC_STRUCT_PACKED sc_statistics_t;
 SC_STRUCT_PACK_END

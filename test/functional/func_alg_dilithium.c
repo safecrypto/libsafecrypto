@@ -103,7 +103,6 @@ int main(void)
 #endif
 
     flags[0] |= SC_FLAG_MORE;
-    flags[1] |= SC_FLAG_MORE;
 
     SC_TIMER_INSTANCE(keygen_timer);
     SC_TIMER_INSTANCE(sign_timer);
