@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright (C) Queen's University Belfast, ECIT, 2017                      *
+ * Copyright (C) Queen's University Belfast, ECIT, 2016                      *
  *                                                                           *
  * This file is part of libsafecrypto.                                       *
  *                                                                           *
@@ -26,10 +26,10 @@
 
 
 #define MIN_PARAM_SET 0
-#define MAX_PARAM_SET 3
+#define MAX_PARAM_SET 4
 #define MAX_ITER      4096
 
-#define USE_FIXED_BUFFERS     0
+#define USE_FIXED_BUFFERS     1
 #if USE_FIXED_BUFFERS == 1
 #define FIXED_BUFFER_SIZE     1200
 #else
@@ -37,7 +37,7 @@
 #endif
 
 
-void show_progress(char *msg, int32_t count, int32_t max)
+static void show_progress(char *msg, int32_t count, int32_t max)
 {
     int i;
     int barWidth = 50;
@@ -55,6 +55,14 @@ void show_progress(char *msg, int32_t count, int32_t max)
     fflush(stdout);
 }
 
+static void prng_entropy_source(size_t n, UINT8 *data)
+{
+    size_t i;
+    for (i=0; i<n; i++) {
+        data[i] = i;
+    }
+}
+
 int main(void)
 {
     safecrypto_t *sc = NULL;
@@ -62,7 +70,7 @@ int main(void)
 #ifdef DISABLE_SIGNATURES
     UINT32 flags[2] = {SC_FLAG_NONE, SC_FLAG_NONE};
 
-    sc = safecrypto_create(SC_SCHEME_SIG_DILITHIUM, 0, flags);
+    sc = safecrypto_create(SC_SCHEME_SIG_BLISS, 0, flags);
     if (NULL != sc) {
         fprintf(stderr, "ERROR! safecrypto_create() succeeded but the scheme has been disabled\n");
         return EXIT_FAILURE;
@@ -72,7 +80,8 @@ int main(void)
 #else
     SINT32 i, j;
     UINT8 message[8192];
-    size_t length = 64;
+    size_t length = 128;
+    UINT8 md[64];
     size_t siglen = 0, pubkeylen = 0, privkeylen = 0;
 #if USE_FIXED_BUFFERS
     UINT8 *fixed_buffer = malloc(FIXED_BUFFER_SIZE);
@@ -80,6 +89,7 @@ int main(void)
 #else
     UINT8 *sig = NULL, *pubkey, *privkey;
 #endif
+    utils_crypto_hash_t *hash = NULL;
     prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM,
         SC_PRNG_AES_CTR_DRBG,
         SC_PRNG_THREADING_NONE, 0x00100000);
@@ -89,20 +99,27 @@ int main(void)
         goto error_return;
     }
 
+    hash = utils_crypto_hash_create(SC_HASH_SHA2_512);
+
 #ifdef USE_HUFFMAN_STATIC_ENTROPY
-    UINT32 flags[2] = {SC_FLAG_0_ENTROPY_HUFFMAN, SC_FLAG_NONE};
+    UINT32 flags[3] = {SC_FLAG_0_ENTROPY_HUFFMAN, SC_FLAG_NONE, SC_FLAG_NONE};
     sc_entropy_type_e coding = SC_ENTROPY_HUFFMAN_STATIC;
 #else
 #ifdef USE_BAC_ENTROPY
-    UINT32 flags[2] = {SC_FLAG_0_ENTROPY_BAC, SC_FLAG_NONE};
+    UINT32 flags[3] = {SC_FLAG_0_ENTROPY_BAC, SC_FLAG_NONE, SC_FLAG_NONE};
     sc_entropy_type_e coding = SC_ENTROPY_BAC;
 #else
-    UINT32 flags[2] = {SC_FLAG_NONE, SC_FLAG_NONE};
+    UINT32 flags[3] = {SC_FLAG_NONE, SC_FLAG_NONE, SC_FLAG_NONE};
     sc_entropy_type_e coding = SC_ENTROPY_NONE;
 #endif
 #endif
 
-    flags[0] |= SC_FLAG_MORE;
+    flags[0]  = SC_FLAG_MORE;
+    flags[0] |= SC_FLAG_0_SAMPLE_CDF | SC_FLAG_0_SAMPLE_128BIT;
+    flags[1]  = SC_FLAG_1_CSPRNG_AES_CTR_DRBG;
+    //flags[1] |= SC_FLAG_1_CSPRNG_USE_CALLBACK_RANDOM;
+    flags[1] |= SC_FLAG_MORE;
+    flags[2]  = SC_FLAG_NONE;
 
     SC_TIMER_INSTANCE(keygen_timer);
     SC_TIMER_INSTANCE(sign_timer);
@@ -112,10 +129,17 @@ int main(void)
     SC_TIMER_CREATE(verify_timer);
 
     char disp_msg[128];
-    snprintf(disp_msg, 128, "%-20s", "Sign/Verify Test");
 
     for (i=MIN_PARAM_SET; i<=MAX_PARAM_SET; i++) {
 
+        switch (i)
+        {
+            case 0:  snprintf(disp_msg, 128, "%-20s", "ECDSA 192-bit"); break;
+            case 1:  snprintf(disp_msg, 128, "%-20s", "ECDSA 224-bit"); break;
+            case 2:  snprintf(disp_msg, 128, "%-20s", "ECDSA 256-bit"); break;
+            case 3:  snprintf(disp_msg, 128, "%-20s", "ECDSA 384-bit"); break;
+            default: snprintf(disp_msg, 128, "%-20s", "ECDSA 521-bit"); break;
+        }
         SC_TIMER_RESET(keygen_timer);
         SC_TIMER_RESET(sign_timer);
         SC_TIMER_RESET(verify_timer);
@@ -123,7 +147,8 @@ int main(void)
         printf("Message length: %6d bytes\n", (int)length);
 
         // Create a SAFEcrypto object
-        sc = safecrypto_create(SC_SCHEME_SIG_DILITHIUM, i, flags);
+        //safecrypto_entropy_callback(prng_entropy_source);
+        sc = safecrypto_create(SC_SCHEME_SIG_ECDSA, i, flags);
 
         for (j=0; j<MAX_ITER; j++) {
 
@@ -135,62 +160,37 @@ int main(void)
             }
             SC_TIMER_STOP(keygen_timer);
 
-            safecrypto_set_key_coding(sc, coding, coding);
-            pubkeylen = FIXED_BUFFER_SIZE;
+            /*pubkeylen = FIXED_BUFFER_SIZE;
             if (SC_FUNC_SUCCESS != safecrypto_public_key_encode(sc, &pubkey, &pubkeylen)) {
                 fprintf(stderr, "ERROR! safecrypto_public_key_encode() failed\n");
                 goto error_return;
             }
             privkeylen = FIXED_BUFFER_SIZE;
+#if USE_FIXED_BUFFERS
+#else
+            free(pubkey);
+#endif
             if (SC_FUNC_SUCCESS != safecrypto_private_key_encode(sc, &privkey, &privkeylen)) {
                 fprintf(stderr, "ERROR! safecrypto_private_key_encode() failed\n");
                 goto error_return;
             }
-
-#if 1
-            // Free all resources for the given SAFEcrypto object
-            if (SC_FUNC_SUCCESS != safecrypto_destroy(sc)) {
-                return EXIT_FAILURE;
-            }
-
-            // Create a SAFEcrypto object and load the encoded keys
-            sc = safecrypto_create(SC_SCHEME_SIG_DILITHIUM, i, flags);
-            if (SC_FUNC_SUCCESS != safecrypto_public_key_load(sc, pubkey, pubkeylen)) {
-                fprintf(stderr, "ERROR! safecrypto_public_key_load() failed\n");
-                goto error_return;
-            }
-            if (SC_FUNC_SUCCESS != safecrypto_private_key_load(sc, privkey, privkeylen)) {
-                fprintf(stderr, "ERROR! safecrypto_private_key_load() failed\n");
-                goto error_return;
-            }
-#if USE_FIXED_BUFFERS == 0
-            free(pubkey);
+#if USE_FIXED_BUFFERS
+#else
             free(privkey);
-#endif
-            safecrypto_set_key_coding(sc, coding, coding);
-            pubkeylen = FIXED_BUFFER_SIZE;
-            if (SC_FUNC_SUCCESS != safecrypto_public_key_encode(sc, &pubkey, &pubkeylen)) {
-                fprintf(stderr, "ERROR! safecrypto_public_key_encode() failed\n");
-                goto error_return;
-            }
-            privkeylen = FIXED_BUFFER_SIZE;
-            if (SC_FUNC_SUCCESS != safecrypto_private_key_encode(sc, &privkey, &privkeylen)) {
-                fprintf(stderr, "ERROR! safecrypto_private_key_encode() failed\n");
-                goto error_return;
-            }
-#endif
-#if USE_FIXED_BUFFERS == 0
-            free(pubkey);
-            free(privkey);
-#endif
+#endif*/
 
             // Generate a random message
             prng_mem(prng_ctx, message, length);
 
+            // Generate a hash of the message to be signed
+            hash_init(hash);
+            hash_update(hash, message, length);
+            hash_final(hash, md);
+
             // Generate a signature for that message
             SC_TIMER_START(sign_timer);
             siglen = FIXED_BUFFER_SIZE;
-            if (SC_FUNC_SUCCESS != safecrypto_sign(sc, message, length, &sig, &siglen)) {
+            if (SC_FUNC_SUCCESS != safecrypto_sign(sc, md, 32, &sig, &siglen)) {
                 goto error_return;
             }
             SC_TIMER_STOP(sign_timer);
@@ -198,10 +198,10 @@ int main(void)
             SC_TIMER_START(verify_timer);
             // Invert a bit of the message digest to cause verification to fail
             if ((j & 0x3) == 3) {
-                sig[j%(siglen-1)] ^= 1 << (j % 8);
+                sig[j%32] ^= 1 << (j % 8);
 
                 // Verify the signature using the public key
-                if (SC_FUNC_SUCCESS == safecrypto_verify(sc, message, length, sig, siglen)) {
+                if (SC_FUNC_SUCCESS == safecrypto_verify(sc, md, 32, sig, siglen)) {
                     fprintf(stderr, "ERROR! Signature verified even though it was corrupt (j=%d)\n", j);
                     for (i=0; i<siglen; i++) {
                         if ((i&0x0F) == 0) fprintf(stderr, "\n  ");
@@ -212,17 +212,17 @@ int main(void)
                 }
             }
             else if ((j & 0x3) == 2) {
-                message[j%64] ^= 1 << (j % 8);
+                md[j%32] ^= 1 << (j % 8);
 
                 // Verify the signature using the public key
-                if (SC_FUNC_SUCCESS == safecrypto_verify(sc, message, length, sig, siglen)) {
+                if (SC_FUNC_SUCCESS == safecrypto_verify(sc, md, 32, sig, siglen)) {
                     fprintf(stderr, "ERROR! Signature verified even though the message was corrupt\n");
                     goto error_return;
                 }
             }
             else {
                 // Verify the signature using the public key
-                if (SC_FUNC_SUCCESS != safecrypto_verify(sc, message, length, sig, siglen)) {
+                if (SC_FUNC_SUCCESS != safecrypto_verify(sc, md, 32, sig, siglen)) {
                     fprintf(stderr, "ERROR! Signature NOT verified\n");
                     goto error_return;
                 }
@@ -264,6 +264,7 @@ int main(void)
     SC_TIMER_DESTROY(keygen_timer);
     SC_TIMER_DESTROY(sign_timer);
     SC_TIMER_DESTROY(verify_timer);
+    utils_crypto_hash_destroy(hash);
     prng_destroy(prng_ctx);
     return EXIT_SUCCESS;
 
@@ -284,6 +285,7 @@ error_return:
     SC_TIMER_DESTROY(keygen_timer);
     SC_TIMER_DESTROY(sign_timer);
     SC_TIMER_DESTROY(verify_timer);
+    utils_crypto_hash_destroy(hash);
     prng_destroy(prng_ctx);
     safecrypto_destroy(sc);
     return EXIT_FAILURE;

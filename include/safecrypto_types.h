@@ -298,7 +298,9 @@ GENERATE_ENUM(sc_ake_e, AKE_LIST, SC_AKE_MAX);
     m(SC_SCHEME_SIG_DILITHIUM_G) \
     m(SC_SCHEME_KEM_KYBER) \
     m(SC_SCHEME_ENC_KYBER_CPA) \
-    m(SC_SCHEME_ENC_KYBER_HYBRID)
+    m(SC_SCHEME_ENC_KYBER_HYBRID) \
+    m(SC_SCHEME_DH_ECDH) \
+    m(SC_SCHEME_SIG_ECDSA)
 
 /// An enumerated type for the choice of scheme
 GENERATE_ENUM(sc_scheme_e, SCHEME_LIST, SC_SCHEME_MAX);
@@ -351,7 +353,7 @@ typedef struct _sc_statistics {
 #if 0
     sc_stat_coding_t *components[6];
 #else
-    sc_stat_coding_t components[6][5];
+    sc_stat_coding_t components[6][6];
 #endif
 } SC_STRUCT_PACKED sc_statistics_t;
 SC_STRUCT_PACK_END

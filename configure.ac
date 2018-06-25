@@ -5,6 +5,7 @@
 AC_PREREQ([2.69])
 
 AC_INIT([SAFEcrypto], m4_esyscmd([tr -d '\n' < version]), [n.smyth@qub.ac.uk])
+AC_CONFIG_AUX_DIR([.])
 
 # Version-info specifications.  Update the table below for ANY change of version number.
 #
@@ -759,7 +760,7 @@ fi
 AC_ARG_ENABLE([sig_dilithium_g],
     AC_HELP_STRING([--enable-sig-dilithium-g], [Enable support for the Dilithium Signature scheme (default: enable)]),
     [enable_sig_dilithium_g=$enableval],
-    [enable_sig_dilithium_g=$enable_signatures])
+    [enable_sig_dilithium_g=no])
 AM_CONDITIONAL([WITH_DILITHIUM_G_SIG], [test "x${enable_sig_dilithium_g}" = "xyes"])
 if test "x${enable_sig_dilithium_g}" = "xno"; then
     AC_SUBST([AM_CPPFLAGS], ["$AM_CPPFLAGS -DDISABLE_SIG_DILITHIUM_G"])
@@ -825,6 +826,25 @@ AM_CONDITIONAL([WITH_DLP_IBE], [test "x${enable_ibe_dlp}" = "xyes"])
 AM_CONDITIONAL([WITH_DLP_SIG], [test "x${enable_sig_dlp}" = "xyes"])
 AM_CONDITIONAL([WITH_ENS_SIG], [test "x${enable_sig_ens}" = "xyes"])
 AM_CONDITIONAL([BUILD_DLP_ENS_SIG], [test "x${enable_sig_ens}" = "xyes" || test "x${enable_sig_dlp}" = "xyes"])
+
+AC_ARG_ENABLE([kem_ecdh],
+    AC_HELP_STRING([--enable-kem-ecdh], [Enable support for ECDH (default: enable)]),
+    [enable_kem_ecdh=$enableval],
+    [enable_kem_ecdh=$enable_kem])
+AM_CONDITIONAL([WITH_ECDH_KEM], [test "x${enable_kem_ecdh}" = "xyes"])
+if test "x${enable_kem_ecdh}" = "xno"; then
+    AC_SUBST([AM_CPPFLAGS], ["$AM_CPPFLAGS -DDISABLE_KEM_ECDH"])
+fi
+
+AC_ARG_ENABLE([sig_ecdsa],
+    AC_HELP_STRING([--enable-sig-ecdsa], [Enable support for ECDSA (default: enable)]),
+    [enable_sig_ecdsa=$enableval],
+    [enable_sig_ecdsa=$enable_signatures])
+AM_CONDITIONAL([WITH_ECDSA_SIG], [test "x${enable_sig_ecdsa}" = "xyes"])
+if test "x${enable_sig_ecdsa}" = "xno"; then
+    AC_SUBST([AM_CPPFLAGS], ["$AM_CPPFLAGS -DDISABLE_SIG_ECDSA"])
+fi
+
 
 
 # Determine which of the sub-functions are required
@@ -1154,6 +1174,7 @@ AC_CONFIG_FILES([Makefile docs/Doxygen/Makefile \
     src/utils/Makefile \
     src/utils/arith/Makefile \
     src/utils/crypto/Makefile \
+    src/utils/ecc/Makefile \
     src/utils/sampling/Makefile \
     src/utils/entropy/Makefile \
     src/unit/crypto/Makefile \
@@ -1178,6 +1199,7 @@ fi
 if test "x${enable_kem}" = "xyes"; then
     AC_CONFIG_FILES([src/schemes/kem/Makefile])
 fi
+AC_CONFIG_FILES([src/schemes/dh/Makefile])
 AC_MSG_NOTICE(enable_kem_kyber = ${enable_kem_kyber})
 if test "x${enable_multithreading}" = "xyes"; then
     AC_CONFIG_FILES([src/utils/threading/Makefile])
@@ -1208,6 +1230,12 @@ if test "x${enable_enc_rlwe}" = "xyes"; then
 fi
 if test "x${enable_kem_ens}" = "xyes"; then
     AC_CONFIG_FILES([src/schemes/kem/ens/Makefile])
+fi
+if test "x${enable_kem_ecdh}" = "xyes"; then
+    AC_CONFIG_FILES([src/schemes/dh/ecdh/Makefile])
+fi
+if test "x${enable_sig_ecdsa}" = "xyes"; then
+    AC_CONFIG_FILES([src/schemes/sig/ecdsa/Makefile])
 fi
 
 #AC_CONFIG_SUBDIRS([src/utils/crypto])

@@ -47,7 +47,7 @@ sc_ulimb_t sc_mpz_get_ui(const sc_mpz_t *in);
 sc_slimb_t sc_mpz_get_si(const sc_mpz_t *in);
 DOUBLE sc_mpz_get_d(const sc_mpz_t *in);
 sc_ulimb_t sc_mpz_get_ui_mod(const sc_mpz_t *a, const sc_mod_t *mod);
-SINT32 sc_mpz_get_bytes(UINT8 *out, const sc_mpz_t *in);
+SINT32 sc_mpz_get_bytes(UINT8 *out, const sc_mpz_t *in, size_t n);
 sc_ulimb_t * sc_mpz_get_limbs(const sc_mpz_t *in);
 SINT32 sc_mpz_get_size(const sc_mpz_t *in);
 void sc_mpz_set_ui(sc_mpz_t *inout, sc_ulimb_t value);
@@ -97,6 +97,7 @@ void sc_mpz_add(sc_mpz_t *out, const sc_mpz_t *in1, const sc_mpz_t *in2);
 void sc_mpz_add_ui(sc_mpz_t *out, const sc_mpz_t *in1, sc_ulimb_t in2);
 void sc_mpz_sub(sc_mpz_t *out, const sc_mpz_t *in1, const sc_mpz_t *in2);
 void sc_mpz_sub_ui(sc_mpz_t *out, const sc_mpz_t *in1, sc_ulimb_t in2);
+void sc_mpz_sqr(sc_mpz_t *out, const sc_mpz_t *in);
 void sc_mpz_mul(sc_mpz_t *out, const sc_mpz_t *in1, const sc_mpz_t *in2);
 void sc_mpz_mul_scalar(sc_mpz_t *inout, const sc_mpz_t *in);
 void sc_mpz_mul_ui(sc_mpz_t *out, const sc_mpz_t *in1, const sc_ulimb_t in2);
@@ -111,6 +112,7 @@ void sc_mpz_subsqr(sc_mpz_t *inout, const sc_mpz_t *in);
 void sc_mpz_div(sc_mpz_t *q, sc_mpz_t *r, const sc_mpz_t *n, const sc_mpz_t *d);
 void sc_mpz_divrem(sc_mpz_t *r, const sc_mpz_t *n, const sc_mpz_t *d);
 void sc_mpz_divquo(sc_mpz_t *q, const sc_mpz_t *n, const sc_mpz_t *d);
+void sc_mpz_divquo_2exp(sc_mpz_t *q, const sc_mpz_t *n, size_t exp);
 /// @}
 
 /// Compute the square root
@@ -118,6 +120,10 @@ void sc_mpz_sqrt(sc_mpz_t *out, const sc_mpz_t *in);
 
 /// Compute 'in' to the power of the unsigned limb exp
 void sc_mpz_pow_ui(sc_mpz_t *out, const sc_mpz_t *in, sc_ulimb_t exp);
+
+/// Compute 'in' modulo m using Barrett Reduction
+void sc_mpz_mod_barrett(sc_mpz_t *out, const sc_mpz_t *in, const sc_mpz_t *m,
+	size_t k, const sc_mpz_t *mu);
 
 /// Compute 'in' modulo m
 void sc_mpz_mod(sc_mpz_t *out, const sc_mpz_t *in, const sc_mpz_t *m);

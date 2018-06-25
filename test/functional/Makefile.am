@@ -84,12 +84,22 @@ TESTS                   += func_alg_dlp_sig \
                            func_alg_dlp_sig_recovery_huffman
 endif WITH_DLP_SIG
 
-if BUILD_DILITHIUM
-TESTS                   += func_alg_dilithium \
-                           func_alg_dilithium_g \
-                           func_alg_dilithium_huffman \
+if WITH_DILITHIUM_SIG
+TESTS                   += func_alg_dilithium
+endif WITH_DILITHIUM_SIG
+
+if WITH_DILITHIUM_G_SIG
+TESTS                   += func_alg_dilithium_g \
                            func_alg_dilithium_g_huffman
-endif BUILD_DILITHIUM
+endif WITH_DILITHIUM_G_SIG
+
+if WITH_ECDH_KEM
+TESTS                   += func_alg_ecdh
+endif WITH_ECDH_KEM
+
+if WITH_ECDSA_SIG
+TESTS                   += func_alg_ecdsa
+endif WITH_ECDSA_SIG
 
 noinst_PROGRAMS          = $(TESTS)
 
@@ -177,15 +187,10 @@ if WITH_DILITHIUM_SIG
 func_alg_dilithium_SOURCES           = func_alg_dilithium.c \
                                        $(top_srcdir)/include/safecrypto.h
 func_alg_dilithium_LDADD             = $(top_builddir)/libs/libsafecrypto.la -lm
-func_alg_dilithium_CFLAGS            = -DUSE_HUFFMAN_STATIC_ENTROPY
 func_alg_dilithium_LDFLAGS           = -static
+endif
 
-func_alg_dilithium_huffman_SOURCES   = func_alg_dilithium.c \
-                                       $(top_srcdir)/include/safecrypto.h
-func_alg_dilithium_huffman_LDADD     = $(top_builddir)/libs/libsafecrypto.la -lm
-func_alg_dilithium_huffman_CFLAGS    = -DUSE_HUFFMAN_STATIC_ENTROPY
-func_alg_dilithium_huffman_LDFLAGS   = -static
-
+if WITH_DILITHIUM_G_SIG
 func_alg_dilithium_g_SOURCES         = func_alg_dilithium_g.c \
                                        $(top_srcdir)/include/safecrypto.h
 func_alg_dilithium_g_LDADD           = $(top_builddir)/libs/libsafecrypto.la -lm
@@ -341,7 +346,21 @@ endif WITH_ENS_KEM
 
 func_signatures_schemes_SOURCES      = func_signatures_schemes.c \
                                        $(top_srcdir)/include/safecrypto.h
-func_signatures_schemes_LDADD        =  $(top_builddir)/libs/libsafecrypto.la -lm
+func_signatures_schemes_LDADD        = $(top_builddir)/libs/libsafecrypto.la -lm
 func_signatures_schemes_LDFLAGS      = -static
+
+if WITH_ECDH_KEM
+func_alg_ecdh_SOURCES                = func_alg_ecdh.c \
+                                       $(top_srcdir)/include/safecrypto.h
+func_alg_ecdh_LDADD                  = $(top_builddir)/libs/libsafecrypto.la -lm
+func_alg_ecdh_LDFLAGS                = -static
+endif WITH_ECDH_KEM
+
+if WITH_ECDSA_SIG
+func_alg_ecdsa_SOURCES               = func_alg_ecdsa.c \
+                                       $(top_srcdir)/include/safecrypto.h
+func_alg_ecdsa_LDADD                 = $(top_builddir)/libs/libsafecrypto.la -lm
+func_alg_ecdsa_LDFLAGS               = -static
+endif WITH_ECDSA_SIG
 
 endif

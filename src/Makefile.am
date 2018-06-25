@@ -46,6 +46,7 @@ __top_builddir__libs_libsafecrypto_la_SOURCES = \
 DEFAULT_LIBS             = schemes/helloworld/libhelloworld.la \
                            utils/arith/libarith.la \
                            utils/crypto/libcrypto.la \
+                           utils/ecc/libecc.la \
                            utils/sampling/libsampling.la \
                            utils/entropy/libentropy.la
 
@@ -91,6 +92,14 @@ endif BUILD_DLP_ENS_SIG
 if WITH_DLP_IBE
 OPTIONAL_LIBS           += schemes/ibe/dlp/libibe.la
 endif WITH_DLP_IBE
+
+if WITH_ECDH_KEM
+OPTIONAL_LIBS           += schemes/dh/ecdh/libecdh.la
+endif WITH_ECDH_KEM
+
+if WITH_ECDSA_SIG
+OPTIONAL_LIBS           += schemes/sig/ecdsa/libecdsa.la
+endif WITH_ECDSA_SIG
 
 # Add references to algorithm libraries here
 __top_builddir__libs_libsafecrypto_la_LIBADD  = $(DEFAULT_LIBS) $(OPTIONAL_LIBS)

@@ -105,17 +105,17 @@ static SINT32 discard_sample(prng_ctx_t *csprng, UINT32 thresh)
 
 static SINT32 shuffle_sample_vector_16(const utils_sampling_t *sampling, SINT16 *v, size_t n, SINT32 centre)
 {
-   size_t i, j;
+   SINT32 i, j;
    void *gauss     = sampling->gauss;
    prng_ctx_t *ctx = sampling->prng_ctx;
    UINT32 thresh   = set_threshold(sampling->discard);
 
     v[0] = sampling->sample(gauss);
     for (i=1; i<n; i++) {
+        SINT32 cond;
         j = rand_range(ctx, i);
-        if (j != i) {
-            v[i] = v[j];
-        }
+        cond = (-(i ^ j) >> 31) & 1;
+        v[i] = cond * v[j] + (1 ^ cond) * v[i];
         v[j] = sampling->sample(gauss) + centre;
         i   -= discard_sample(ctx, thresh);
     }
@@ -132,10 +132,10 @@ static SINT32 shuffle_sample_vector_32(const utils_sampling_t *sampling, SINT32 
 
     v[0] = sampling->sample(gauss);
     for (i=1; i<n; i++) {
+        SINT32 cond;
         j = rand_range(ctx, i);
-        if (j != i) {
-            v[i] = v[j];
-        }
+        cond = (-(i ^ j) >> 31) & 1;
+        v[i] = cond * v[j] + (1 ^ cond) * v[i];
         v[j] = sampling->sample(gauss) + centre;
         i   -= discard_sample(ctx, thresh);
     }

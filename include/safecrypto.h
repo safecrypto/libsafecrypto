@@ -111,8 +111,8 @@ extern "C" {
 /// Word 2:
 /// @{
 #define SC_FLAG_2_SAMPLE_SCA_DISCARD_LO      0x00000001  ///< Enable discarding Gaussian samples at a low rate (6.25%)
-#define SC_FLAG_2_SAMPLE_SCA_DISCARD_MD      0x00000002  ///< Enable discarding Gaussian samples at a low rate (12.5%)
-#define SC_FLAG_2_SAMPLE_SCA_DISCARD_HI      0x00000003  ///< Enable discarding Gaussian samples at a low rate (25%)
+#define SC_FLAG_2_SAMPLE_SCA_DISCARD_MD      0x00000002  ///< Enable discarding Gaussian samples at a medium rate (12.5%)
+#define SC_FLAG_2_SAMPLE_SCA_DISCARD_HI      0x00000003  ///< Enable discarding Gaussian samples at a high rate (25%)
 #define SC_FLAG_2_SAMPLE_CACHE_ACCESS        0x00000004  ///< Enable random cache access of any Gaussian sample LUT
 #define SC_FLAG_2_SAMPLE_NON_CT_MASK         0x00000008  ///< Enable the masking of non-constant time Gaussian sampling
 #define SC_FLAG_2_SAMPLE_SCA_SHUFFLE         0x00000010  ///< Enable Gaussian shuffling countermeasures
@@ -693,6 +693,13 @@ extern sc_hash_e safecrypto_hash_type(safecrypto_hash_t *hash);
  *  @return Returns the length of the message digest (in bytes), or 0 if failure
  */
 extern size_t safecrypto_hash_length(safecrypto_hash_t *hash);
+
+/** @brief Create a copy of the hash context
+ *
+ *  @param hash A pointer to the hash struct
+ *  @return Returns a new hash context on the heap
+ */
+extern safecrypto_hash_t * safecrypto_hash_make_copy(safecrypto_hash_t *hash);
 
 /** @brief The common hash API function used to initialise
  *

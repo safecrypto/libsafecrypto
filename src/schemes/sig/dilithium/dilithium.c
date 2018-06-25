@@ -69,6 +69,12 @@
 #define NUM_TEMP_DILITHIUM_G_RINGS  (10*k + 2*l + 4)
 #endif
 
+#if defined(USE_DETERMINISTIC_DILITHIUM)
+#define NUM_DILITHIUM_PRIVKEY_SECRET_BYTES    (32 + 32 + 48)
+#else
+#define NUM_DILITHIUM_PRIVKEY_SECRET_BYTES    (32)
+#endif
+
 
 SINT32 dilithium_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
 {
@@ -77,7 +83,7 @@ SINT32 dilithium_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
     }
 
     // Configure the statistics resources - these are free at the interface layer
-    if (SC_FUNC_FAILURE == sc_init_stats(sc, 2, 4, 3, 0, 0, 0)) {
+    if (SC_FUNC_FAILURE == sc_init_stats(sc, 3, 5, 4, 0, 0, 0)) {
         return SC_FUNC_FAILURE;
     }
 
@@ -326,7 +332,7 @@ SINT32 dilithium_destroy(safecrypto_t *sc)
 
     // Free all resources associated with key-pair and signature
     if (sc->privkey->key) {
-        SC_FREE(sc->privkey->key, (NUM_DILITHIUM_PRIVKEY_K*k + l) * n * sizeof(SINT32) + 32 * sizeof(UINT8));
+        SC_FREE(sc->privkey->key, (NUM_DILITHIUM_PRIVKEY_K*k + l) * n * sizeof(SINT32) + NUM_DILITHIUM_PRIVKEY_SECRET_BYTES * sizeof(UINT8));
         sc->privkey->len = 0;
     }
     if (sc->pubkey->key) {
@@ -414,6 +420,9 @@ SINT32 dilithium_privkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len
     UINT32 n, k, l, q_bits, eta_bits;
     SINT32 *privkey, *s1, *s2, *t;
     UINT8 *rho;
+#ifdef USE_DETERMINISTIC_DILITHIUM
+    UINT8 *K, *tr;
+#endif
 #ifdef DILITHIUM_STORE_T_RESIDUALS
     SINT32 *t1, *t0;
     UINT32 q, d;
@@ -435,10 +444,12 @@ SINT32 dilithium_privkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len
 #endif
 
     if (sc->privkey->key) {
-        SC_FREE(sc->privkey->key, (NUM_DILITHIUM_PRIVKEY_K*k + l) * n * sizeof(SINT32) + 32 * sizeof(UINT8));
+        SC_FREE(sc->privkey->key, (NUM_DILITHIUM_PRIVKEY_K*k + l) * n * sizeof(SINT32) +
+            NUM_DILITHIUM_PRIVKEY_SECRET_BYTES * sizeof(UINT8));
     }
     if (NULL == sc->privkey->key) {
-        sc->privkey->key = SC_MALLOC((NUM_DILITHIUM_PRIVKEY_K*k + l) * n * sizeof(SINT32) + 32 * sizeof(UINT8));
+        sc->privkey->key = SC_MALLOC((NUM_DILITHIUM_PRIVKEY_K*k + l) * n * sizeof(SINT32) +
+            NUM_DILITHIUM_PRIVKEY_SECRET_BYTES * sizeof(UINT8));
         if (NULL == sc->privkey->key) {
             SC_LOG_ERROR(sc, SC_NULL_POINTER);
             return SC_FUNC_FAILURE;
@@ -455,8 +466,12 @@ SINT32 dilithium_privkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len
     t0      = t1 + k * n;
 #endif
     rho     = (UINT8*)(privkey + (NUM_DILITHIUM_PRIVKEY_K*k + l) * n);
+#ifdef USE_DETERMINISTIC_DILITHIUM
+    K       = rho + 32;
+    tr      = K + 32;
+#endif
     sc_packer_t *packer = utils_entropy.pack_create(sc, &sc->coding_priv_key,
-        ((eta_bits + 1) * (l + k) + q_bits * k) * n + 32*8, key, key_len, NULL, 0);
+        ((eta_bits + 1) * (l + k) + q_bits * k) * n + NUM_DILITHIUM_PRIVKEY_SECRET_BYTES*8, key, key_len, NULL, 0);
     if (NULL == packer) {
         return SC_FUNC_FAILURE;
     }
@@ -476,6 +491,16 @@ SINT32 dilithium_privkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len
     // rho
     entropy_poly_decode_8(packer, 32, rho, 8,
         UNSIGNED_COEFF, SC_ENTROPY_NONE, 0);
+
+#ifdef USE_DETERMINISTIC_DILITHIUM
+    // K
+    entropy_poly_decode_8(packer, 32, K, 8,
+        UNSIGNED_COEFF, SC_ENTROPY_NONE, 0);
+
+    // tr
+    entropy_poly_decode_8(packer, 48, tr, 8,
+        UNSIGNED_COEFF, SC_ENTROPY_NONE, 0);
+#endif
 
     utils_entropy.pack_destroy(&packer);
     sc->privkey->len = n;
@@ -508,7 +533,11 @@ SINT32 dilithium_privkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len
     SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Loaded privkey s2", s2, k*n);
     SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Loaded privkey t", t, k*n);
     SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "Loaded privkey rho", rho, 32);
-    SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "Loaded privkey stream", (UINT8*)privkey, (NUM_DILITHIUM_PRIVKEY_K*k + l) * n * sizeof(SINT32) + 32);
+#ifdef USE_DETERMINISTIC_DILITHIUM
+    SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "Loaded privkey K", K, 32);
+    SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "Loaded privkey tr", tr, 48);
+#endif
+    SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "Loaded privkey stream", (UINT8*)privkey, (NUM_DILITHIUM_PRIVKEY_K*k + l) * n * sizeof(SINT32) + NUM_DILITHIUM_PRIVKEY_SECRET_BYTES);
 
     return SC_FUNC_SUCCESS;
 }
@@ -587,7 +616,7 @@ SINT32 dilithium_privkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
     size_t i;
     UINT32 n, q_bits, eta_bits, l, k;
     SINT32 *privkey;
-    const UINT8 *rho;
+    const UINT8 *rho, *K, *tr;
 
     if (NULL == sc || NULL == key) {
         SC_LOG_ERROR(sc, SC_NULL_POINTER);
@@ -602,6 +631,10 @@ SINT32 dilithium_privkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
 
     privkey  = (SINT32 *) sc->privkey->key;
     rho      = (const UINT8*)(privkey + (NUM_DILITHIUM_PRIVKEY_K*k + l) * n);
+#ifdef USE_DETERMINISTIC_DILITHIUM
+    K   = rho + 32;
+    tr  = K + 32;
+#endif
     SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Encoded privkey s1", privkey, l*n);
     SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Encoded privkey s2", privkey + l*n, k*n);
     SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Encoded privkey t", privkey + (k+l)*n, k*n);
@@ -610,6 +643,10 @@ SINT32 dilithium_privkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
     SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Encoded privkey t0", privkey + (3*k+l)*n, k*n);
 #endif
     SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "Encoded privkey rho", rho, 32);
+#ifdef USE_DETERMINISTIC_DILITHIUM
+    SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "Encoded privkey K", K, 32);
+    SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "Encoded privkey tr", tr, 48);
+#endif
     SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "Encoded privkey stream",
         (UINT8*)privkey, (NUM_DILITHIUM_PRIVKEY_K*k + l) * n * sizeof(SINT32) + 32);
 
@@ -619,13 +656,19 @@ SINT32 dilithium_privkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
     sc->stats.components[SC_STAT_PRIV_KEY][1].bits += (eta_bits + 1) * k * n;
     sc->stats.components[SC_STAT_PRIV_KEY][2].bits += q_bits * k * n;
     sc->stats.components[SC_STAT_PRIV_KEY][3].bits += 32*8;
-    sc->stats.components[SC_STAT_PRIV_KEY][4].bits += ((eta_bits + 1) * (l + k) + q_bits * k) * n + 32*8;
+#ifdef USE_DETERMINISTIC_DILITHIUM
+    sc->stats.components[SC_STAT_PRIV_KEY][4].bits += 32*8;
+    sc->stats.components[SC_STAT_PRIV_KEY][5].bits += 48*8;
+    sc->stats.components[SC_STAT_PRIV_KEY][6].bits += ((eta_bits + 1) * (l + k) + q_bits * k) * n + 32*8 + 32*8 + 48*8;
+#else
+    sc->stats.components[SC_STAT_PRIV_KEY][6].bits += ((eta_bits + 1) * (l + k) + q_bits * k) * n + 32*8;
+#endif
 
     SINT32 *temp = privkey;
 
     // Create a bit packer to compress the public key
     sc_packer_t *packer = utils_entropy.pack_create(sc, &sc->coding_priv_key,
-        ((eta_bits + 1) * (l + k) + q_bits * k) * n + 32*8, NULL, 0, key, key_len);
+        ((eta_bits + 1) * (l + k) + q_bits * k) * n + NUM_DILITHIUM_PRIVKEY_SECRET_BYTES*8, NULL, 0, key, key_len);
     if (NULL == packer) {
         SC_LOG_ERROR(sc, SC_NULL_POINTER);
         return SC_FUNC_FAILURE;
@@ -651,11 +694,23 @@ SINT32 dilithium_privkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
         UNSIGNED_COEFF, SC_ENTROPY_NONE, 0,
         &sc->stats.components[SC_STAT_PRIV_KEY][3].bits_coded);
 
+#ifdef USE_DETERMINISTIC_DILITHIUM
+    // K
+    entropy_poly_encode_8(packer, 32, K, 8,
+        UNSIGNED_COEFF, SC_ENTROPY_NONE, 0,
+        &sc->stats.components[SC_STAT_PRIV_KEY][4].bits_coded);
+
+    // tr
+    entropy_poly_encode_8(packer, 48, tr, 8,
+        UNSIGNED_COEFF, SC_ENTROPY_NONE, 0,
+        &sc->stats.components[SC_STAT_PRIV_KEY][5].bits_coded);
+#endif
+
     // Extract the buffer with the public key and release the packer resources
     utils_entropy.pack_get_buffer(packer, key, key_len);
     utils_entropy.pack_destroy(&packer);
 
-    sc->stats.components[SC_STAT_PRIV_KEY][4].bits_coded += *key_len * 8;
+    sc->stats.components[SC_STAT_PRIV_KEY][6].bits_coded += *key_len * 8;
 
     return SC_FUNC_SUCCESS;
 }
@@ -701,7 +756,7 @@ SINT32 dilithium_keygen(safecrypto_t *sc)
 #endif
     SINT32 *t, *s1, *s2, *c, *temp, *pk;
     UINT32 n, q, q_bits, eta, eta_bits, l, k, d;
-    UINT8 rho[32];
+    UINT8 *rho, *K, *tr;
 
 #ifdef DILITHIUM_STORE_T_RESIDUALS
     SINT32 *t1, *t0;
@@ -733,7 +788,7 @@ SINT32 dilithium_keygen(safecrypto_t *sc)
 
     // Allocate key pair memory
     if (NULL == sc->privkey->key) {
-        sc->privkey->key = SC_MALLOC((NUM_DILITHIUM_PRIVKEY_K * k + l) * n * sizeof(SINT32) + 32 * sizeof(UINT8));
+        sc->privkey->key = SC_MALLOC((NUM_DILITHIUM_PRIVKEY_K * k + l) * n * sizeof(SINT32) + (32 + 32 + 48) * sizeof(UINT8));
         if (NULL == sc->privkey->key) {
             SC_LOG_ERROR(sc, SC_NULL_POINTER);
             goto finish_free;
@@ -743,20 +798,27 @@ SINT32 dilithium_keygen(safecrypto_t *sc)
     if (NULL == sc->pubkey->key) {
         sc->pubkey->key = SC_MALLOC(k * n * sizeof(SINT32) + 32 * sizeof(UINT8));
         if (NULL == sc->pubkey->key) {
-            SC_FREE(sc->privkey->key, (NUM_DILITHIUM_PRIVKEY_K * k + l) * n * sizeof(SINT32) + 32 * sizeof(UINT8));
+            SC_FREE(sc->privkey->key, (NUM_DILITHIUM_PRIVKEY_K * k + l) * n * sizeof(SINT32) + (32 + 32 + 48) * sizeof(UINT8));
             SC_LOG_ERROR(sc, SC_NULL_POINTER);
             goto finish_free;
         }
     }
 
-    s1 = sc->privkey->key;
-    s2 = s1 + l * n;
-    t  = s2 + k * n;
+    s1  = sc->privkey->key;
+    s2  = s1 + l * n;
+    t   = s2 + k * n;
 #ifdef DILITHIUM_STORE_T_RESIDUALS
-    t1 = t  + k * n;
-    t0 = t1 + k * n;
+    t1  = t  + k * n;
+    t0  = t1 + k * n;
+    rho = (UINT8*)(t0 + k * n);
+#else
+    rho = (UINT8*)(t + k * n);
 #endif
-    pk = sc->pubkey->key;
+#ifdef USE_DETERMINISTIC_DILITHIUM
+    K   = rho + 32;
+    tr  = K + 32;
+#endif
+    pk  = sc->pubkey->key;
 
     const SINT32 *ntt_w = sc->dilithium->params->w;
     const SINT32 *ntt_r = sc->dilithium->params->r;
@@ -771,6 +833,11 @@ restart:
 
     // Generate a 256 bit random byte array to be used to seed a CSPRNG.
     prng_mem(sc->prng_ctx[0], rho, 32);
+
+#ifdef USE_DETERMINISTIC_DILITHIUM
+    // Generate a 256 bit random byte array as part of the private key used for deterministic signatures
+    prng_mem(sc->prng_ctx[0], K, 32);
+#endif
 
     // Generate s1 and s2 from a uniform random distribution with values of
     // -eta to +eta inclusive.
@@ -854,6 +921,15 @@ restart:
     SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "t1", pk, k * n);
 #endif
 
+#ifdef USE_DETERMINISTIC_DILITHIUM
+    // Create tr (associated with the private key) for use in deterministic signature generation.
+    // tr is formed from the 32 bytes of rho and the bit packed representation of t1.
+    collision_resistant_hash_t1(sc, rho, pk, n, k, q_bits - d, tr);
+    SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "rho", rho, 32);
+    SC_PRINT_1D_INT32_HEX(sc, SC_LEVEL_DEBUG, "t1", pk, n*k);
+    SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "KeyGen tr", tr, 48);
+#endif
+
     // Clear the temporary memory resources
     SC_MEMZERO(c, (l + 1) * n * sizeof(SINT32));
 
@@ -861,7 +937,7 @@ restart:
 
 finish_free:
     if (sc->privkey->key) {
-        SC_FREE(sc->privkey->key, (NUM_DILITHIUM_PRIVKEY_K*k + l) * n * sizeof(SINT32) + 32 * sizeof(UINT8));
+        SC_FREE(sc->privkey->key, (NUM_DILITHIUM_PRIVKEY_K*k + l) * n * sizeof(SINT32) + (32 + 32 + 48) * sizeof(UINT8));
     }
     if (sc->pubkey->key) {
         SC_FREE(sc->pubkey->key, k*n * sizeof(SINT32) + 32 * sizeof(UINT8));
@@ -878,6 +954,19 @@ finish_free:
 #endif
 
     return SC_FUNC_FAILURE;
+}
+
+static void dilithium_hash_deterministic(safecrypto_t *sc, const UINT8 *mu, const UINT8 *w1,
+    size_t n, size_t k, UINT8 *md)
+{
+    size_t i, j;
+    UINT8 data[256];
+
+    // Hash the input data to form a fixed length byte string
+    hash_init(sc->hash);
+    hash_update(sc->hash, mu, 32);
+    hash_update(sc->hash, w1, k*n);
+    hash_final(sc->hash, md);
 }
 
 static void dilithium_hash(safecrypto_t *sc, const UINT8 *r, const SINT32 *t1, const UINT8 *w1,
@@ -912,6 +1001,51 @@ static void dilithium_g_hash(safecrypto_t *sc, const UINT8 *r, const SINT32 *t1,
     hash_update(sc->hash, (UINT8*)w1, k*n*sizeof(SINT32));
     hash_update(sc->hash, m, m_len);
     hash_final(sc->hash, md);
+}
+
+// A random oracle that maps the input data that uniquely identifies the
+// message to a polynomial ring.
+static void h_function_deterministic(safecrypto_t *sc, SINT32 *c, const UINT8 *mu,
+    const UINT8 *w1, size_t n, size_t k)
+{
+    SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "mu", mu, 48);
+    SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "w1", w1, k*n);
+
+    const UINT32 q                = sc->dilithium->params->q;
+    const SINT32 q_bits           = sc->dilithium->params->q_bits;
+    const size_t weight_of_c      = sc->dilithium->params->weight_of_c;
+
+#ifdef DILITHIUM_USE_H_FUNC_XOF
+    size_t i, j, x;
+    const size_t num_weight_bytes = (weight_of_c + 7) >> 3;
+    UINT8 signs[num_weight_bytes + weight_of_c];
+
+    utils_crypto_xof_t *h_xof = sc->xof;
+    xof_init(h_xof);
+    xof_absorb(h_xof, mu, 48);
+    xof_absorb(h_xof, w1, k*n);
+    xof_final(h_xof);
+    xof_squeeze(h_xof, signs, num_weight_bytes + weight_of_c);
+    SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "H(mu,w1)", signs, num_weight_bytes + weight_of_c);
+
+    // Generate the output coefficients for the spare polynomial
+    kyber_oracle_core(n, weight_of_c, c, num_weight_bytes, signs);
+#else
+    UINT8 md[64];
+
+    // Hash the input data to form a fixed length byte string
+    dilithium_hash_deterministic(sc, mu, w1, n, k, md);
+    SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "H(mu,w1)", md, sc->hash->length);
+
+    // Use the byte string to generate a unique ring polynomial of n elements
+#ifdef DILITHIUM_USE_CSPRNG_SAM
+    kyber_oracle_csprng(sc, n, q, q_bits, weight_of_c, md, sc->hash->length, c);
+#else
+    kyber_oracle_xof(sc, n, q, q_bits, weight_of_c, md, sc->hash->length, c);
+#endif
+#endif
+
+    SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "c", c, n);
 }
 
 // A random oracle that maps the input data that uniquely identifies the
@@ -1245,6 +1379,18 @@ static void sparse_mul_mod_q_ring(SINT32 *r, const SINT32 *a, const SINT32 *b_sp
     }
 }
 
+static SINT32 check_hint_ones(const SINT32 *h, size_t k, size_t n)
+{
+    size_t i;
+    SINT32 sum = 0;
+
+    for (i=0; i<k*n; i++) {
+        sum += h[i];
+    }
+
+    return sum;
+}
+
 SINT32 dilithium_sign(safecrypto_t *sc, const UINT8 *m, size_t m_len,
     UINT8 **sigret, size_t *siglen)
 {
@@ -1267,6 +1413,11 @@ SINT32 dilithium_sign(safecrypto_t *sc, const UINT8 *m, size_t m_len,
     const UINT8 *r;
     const SINT32 *privkey;
     SINT32 num_ones = 0;
+#ifdef USE_DETERMINISTIC_DILITHIUM
+    UINT8 mu[48], *tr, *K;
+    UINT16 kappa = 0;
+#endif
+
 
     if (NULL == sc) {
         SC_LOG_ERROR(sc, SC_NULL_POINTER);
@@ -1326,6 +1477,11 @@ SINT32 dilithium_sign(safecrypto_t *sc, const UINT8 *m, size_t m_len,
         ct0      = z + l*n;
         wcs2     = ct0 + k*n;
         w1_bytes = (UINT8*)(wcs2 + k*n);
+
+#ifdef USE_DETERMINISTIC_DILITHIUM
+        K        = (UINT8*)(privkey + (NUM_DILITHIUM_PRIVKEY_K*k + l) * n) + 32;
+        tr       = K + 32;
+#endif
     }
     else {
         temp     = c + n;
@@ -1378,12 +1534,28 @@ SINT32 dilithium_sign(safecrypto_t *sc, const UINT8 *m, size_t m_len,
     SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "t1", t1, k * n);
     SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "t0", t0, k * n);
 
+#ifdef USE_DETERMINISTIC_DILITHIUM
+    collision_resistant_hash_message(tr, m, m_len, mu);
+    SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "tr", tr, 48);
+    SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "m", m, m_len);
+    SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "Signature mu", mu, 48);
+#endif
+
+
 restart:
     SC_PRINT_DEBUG(sc, "RESTARTING SIGNATURE");
 
     // Statistics
     sc->stats.sig_num_trials++;
 
+#ifdef USE_DETERMINISTIC_DILITHIUM
+    // Generate y from the deterministic ExpandMask function
+    expand_mask(K, mu, kappa, gamma_1, q, l, n, y);
+    SC_PRINT_DEBUG(sc, "kappa = %d", kappa);
+    SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "K", K, 32);
+    SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "mu", mu, 48);
+    SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "y", y, l * n);
+#else
     if (SC_SCHEME_SIG_DILITHIUM == sc->scheme) {
         // Generate y from a uniform random distribution with -(gamma_1-1) to
         // +(gamma_1-1) inclusive.
@@ -1396,6 +1568,7 @@ restart:
         SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "y1", y1, l * n);
         SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "y2", y2, k * n);
     }
+#endif
 
     // Generate a 512 bit random byte array and use it to seed a CSPRNG/XOF
 #ifdef DILITHIUM_USE_CSPRNG_SAM
@@ -1436,9 +1609,15 @@ restart:
         high_order_bits(w1_bytes, w, n, k, ntt, ntt_alpha);
         SC_PRINT_1D_UINT8(sc, SC_LEVEL_DEBUG, "w1", w1_bytes, k*n);
 
+#ifdef USE_DETERMINISTIC_DILITHIUM
+        // Calculate H(mu, w1) such that a sparse polynomial with 60
+        // coefficients have the values 1 or -1
+        h_function_deterministic(sc, c, mu, w1_bytes, n, k);
+#else
         // Calculate H(rho, t1, w1, mu) such that a sparse polynomial with 60
         // coefficients have the values 1 or -1
         h_function(sc, c, r, t1, w1_bytes, m, m_len, n, k);
+#endif
     }
     else {
         // Generate the high order representation of w
@@ -1471,6 +1650,9 @@ restart:
         if (check_norm_inf(z, n, l, q, gamma_1 - beta)) {
             SC_PRINT_DEBUG(sc, "z restart");
             SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "privkey", privkey, l*n);
+#ifdef USE_DETERMINISTIC_DILITHIUM
+            kappa++;
+#endif
             goto restart;
         }
 
@@ -1492,6 +1674,9 @@ restart:
         SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "LowOrderBits_q (w − c*s_2 , 2*gamma_2)", ct0, k*n);
         if (check_norm_inf(ct0, n, k, q, gamma_2 - beta)) {
             SC_PRINT_DEBUG(sc, "w − c*s_2 restart");
+#ifdef USE_DETERMINISTIC_DILITHIUM
+            kappa++;
+#endif
             goto restart;
         }
 
@@ -1511,6 +1696,9 @@ restart:
         SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "c*t0", ct0, k*n);
         if (check_norm_inf(ct0, n, k, q, gamma_2 - beta)) {
             SC_PRINT_DEBUG(sc, "ct0 restart");
+#ifdef USE_DETERMINISTIC_DILITHIUM
+            kappa++;
+#endif
             goto restart;
         }
 
@@ -1527,6 +1715,9 @@ restart:
         // If the number of asserted bits in h is greater than omega then restart
         if (num_ones > sc->dilithium->params->omega) {
             SC_PRINT_DEBUG(sc, "Number of ones restart");
+#ifdef USE_DETERMINISTIC_DILITHIUM
+            kappa++;
+#endif
             goto restart;
         }
     }
@@ -1560,6 +1751,9 @@ restart:
         UINT32 u = prng_var(sc->prng_ctx[0], 1);
         SC_PRINT_DEBUG(sc, "(1/3).exp(-2<z,cs> + ||cs||^2)/(2*sigma^2)) = %f, u = %d\n", exp_value, u);
         if ((DOUBLE)u > exp_value) {
+#ifdef USE_DETERMINISTIC_DILITHIUM
+            kappa++;
+#endif
             goto restart;
         }
 
@@ -1585,6 +1779,9 @@ restart:
         SC_PRINT_DEBUG(sc, "||(z1, z2)|| = %f vs B = %d\n", z1z2_norm, beta);
         //fprintf(stderr, "%f vs %d\n", z1z2_norm, beta);
         if (z1z2_norm >= beta) {
+#ifdef USE_DETERMINISTIC_DILITHIUM
+            kappa++;
+#endif
             goto restart;
         }
 
@@ -1602,13 +1799,111 @@ restart:
 
     sc_ntt->center_32(z, l*n, ntt);
 
+
+#if defined(USE_DETERMINISTIC_DILITHIUM) && defined(USE_DILITHIUM_COUNTERMEASURE_VERIFY_IN_SIGNATURE)
+    if (SC_SCHEME_SIG_DILITHIUM == sc->scheme) {
+        size_t j;
+        SINT32 not_equal;
+
+        // Obtain mu from rho, t1 and the message
+        collision_resistant_hash_t1(sc, r, t1, n, k, q_bits - d, mu);
+        SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "rho", r, 32);
+        SC_PRINT_1D_INT32_HEX(sc, SC_LEVEL_DEBUG, "t1", t1, n*k);
+        SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "tr", mu, 48);
+        collision_resistant_hash_message(mu, m, m_len, mu);
+        SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "m", m, m_len);
+        SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "Verify mu", mu, 48);
+
+        // Verify that the norm of z is less than or equal to gamma_1 - beta
+        if (check_norm_inf(z, n, l, q, gamma_1 - beta)) {
+            SC_PRINT_DEBUG(sc, "||z|| is >= gamma_1 - beta\n");
+            SC_LOG_ERROR(sc, SC_ERROR);
+            goto finish_free;
+        }
+
+        // Verify that the number of ones in the hint is <= omega
+        if (check_hint_ones(h, k, n) > sc->dilithium->params->omega) {
+            goto finish_free;
+        }
+
+        // Create a CSPRNG and generate the kx1 matrix w = A*z mod q
+        SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "Verify r", r, 32);
+#ifdef DILITHIUM_USE_CSPRNG_SAM
+        csprng = create_csprng(sc, r, 32);
+#else
+        xof = sc->xof;
+        xof_init(xof);
+        xof_absorb(xof, r, 32);
+        xof_final(xof);
+#endif
+#ifdef DILITHIUM_USE_CSPRNG_SAM
+        create_rand_product_32_csprng(csprng,
+#else
+        create_rand_product_32_xof(xof,
+#endif
+            q, q_bits, w, z, n, k, l, ct0, wcs2,
+            RND_PRD_DISABLE_OVERWRITE, RND_PRD_NOT_TRANSPOSED,
+            ntt_w, ntt_r, sc_poly, sc_ntt, ntt);
+#ifdef DILITHIUM_USE_CSPRNG_SAM
+        prng_destroy(csprng);
+        csprng = NULL;
+#endif
+        sc_ntt->normalize_32(y, l*n, ntt);
+        SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "y (AFTER create_rand_product())", z, l * n);
+        SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Verify w = A*z", w, k*n);
+
+        // Calculate c * t1 . 2^d
+#ifndef DILITHIUM_USE_SPARSE_MULTIPLIER
+        sc_ntt->fwd_ntt_32_32(ntt_c, ntt, c, ntt_w);
+#endif
+        for (i=0; i<k; i++) {
+            for (j=n; j--;) {
+                t0[n*i + j] = t1[j + n*i] << d;
+            }
+#ifdef DILITHIUM_USE_SPARSE_MULTIPLIER
+            sparse_mul_mod_q_ring(t0 + n*i, t0 + n*i, c, n, ntt, n>>1, temp);
+#else
+            sc_ntt->fwd_ntt_32_32(temp, ntt, t0 + n*i, ntt_w);
+            sc_ntt->mul_32_pointwise(temp, ntt, ntt_c, temp);
+            sc_ntt->inv_ntt_32_32(t0 + n*i, ntt, temp, ntt_w, ntt_r);
+#endif
+        }
+        SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Verify c*t1.2^d", t0, k*n);
+
+        // A*z - c*t1.2^d mod q
+        sc_poly->sub_32(t0, k*n, w, t0);
+        sc_ntt->normalize_32(t0, k*n, ntt);
+        SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Verify A*z - c*t1.2^d", t0, k*n);
+        SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Verify hint", h, k*n);
+
+        // Use the signature hint to recreate w1 from A*z - c*t1.2^d
+        use_hint(w1_bytes, h, t0, n, k, ntt, ntt_alpha);
+        SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "Verify w1", w1_bytes, k*n);
+
+        // Calculate H(mu, w1) such that a sparse polynomial with 60
+        // coefficients have the values 1 or -1
+        h_function_deterministic(sc, temp, mu, w1_bytes, n, k);
+
+        // Check the output of the H function against the received value
+        // in the signature
+        not_equal = sc_poly->cmp_not_equal_32(temp, c, n);
+        if (not_equal) {
+            SC_LOG_ERROR(sc, SC_ERROR);
+            SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Received c was", c, n);
+            goto finish_free;
+        }
+    }
+#endif
+
+
     // Pack the output signature and perform any entropy coding
-    size_t packer_bits;
+    size_t packer_bits, h_bits;
     if (SC_SCHEME_SIG_DILITHIUM_G == sc->scheme) {
         packer_bits = l*n*z_bits + 9*k*n + 2*n;
     }
     else {
-        packer_bits = l*n*z_bits + k*n + 2*n;
+        h_bits      = 8 + ((k + 1) >> 1);
+        packer_bits = l*n*z_bits + omega_bits + num_ones*h_bits + 2*n;
     }
     if (SC_SCHEME_SIG_DILITHIUM_G == sc->scheme) {
         packer_bits += 8 * k*n;
@@ -1632,11 +1927,10 @@ restart:
         sc->stats.components[SC_STAT_SIGNATURE][3].bits += 9*k*n;
     }
     else {
-        size_t h_bits = 8 + ((k + 1) >> 1);
         i = 0;
         utils_entropy.pack_insert(packer, num_ones, omega_bits);
-        sc->stats.components[SC_STAT_SIGNATURE][1].bits += num_ones * h_bits;
-        sc->stats.components[SC_STAT_SIGNATURE][1].bits_coded += num_ones * h_bits;
+        sc->stats.components[SC_STAT_SIGNATURE][1].bits += num_ones * h_bits + omega_bits;
+        sc->stats.components[SC_STAT_SIGNATURE][1].bits_coded += num_ones * h_bits + omega_bits;
         sc->stats.components[SC_STAT_SIGNATURE][3].bits += num_ones * h_bits + omega_bits;
         while (num_ones) {
             if (h[i]) {
@@ -1656,6 +1950,7 @@ restart:
     // Statistics
     sc->stats.sig_num++;
     sc->stats.components[SC_STAT_SIGNATURE][0].bits += l*n*z_bits;
+    //fprintf(stderr, "bits = %d\n", sc->stats.components[SC_STAT_SIGNATURE][0].bits);
     sc->stats.components[SC_STAT_SIGNATURE][2].bits += 2*n;
     sc->stats.components[SC_STAT_SIGNATURE][3].bits_coded += *siglen * 8;
 
@@ -1701,18 +1996,6 @@ SINT32 dilithium_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
 
 #else
 
-static SINT32 check_hint_ones(const SINT32 *h, size_t k, size_t n)
-{
-    size_t i;
-    SINT32 sum = 0;
-
-    for (i=0; i<k*n; i++) {
-        sum += h[i];
-    }
-
-    return sum;
-}
-
 SINT32 dilithium_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
     const UINT8 *sigbuf, size_t siglen)
 {
@@ -1726,6 +2009,10 @@ SINT32 dilithium_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
     UINT8 *w1_bytes;
     UINT32 n, q, q_bits, z_bits, alpha, beta, omega_bits, gamma_1, l, k, d;
     const UINT8 *r;
+#ifdef USE_DETERMINISTIC_DILITHIUM
+    UINT8 mu[48];
+    UINT16 kappa = 0;
+#endif
 
     if (NULL == sc) {
         SC_LOG_ERROR(sc, SC_NULL_POINTER);
@@ -1809,6 +2096,17 @@ SINT32 dilithium_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
     SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Received c", c, n);
 
     if (SC_SCHEME_SIG_DILITHIUM == sc->scheme) {
+#ifdef USE_DETERMINISTIC_DILITHIUM
+        // Obtain mu from rho, t1 and the message
+        collision_resistant_hash_t1(sc, r, t1, n, k, q_bits - d, mu);
+        SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "rho", r, 32);
+        SC_PRINT_1D_INT32_HEX(sc, SC_LEVEL_DEBUG, "t1", t1, n*k);
+        SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "tr", mu, 48);
+        collision_resistant_hash_message(mu, m, m_len, mu);
+        SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "m", m, m_len);
+        SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "Verify mu", mu, 48);
+#endif
+
         // Verify that the norm of z is less than or equal to gamma_1 - beta
         if (check_norm_inf(z, n, l, q, gamma_1 - beta)) {
             SC_PRINT_DEBUG(sc, "||z|| is >= gamma_1 - beta\n");
@@ -1852,6 +2150,7 @@ SINT32 dilithium_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
     prng_destroy(csprng);
     csprng = NULL;
 #endif
+    SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "y (AFTER create_rand_product())", z, l * n);
     SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Verify w = A*z", w, k*n);
 
     // Calculate c * t1 . 2^d
@@ -1883,9 +2182,15 @@ SINT32 dilithium_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
         use_hint(w1_bytes, h, t0, n, k, ntt, ntt_alpha);
         SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "Verify w1", w1_bytes, k*n);
 
+#ifdef USE_DETERMINISTIC_DILITHIUM
+        // Calculate H(mu, w1) such that a sparse polynomial with 60
+        // coefficients have the values 1 or -1
+        h_function_deterministic(sc, temp, mu, w1_bytes, n, k);
+#else
         // Calculate H(rho, t1, w1, mu) such that a sparse polynomial with 60
         // coefficients have the values 1 or -1
         h_function(sc, temp, r, t1, w1_bytes, m, m_len, n, k);
+#endif
     }
     else {
         // Use the signature hint to recreate w1 from A*z - c*t1.2^d
@@ -1940,6 +2245,35 @@ char * dilithium_stats(safecrypto_t *sc)
 {
     static const char* param_set_name[] = {"0", "I", "II", "III", "G-0", "G-I", "G-II", "G-III"};
     static char stats[2048];
+#ifdef USE_DETERMINISTIC_DILITHIUM
+    snprintf(stats, 2047, "\nDilithium Signature (Dilithium-%s):\n\
+Keys           %8" FMT_LIMB " key-pairs  / %8" FMT_LIMB " trials [%.6f trials per key-pair]\n\
+Signatures     %8" FMT_LIMB " signatures / %8" FMT_LIMB " trials [%.6f trials per signature]\n\
+Verifications  %8" FMT_LIMB " passed     / %8" FMT_LIMB " failed\n\n\
+Sampler:                 %s\n\
+PRNG:                    %s\n\
+Oracle Hash:             %s\n\n\
+Public Key compression:  %s\n\
+           Uncoded bits   Coded bits   Compression Ratio\n\
+   t1      %10.2f%13.2f%16.3f%%\n\
+   rho     %10.2f%13.2f%16.3f%%\n\
+   total   %10.2f%13.2f%16.3f%%\n\n\
+Private Key compression: %s\n\
+           Uncoded bits   Coded bits   Compression Ratio\n\
+   s1      %10.2f%13.2f%16.3f%%\n\
+   s2      %10.2f%13.2f%16.3f%%\n\
+   t       %10.2f%13.2f%16.3f%%\n\
+   rho     %10.2f%13.2f%16.3f%%\n\
+   K       %10.2f%13.2f%16.3f%%\n\
+   tr      %10.2f%13.2f%16.3f%%\n\
+   total   %10.2f%13.2f%16.3f%%\n\n\
+Signature compression:   %s\n\
+           Uncoded bits   Coded bits   Compression Ratio\n\
+   z       %10.2f%13.2f%16.3f%%\n\
+   h       %10.2f%13.2f%16.3f%%\n\
+   c       %10.2f%13.2f%16.3f%%\n\
+   total   %10.2f%13.2f%16.3f%%\n\n",
+#else
     snprintf(stats, 2047, "\nDilithium Signature (Dilithium-%s):\n\
 Keys           %8" FMT_LIMB " key-pairs  / %8" FMT_LIMB " trials [%.6f trials per key-pair]\n\
 Signatures     %8" FMT_LIMB " signatures / %8" FMT_LIMB " trials [%.6f trials per signature]\n\
@@ -1965,6 +2299,7 @@ Signature compression:   %s\n\
    h       %10.2f%13.2f%16.3f%%\n\
    c       %10.2f%13.2f%16.3f%%\n\
    total   %10.2f%13.2f%16.3f%%\n\n",
+#endif
         (SC_SCHEME_SIG_DILITHIUM_G == sc->scheme)?
             param_set_name[sc->dilithium->params->set + 4] :
             param_set_name[sc->dilithium->params->set],
@@ -2002,9 +2337,17 @@ Signature compression:   %s\n\
         sc->stats.priv_keys_encoded? (DOUBLE)sc->stats.components[SC_STAT_PRIV_KEY][3].bits/(DOUBLE)sc->stats.priv_keys_encoded : 0,
         sc->stats.priv_keys_encoded? (DOUBLE)sc->stats.components[SC_STAT_PRIV_KEY][3].bits_coded/(DOUBLE)sc->stats.priv_keys_encoded : 0,
         sc->stats.priv_keys_encoded? 100 * (DOUBLE)sc->stats.components[SC_STAT_PRIV_KEY][3].bits_coded/(DOUBLE)sc->stats.components[SC_STAT_PRIV_KEY][3].bits : 0,
+#ifdef USE_DETERMINISTIC_DILITHIUM
         sc->stats.priv_keys_encoded? (DOUBLE)sc->stats.components[SC_STAT_PRIV_KEY][4].bits/(DOUBLE)sc->stats.priv_keys_encoded : 0,
         sc->stats.priv_keys_encoded? (DOUBLE)sc->stats.components[SC_STAT_PRIV_KEY][4].bits_coded/(DOUBLE)sc->stats.priv_keys_encoded : 0,
         sc->stats.priv_keys_encoded? 100 * (DOUBLE)sc->stats.components[SC_STAT_PRIV_KEY][4].bits_coded/(DOUBLE)sc->stats.components[SC_STAT_PRIV_KEY][4].bits : 0,
+        sc->stats.priv_keys_encoded? (DOUBLE)sc->stats.components[SC_STAT_PRIV_KEY][5].bits/(DOUBLE)sc->stats.priv_keys_encoded : 0,
+        sc->stats.priv_keys_encoded? (DOUBLE)sc->stats.components[SC_STAT_PRIV_KEY][5].bits_coded/(DOUBLE)sc->stats.priv_keys_encoded : 0,
+        sc->stats.priv_keys_encoded? 100 * (DOUBLE)sc->stats.components[SC_STAT_PRIV_KEY][5].bits_coded/(DOUBLE)sc->stats.components[SC_STAT_PRIV_KEY][5].bits : 0,
+#endif
+        sc->stats.priv_keys_encoded? (DOUBLE)sc->stats.components[SC_STAT_PRIV_KEY][6].bits/(DOUBLE)sc->stats.priv_keys_encoded : 0,
+        sc->stats.priv_keys_encoded? (DOUBLE)sc->stats.components[SC_STAT_PRIV_KEY][6].bits_coded/(DOUBLE)sc->stats.priv_keys_encoded : 0,
+        sc->stats.priv_keys_encoded? 100 * (DOUBLE)sc->stats.components[SC_STAT_PRIV_KEY][6].bits_coded/(DOUBLE)sc->stats.components[SC_STAT_PRIV_KEY][6].bits : 0,
         sc_entropy_names[(int)sc->coding_signature.type],
         (DOUBLE)sc->stats.components[SC_STAT_SIGNATURE][0].bits/(DOUBLE)sc->stats.sig_num,
         (DOUBLE)sc->stats.components[SC_STAT_SIGNATURE][0].bits_coded/(DOUBLE)sc->stats.sig_num,
