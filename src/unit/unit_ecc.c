@@ -718,8 +718,11 @@ START_TEST(test_ecc_mul_basic_secp521r1)
     fflush(stream);
     memset(result, 0, 8192);
 
-    secret[0] = 0x7246cdca43590e13;
-    secret[1] = 0x00159d893d4cdd74;
+    {
+        uint32_t temp[] = { 0x43590e13, 0x7246cdca, 0x3d4cdd74, 0x00159d89 };
+        memset(secret, 0, sizeof(secret));
+        memcpy(secret, temp, sizeof(temp));
+    }
     scalar_point_mult(param_ec_secp521r1.num_bits, &metadata, &p_base, secret, &point);
     sc_mpz_out_str(stream, 16, &point.x);
     ck_assert_str_eq(result, tv_m_4_x);
@@ -730,15 +733,21 @@ START_TEST(test_ecc_mul_basic_secp521r1)
     fflush(stream);
     memset(result, 0, 8192);
 
-    secret[8] = 0x83;
-    secret[7] = 0xff83fffffc03fff8;
-    secret[6] = 0x0007fffc000f8003;
-    secret[5] = 0xffe00007ffe0fffc;
-    secret[4] = 0x000f8000000007ff;
-    secret[3] = 0xffff00ffff000fff;
-    secret[2] = 0xfff001fffc000000;
-    secret[1] = 0x001c000040000000;
-    secret[0] = 0x3803ffffffcfffff;
+    {
+        uint32_t temp[] = {
+            0xffcfffff, 0x3803ffff,
+            0x40000000, 0x001c0000,
+            0xfc000000, 0xfff001ff,
+            0xff000fff, 0xffff00ff,
+            0x000007ff, 0x000f8000,
+            0xffe0fffc, 0xffe00007,
+            0x000f8003, 0x0007fffc,
+            0xfc03fff8, 0xff83ffff,
+            0x83,
+            };
+        memset(secret, 0, sizeof(secret));
+        memcpy(secret, temp, sizeof(temp));
+    }
     scalar_point_mult(param_ec_secp521r1.num_bits, &metadata, &p_base, secret, &point);
     sc_mpz_out_str(stream, 16, &point.x);
     ck_assert_str_eq(result, tv_m_5_x);
@@ -749,15 +758,21 @@ START_TEST(test_ecc_mul_basic_secp521r1)
     fflush(stream);
     memset(result, 0, 8192);
 
-    secret[8] = 0x1ff;
-    secret[7] = 0xffffffffffffffff;
-    secret[6] = 0xffffffffffffffff;
-    secret[5] = 0xffffffffffffffff;
-    secret[4] = 0xfffffffffffffffa;
-    secret[3] = 0x51868783bf2f966b;
-    secret[2] = 0x7fcc0148f709a5d0;
-    secret[1] = 0x3bb5c9b8899c47ae;
-    secret[0] = 0xbb6fb71e91386408;
+    {
+        uint32_t temp[] = {
+            0x91386408, 0xbb6fb71e,
+            0x899c47ae, 0x3bb5c9b8,
+            0xf709a5d0, 0x7fcc0148,
+            0xbf2f966b, 0x51868783,
+            0xfffffffa, 0xffffffff,
+            0xffffffff, 0xffffffff,
+            0xffffffff, 0xffffffff,
+            0xffffffff, 0xffffffff,
+            0x1ff,
+            };
+        memset(secret, 0, sizeof(secret));
+        memcpy(secret, temp, sizeof(temp));
+    }
     scalar_point_mult(param_ec_secp521r1.num_bits, &metadata, &p_base, secret, &point);
     sc_mpz_out_str(stream, 16, &point.x);
     ck_assert_str_eq(result, tv_m_6_x);
