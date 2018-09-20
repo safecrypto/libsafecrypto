@@ -110,26 +110,31 @@ int main(void)
     SC_TIMER_CREATE(sig_timer);
     SC_TIMER_CREATE(ver_timer);
 
-    for (i=1; i<3; i++) {
-        //if (i == 1) continue;
-
+    for (i=0; i<3; i++) {
+        //if (i == 0) continue; //removing para 0
+        if (i == 1) continue; //removing ternary
+        if (i == 2) continue; //removing para 2
         SC_TIMER_RESET(keygen_timer);
 
         printf("Parameter Set: %d\n", i);;
-#ifdef USE_HUFFMAN_STATIC_ENTROPY
+/*#ifdef USE_HUFFMAN_STATIC_ENTROPY
         UINT32 flags[2] = {SC_FLAG_0_ENTROPY_HUFFMAN, SC_FLAG_NONE};
         sc_entropy_type_e coding = SC_ENTROPY_HUFFMAN_STATIC;
 #else
 #ifdef USE_BAC_ENTROPY
         UINT32 flags[2] = {SC_FLAG_0_ENTROPY_BAC, SC_FLAG_NONE};
         sc_entropy_type_e coding = SC_ENTROPY_BAC;
-#else
-        UINT32 flags[2] = {SC_FLAG_NONE, SC_FLAG_NONE};
+#else*/
+        UINT32 flags[3] = {SC_FLAG_NONE, SC_FLAG_NONE};
         sc_entropy_type_e coding = SC_ENTROPY_NONE;
-#endif
-#endif
-        flags[0] |= SC_FLAG_MORE;
-        flags[1] |= SC_FLAG_1_CSPRNG_AES_CTR_DRBG;
+//#endif
+          flags[0] = SC_FLAG_MORE;
+          flags[1] = SC_FLAG_NONE;
+          //flags[2] = SC_FLAG_2_SAMPLE_SCA_DISCARD_LO;
+          //SC_FLAG_2_SAMPLE_SCA_BLINDING;
+          //SC_FLAG_2_SAMPLE_SCA_SHUFFLE | SC_FLAG_2_SAMPLE_SCA_DISCARD_LO;
+
+
 
         // Create a SAFEcrypto object
         sc = safecrypto_create(SC_SCHEME_SIG_FALCON, i, flags);
@@ -171,7 +176,7 @@ int main(void)
         snprintf(disp_msg, 128, "%-20s", "Sign/Verify");
 
         for (j=0; j<MAX_ITER; j++) {
-            
+
             length = 128;
 
             // Generate a random message
@@ -181,13 +186,13 @@ int main(void)
             SC_TIMER_START(sig_timer);
             siglen = FIXED_BUFFER_SIZE;
             if (SC_FUNC_SUCCESS != safecrypto_sign(sc, message, length, &sig, &siglen)) {
-                fprintf(stderr, "ERROR! safecrypto_sign() failed\n");
-                goto error_return;
+                //fprintf(stderr, "ERROR! safecrypto_sign() failed\n");
+                //goto error_return;
             }
             SC_TIMER_STOP(sig_timer);
 
             // Verify the signature
-            SC_TIMER_START(ver_timer);
+           SC_TIMER_START(ver_timer);
             if ((j & 0x3) == 3) {
                 // Ensure that the last byte (which is potentially partially used) is not corrupted
                 size_t idx = j % siglen;
@@ -290,4 +295,3 @@ error_return:
     return EXIT_FAILURE;
 #endif
 }
-
