@@ -218,6 +218,7 @@ SINT32 falcon_sig_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
     sc->sc_gauss = create_sampler(sc->sampling,
         sc->sampling_precision, sc->blinding, n, SAMPLING_DISABLE_BOOTSTRAP,
         sc->prng_ctx[0], 10.0f, sig);
+set_discard(sc->sc_gauss, sc->pattern & SCA_PATTERN_SAMPLE_DISCARD_MASK);
 
 #ifdef USE_RUNTIME_NTT_TABLES
     // Dynamically allocate memory for the necessary NTT tables
@@ -895,7 +896,7 @@ restart:
         goto finish;
     }
 
-    // Send s1
+    // Send s2
     entropy_poly_encode_32(packer, n, s2, q_bits-2,
         SIGNED_COEFF, sc->coding_signature.type, 3, &sc->stats.components[SC_STAT_SIGNATURE][0].bits_coded);
 
@@ -903,7 +904,7 @@ restart:
     utils_entropy.pack_get_buffer(packer, sigret, siglen);
     utils_entropy.pack_destroy(&packer);
 
-#if 1
+#if 0
     // Verification of the signature as a countermeasure to fault attack
 
     // Calculate s1 = h*s2 - c0
