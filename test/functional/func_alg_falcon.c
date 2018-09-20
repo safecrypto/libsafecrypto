@@ -129,8 +129,8 @@ int main(void)
         sc_entropy_type_e coding = SC_ENTROPY_NONE;
 //#endif
           flags[0] = SC_FLAG_MORE;
-          flags[1] = SC_FLAG_NONE;
-          //flags[2] = SC_FLAG_2_SAMPLE_SCA_DISCARD_LO;
+          flags[1] = SC_FLAG_MORE;
+          flags[2] = SC_FLAG_2_SAMPLE_SCA_DISCARD_LO;
           //SC_FLAG_2_SAMPLE_SCA_BLINDING;
           //SC_FLAG_2_SAMPLE_SCA_SHUFFLE | SC_FLAG_2_SAMPLE_SCA_DISCARD_LO;
 
