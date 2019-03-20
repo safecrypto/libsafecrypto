@@ -343,7 +343,7 @@ START_TEST(test_huffman_static_sampler_1)
     ck_assert_ptr_ne(table, NULL);
     ck_assert_int_eq(table->depth, 4096);
 
-    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_AES_CTR_DRBG,
+    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM,
         SC_PRNG_THREADING_NONE, 100);
     prng_init(prng_ctx, NULL, 0);
 

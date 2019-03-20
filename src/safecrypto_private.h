@@ -41,7 +41,7 @@
 #define SC_MAX_FILENAME_LEN   128
 
 /// The maximum number of entries in the algorithm table
-#define ALG_TABLE_MAX   17
+#define ALG_TABLE_MAX   14
 
 /// The maximum number of distributions for lossless compression
 #define ENTROPY_MAX_DIST     8
@@ -223,7 +223,6 @@ typedef struct ens_kem_cfg_t ens_kem_cfg_t;
 typedef struct kyber_cfg_t kyber_cfg_t;
 typedef struct ens_dlp_sig_cfg_t ens_dlp_sig_cfg_t;
 typedef struct dlp_ibe_cfg_t dlp_ibe_cfg_t;
-typedef struct _ec_cfg_t ec_cfg_t;
 typedef struct falcon_cfg_t falcon_cfg_t;
 
 typedef struct _sc_stat_coding sc_stat_coding_t;
@@ -271,7 +270,6 @@ struct _safecrypto {
     kyber_cfg_t *kyber;                 ///< Kyber KEM configuration
     ens_dlp_sig_cfg_t *ens_dlp_sig;     ///< ENS/DLP - signature configuration
     dlp_ibe_cfg_t *dlp_ibe;             ///< ENS SAFEcrypto IBE configuration
-    ec_cfg_t *ec;                       ///< ECDH and ECDSA configuration
     falcon_cfg_t *falcon;               ///< Falcon signature configuration
 
     utils_sampling_t *sc_gauss;         ///< A Gaussian Sampler

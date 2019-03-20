@@ -305,7 +305,7 @@ START_TEST(test_poly_limb_mul_mod_karatsuba)
 {
     size_t i;
     sc_mod_t mod;
-    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_AES_CTR_DRBG,
+    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM,
         SC_PRNG_THREADING_NONE, 0x00100000);
     prng_init(prng_ctx, NULL, 0);
 
@@ -331,7 +331,7 @@ START_TEST(test_poly_limb_mul_mod_kronecker)
 {
     size_t i;
     sc_mod_t mod;
-    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_AES_CTR_DRBG,
+    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM,
         SC_PRNG_THREADING_NONE, 0x00100000);
     prng_init(prng_ctx, NULL, 0);
 
@@ -357,7 +357,7 @@ START_TEST(test_poly_limb_mul_mod_kronecker_trunc)
 {
     size_t i;
     sc_mod_t mod;
-    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_AES_CTR_DRBG,
+    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM,
         SC_PRNG_THREADING_NONE, 0x00100000);
     prng_init(prng_ctx, NULL, 0);
 
@@ -383,7 +383,7 @@ START_TEST(test_poly_limb_mul_mod_kronecker_ks4)
 {
     size_t i;
     sc_mod_t mod;
-    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_AES_CTR_DRBG,
+    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM,
         SC_PRNG_THREADING_NONE, 0x00100000);
     prng_init(prng_ctx, NULL, 0);
 
@@ -642,7 +642,7 @@ START_TEST(test_poly_limb_gcd_mod)
     sc_mod_t modulus;
     limb_mod_init(&modulus, next_prime(SC_LIMB_WORD(1) << (SC_LIMB_BITS-1)));
 
-    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_AES_CTR_DRBG,
+    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM,
         SC_PRNG_THREADING_NONE, 0x00100000);
     prng_init(prng_ctx, NULL, 0);
     ck_assert_ptr_ne(prng_ctx, NULL);
@@ -698,7 +698,7 @@ START_TEST(test_poly_limb_xgcd_mod)
     sc_mod_t modulus;
     limb_mod_init(&modulus, next_prime(SC_LIMB_WORD(1) << (SC_LIMB_BITS-1)));
 
-    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_AES_CTR_DRBG,
+    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM,
         SC_PRNG_THREADING_NONE, 0x00100000);
     prng_init(prng_ctx, NULL, 0);
     ck_assert_ptr_ne(prng_ctx, NULL);

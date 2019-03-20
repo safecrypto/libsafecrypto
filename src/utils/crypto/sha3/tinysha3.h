@@ -61,7 +61,6 @@ SC_STRUCT_PACK_END
 #endif
 
 // OpenSSL - like interfece
-int tinysha3_make_copy(void *c, void *c_copy);
 int tinysha3_init(void *c, int mdlen);    // mdlen = hash output in bytes
 int tinysha3_update(void *c, const void *data, size_t len);
 int tinysha3_final(void *c, void *md);    // digest goes to md
@@ -69,7 +68,6 @@ int tinysha3_xof_final(void *c);
 int tinysha3_xof(void *c, void *out, size_t len);
 
 // Improved parallelism as per Kyber reference code fips202.c
-int tinysha3_make_copy_4x(void *c, void *c_copy);
 int tinysha3_init_4x(void *c, int mdlen);    // mdlen = hash output in bytes
 int tinysha3_update_4x(void *c, const void *data, size_t len);
 int tinysha3_final_4x(void *c, void *md);    // digest goes to md

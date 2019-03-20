@@ -24,7 +24,6 @@
 
 /// Function pointers for a common hash interface
 ///@{
-typedef SINT32 (*hash_func_make_copy)(void *, void*);
 typedef SINT32 (*hash_func_init)(void *, SINT32);
 typedef SINT32 (*hash_func_update)(void *, const void *, size_t);
 typedef SINT32 (*hash_func_final)(void *, void *);
@@ -33,13 +32,12 @@ typedef SINT32 (*hash_func_final)(void *, void *);
 /// A struct used to store an instantiated hash
 SC_STRUCT_PACK_START
 typedef struct _utils_crypto_hash {
-    sc_hash_e           type;
-    size_t              length;
-    hash_func_make_copy copy;
-    hash_func_init      init;
-    hash_func_update    update;
-    hash_func_final     final;
-    void                *ctx;
+    sc_hash_e         type;
+    size_t            length;
+    hash_func_init    init;
+    hash_func_update  update;
+    hash_func_final   final;
+    void             *ctx;
 } SC_STRUCT_PACKED utils_crypto_hash_t;
 SC_STRUCT_PACK_END
 
@@ -56,9 +54,6 @@ extern sc_hash_e hash_get_type(utils_crypto_hash_t *c);
 /// The common hash API function used to obtain the message digest length in bytes
 /// @return Returns 0 on failure, otherwise returns the size in bytes
 extern size_t hash_length(utils_crypto_hash_t *c);
-
-/// The common hash API function used to initialise
-extern utils_crypto_hash_t * hash_make_copy(utils_crypto_hash_t *c);
 
 /// The common hash API function used to initialise
 extern SINT32 hash_init(utils_crypto_hash_t *c);

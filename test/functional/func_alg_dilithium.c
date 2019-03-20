@@ -81,7 +81,7 @@ int main(void)
     UINT8 *sig = NULL, *pubkey, *privkey;
 #endif
     prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM,
-        SC_PRNG_AES_CTR_DRBG,
+        SC_PRNG_SYSTEM,
         SC_PRNG_THREADING_NONE, 0x00100000);
     prng_init(prng_ctx, NULL, 0);
     if (NULL == prng_ctx) {
@@ -102,8 +102,8 @@ int main(void)
 #endif
 #endif
 
-    flags[0] = SC_FLAG_NONE;
-    flags[1] = SC_FLAG_NONE;
+    flags[0] = SC_FLAG_MORE;
+    flags[1] = SC_FLAG_1_CSPRNG_AES_CTR_DRBG;
 
     SC_TIMER_INSTANCE(keygen_timer);
     SC_TIMER_INSTANCE(sign_timer);

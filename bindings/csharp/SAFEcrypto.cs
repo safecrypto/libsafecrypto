@@ -93,8 +93,6 @@ public class SAFEcrypto : IDisposable
         SC_SCHEME_SIG_DLP_WITH_RECOVERY,
         SC_SCHEME_SIG_DILITHIUM,
         SC_SCHEME_SIG_DILITHIUM_G,
-        SC_SCHEME_DH_ECDH,
-        SC_SCHEME_SIG_ECDSA
     };
 
     public enum sc_entropy_type_e {

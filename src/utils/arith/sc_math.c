@@ -32,10 +32,6 @@ volatile SINT32 sc_const_time_u32_lessthan(volatile UINT32 a, volatile UINT32 b)
 {
     return ((((a ^ b) & ((a - b) ^ b)) ^ (a - b)) & 0x80000000UL) >> 31;
 }
-volatile SINT32 sc_const_time_u16_lessthan(volatile UINT16 a, volatile UINT16 b)
-{
-    return ((((a ^ b) & ((a - b) ^ b)) ^ (a - b)) & 0x8000UL) >> 15;
-}
 
 
 //------------------------------ Range limiting -------------------------------//

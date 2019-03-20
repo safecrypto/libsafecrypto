@@ -17,14 +17,6 @@
 
 #include "blake2_safecrypto.h"
 
-SINT32 sc_blake2b_make_copy(void *ctx, void *ctx_copy)
-{
-	blake2b_state *S      = (blake2b_state *) ctx;
-	blake2b_state *S_copy = (blake2b_state *) ctx_copy;
-	*S_copy = *S;
-	return SC_FUNC_SUCCESS;
-}
-
 SINT32 sc_blake2b_init(void *c, SINT32 outlen)
 {
 	blake2b_state *S = (blake2b_state *) c;
@@ -43,14 +35,6 @@ SINT32 sc_blake2b_final(void *c, void *out)
 	blake2b_state *S = (blake2b_state *) c;
 	UINT8 *md = (UINT8*) out;
 	return blake2b_final(S, md, 64)? SC_FUNC_FAILURE : SC_FUNC_SUCCESS;
-}
-
-SINT32 sc_blake2xb_make_copy(void *ctx, void *ctx_copy)
-{
-	blake2xb_state *S      = (blake2xb_state *) ctx;
-	blake2xb_state *S_copy = (blake2xb_state *) ctx_copy;
-	*S_copy = *S;
-	return SC_FUNC_SUCCESS;
 }
 
 SINT32 sc_blake2xb_init(void *c, SINT32 outlen)

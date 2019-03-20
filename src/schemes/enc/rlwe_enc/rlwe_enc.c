@@ -537,7 +537,7 @@ SINT32 rlwe_enc_encrypt(safecrypto_t *sc, size_t flen, const UINT8 *from,
     m_scale  = sc->rlwe_enc->params->m_scale;
     w        = (sc->rlwe_enc->ntt_optimisation >= SC_NTT_REFERENCE_REV)? sc->rlwe_enc->params->w_rev : sc->rlwe_enc->params->w;
     w_inv    = (sc->rlwe_enc->ntt_optimisation >= SC_NTT_REFERENCE_REV)? sc->rlwe_enc->params->w_inv : sc->rlwe_enc->params->w;
-    r        = (sc->rlwe_enc->ntt_optimisation >= SC_NTT_REFERENCE_REV)? sc->rlwe_enc->params->r_rev : sc->rlwe_enc->params->r;
+    r        = (sc->rlwe_enc->ntt_optimisation >= SC_NTT_REFERENCE_REV)? sc->rlwe_enc->params->r_inv : sc->rlwe_enc->params->r;
     ntt      = &sc->rlwe_enc->ntt;
     sc_ntt   = sc->sc_ntt;
     sc_poly  = sc->sc_poly;
@@ -657,7 +657,7 @@ SINT32 rlwe_enc_decrypt(safecrypto_t *sc, size_t flen, const UINT8 *from, size_t
     o_scale_1 = sc->rlwe_enc->params->o_scale_1;
     w         = (sc->rlwe_enc->ntt_optimisation >= SC_NTT_REFERENCE_REV)? sc->rlwe_enc->params->w_rev : sc->rlwe_enc->params->w;
     w_inv     = (sc->rlwe_enc->ntt_optimisation >= SC_NTT_REFERENCE_REV)? sc->rlwe_enc->params->w_inv : sc->rlwe_enc->params->w;
-    r         = (sc->rlwe_enc->ntt_optimisation >= SC_NTT_REFERENCE_REV)? sc->rlwe_enc->params->r_rev : sc->rlwe_enc->params->r;
+    r         = (sc->rlwe_enc->ntt_optimisation >= SC_NTT_REFERENCE_REV)? sc->rlwe_enc->params->r_inv : sc->rlwe_enc->params->r;
     ntt       = &sc->rlwe_enc->ntt;
     sc_ntt    = sc->sc_ntt;
     sc_poly   = sc->sc_poly;

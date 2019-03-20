@@ -55,7 +55,7 @@ typedef struct rlwe_set_t {
     const SINT16 *r;
     const SINT16 *w_rev;
     const SINT16 *w_inv;
-    const SINT16 *r_rev;
+    const SINT16 *r_inv;
 #endif
 } SC_STRUCT_PACKED rlwe_set_t;
 SC_STRUCT_PACK_END

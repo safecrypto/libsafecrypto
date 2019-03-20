@@ -1374,11 +1374,6 @@ sc_ulimb_t mpz_tdiv_q_2exp(sc_mpz_t *q, const sc_mpz_t *n, sc_ulimb_t b)
     mpz_div_q_2exp(q, n, b, SC_ROUND_TRUNC);   // TRUNC(n/(2^b))
 }
 
-sc_ulimb_t mpz_fdiv_q_2exp(sc_mpz_t *q, const sc_mpz_t *n, sc_ulimb_t b)
-{
-    mpz_div_q_2exp(q, n, b, SC_ROUND_FLOOR);   // FLOOR(n/(2^b))
-}
-
 sc_ulimb_t mpz_cdiv_ui(const sc_mpz_t *n, sc_ulimb_t d)
 {
     return mpz_div_qr_ui(NULL, NULL, n, d, SC_ROUND_CEIL);

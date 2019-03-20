@@ -82,7 +82,7 @@ void dummy_symbol_to_prevent_lto(void * const ptr, const size_t len)
 void *sc_malloc(size_t len)
 {
 #if defined(__linux__) && !defined(ENABLE_BAREMETAL)
-    void *ptr = NULL;
+    void *ptr;
     if (0 != posix_memalign(&ptr, 32, len)) {
         return NULL;
     }

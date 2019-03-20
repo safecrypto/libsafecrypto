@@ -160,7 +160,7 @@ START_TEST(test_inverse)
     size_t i, iter;
     SINT32 f[8], f_fut[8], f_inv[8+1];
     SINT32 scratch[16];
-    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_AES_CTR_DRBG,
+    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM,
         SC_PRNG_THREADING_NONE, 0x00100000);
     prng_init(prng_ctx, NULL, 0);
 
@@ -209,7 +209,7 @@ START_TEST(test_inverse_2)
     size_t i, iter;
     SINT32 f[512], f_fut[512], f_inv[512+1];
     SINT32 scratch[1024];
-    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_AES_CTR_DRBG,
+    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM,
         SC_PRNG_THREADING_NONE, 0x00100000);
     prng_init(prng_ctx, NULL, 0);
 
@@ -258,7 +258,7 @@ START_TEST(test_z2_inverse_ext_euclidean)
     size_t i, iter;
     SINT32 f[8], f_inv[8+1];
     SINT32 scratch[7*(8+1)];
-    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_AES_CTR_DRBG,
+    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM,
         SC_PRNG_THREADING_NONE, 0x00100000);
     prng_init(prng_ctx, NULL, 0);
 
@@ -337,7 +337,7 @@ START_TEST(test_z2_inverse_ext_euclidean_2)
     size_t i, iter;
     SINT32 f[512], f_inv[512+1];
     SINT32 scratch[7*(512+1)];
-    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_AES_CTR_DRBG,
+    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM,
         SC_PRNG_THREADING_NONE, 0x00100000);
     prng_init(prng_ctx, NULL, 0);
 

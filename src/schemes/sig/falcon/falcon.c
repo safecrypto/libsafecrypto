@@ -15,7 +15,7 @@
  *   Id:     $SC_IDENT$
  */
 
-#include "schemes/sig/falcon/falcon.h"
+#include "falcon.h"
 #include "falcon_params.h"
 #include "safecrypto_private.h"
 #include "safecrypto_error.h"
@@ -33,13 +33,10 @@
 #include "utils/entropy/entropy.h"
 #include "utils/sampling/sampling.h"
 
-#include "utils/arith/falcon_fft.h"
-#include "utils/arith/falcon_ldl.h"
-#include "utils/arith/falcon_keygen.h"
-
 #include <math.h>
 
 #define FALCON_NUM_TEMP     8
+//#define DEBUG_FALCON_SIG
 
 #if __WORDSIZE == 64
 #define FMT_LIMB    "lu"
@@ -48,6 +45,32 @@
 #endif
 
 #define M1_BITS(b)  ((b) - 1)
+
+
+SC_STRUCT_PACK_START
+typedef struct falcon_cfg_t {
+    falcon_set_t    *params;
+    safecrypto_ntt_e      ntt_optimisation;
+    ntt_params_t          ntt;
+    sc_entropy_type_e     entropy;
+    sc_hash_e             oracle_hash;
+    SINT32                keep_matrices;
+    SINT32               *b;
+#ifdef FALCON_USE_LONGDOUBLE_PREC_FLOATS
+    LONGDOUBLE           *b_gs;
+    LONGDOUBLE           *b_gs_inv_norm;
+#else
+#ifdef FALCON_USE_DOUBLE_PREC_FLOATS
+    DOUBLE               *b_gs;
+    DOUBLE               *b_gs_inv_norm;
+#else
+    FLOAT                *b_gs;
+    FLOAT                *b_gs_inv_norm;
+#endif
+#endif
+} SC_STRUCT_PACKED falcon_cfg_t;
+SC_STRUCT_PACK_END
+
 
 
 SINT32 falcon_sig_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
@@ -63,7 +86,7 @@ SINT32 falcon_sig_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
         return SC_FUNC_FAILURE;
     }
 
-    // Allocate memory for FALCON signature configuration
+    // Allocate memory for ENS/DLP signature configuration
     sc->falcon = SC_MALLOC(sizeof(falcon_cfg_t));
     if (NULL == sc->falcon) {
         SC_LOG_ERROR(sc, SC_NULL_POINTER);
@@ -104,18 +127,19 @@ SINT32 falcon_sig_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
         (flags[0] & SC_FLAG_0_SAMPLE_BERNOULLI)? BERNOULLI_GAUSSIAN_SAMPLING :
 #endif
                                                  CDF_GAUSSIAN_SAMPLING;
+                                                 //ZIGGURAT_GAUSSIAN_SAMPLING;
 
     SC_PRINT_DEBUG(sc, "FALCON");
 
-    // Initialise the SAFEcrypto struct with the specified Falcon signature parameter set
+    // Initialise the SAFEcrypto struct with the specified ENS/DLP signature parameter set
     switch (set)
     {
         case 0:  sc->falcon->params  = &param_falcon_0;
                  sc->falcon->entropy = sc->coding_signature.type;
                  break;
-        case 1:  sc->falcon->params  = &param_falcon_1;
+        /*case 1:  sc->falcon->params  = &param_falcon_1;
                  sc->falcon->entropy = sc->coding_signature.type;
-                 break;
+                 break;*/
         case 2:  sc->falcon->params  = &param_falcon_2;
                  sc->falcon->entropy = sc->coding_signature.type;
                  break;
@@ -126,9 +150,11 @@ SINT32 falcon_sig_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
 
     // Obtain parameters for the selected parameter set
     UINT16 n     = sc->falcon->params->n;
+    UINT16 kappa = sc->falcon->params->kappa;
 
     // Set a flag to indicate if the B and B_gs matrices (and the norm of
     // each B_gs row) are to be computed and stored.
+    sc->falcon->keep_matrices = 1;
     sc->falcon->b             = NULL;
     sc->falcon->b_gs          = NULL;
     sc->falcon->b_gs_inv_norm = NULL;
@@ -145,7 +171,7 @@ SINT32 falcon_sig_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
 #endif
     init_reduce(&sc->falcon->ntt, n, sc->falcon->params->q);
 
-    // Create pointers for the arithmetic functions used by Falcon
+    // Create pointers for the arithmetic functions used by ENS/DLP
     sc->sc_ntt = utils_arith_ntt(sc->falcon->ntt_optimisation);
     sc->sc_poly = utils_arith_poly();
     sc->sc_vec = utils_arith_vectors();
@@ -218,7 +244,6 @@ SINT32 falcon_sig_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
     sc->sc_gauss = create_sampler(sc->sampling,
         sc->sampling_precision, sc->blinding, n, SAMPLING_DISABLE_BOOTSTRAP,
         sc->prng_ctx[0], 10.0f, sig);
-set_discard(sc->sc_gauss, sc->pattern & SCA_PATTERN_SAMPLE_DISCARD_MASK);
 
 #ifdef USE_RUNTIME_NTT_TABLES
     // Dynamically allocate memory for the necessary NTT tables
@@ -238,7 +263,7 @@ set_discard(sc->sc_gauss, sc->pattern & SCA_PATTERN_SAMPLE_DISCARD_MASK);
 #endif
 
     // Dynamically allocate memory for temporary storage
-    sc->temp_size = (FALCON_NUM_TEMP * n) * sizeof(SINT32) + 4 * n * sizeof(DOUBLE);
+    sc->temp_size = (FALCON_NUM_TEMP * n + kappa) * sizeof(SINT32);
     if (!sc->temp_external_flag) {
         sc->temp = SC_MALLOC(sc->temp_size);
         if (NULL == sc->temp) {
@@ -259,13 +284,14 @@ set_discard(sc->sc_gauss, sc->pattern & SCA_PATTERN_SAMPLE_DISCARD_MASK);
 
 SINT32 falcon_sig_destroy(safecrypto_t *sc)
 {
-	UINT16 n;
+	UINT16 n, kappa;
 
     if (NULL == sc) {
         return SC_FUNC_FAILURE;
     }
 
     n = sc->falcon->params->n;
+    kappa = sc->falcon->params->kappa;
 
     destroy_sampler(&sc->sc_gauss);
 
@@ -287,6 +313,37 @@ SINT32 falcon_sig_destroy(safecrypto_t *sc)
     SC_FREE(sc->falcon->params->w, sizeof(SINT16) * 2 * n);
 #endif
 
+    // Free resources associated with the polynomial basis
+    if (sc->falcon->keep_matrices) {
+        if (sc->falcon->b) {
+            SC_FREE(sc->falcon->b, sizeof(SINT32) * 4 * n * n);
+        }
+#ifdef FALCON_USE_LONGDOUBLE_PREC_FLOATS
+        if (sc->falcon->b_gs) {
+            SC_FREE(sc->falcon->b_gs, sizeof(LONGDOUBLE) * 4 * n * n);
+        }
+        if (sc->falcon->b_gs_inv_norm) {
+            SC_FREE(sc->falcon->b_gs_inv_norm, sizeof(LONGDOUBLE) * 2 * n);
+        }
+#else
+#ifdef FALCON_USE_DOUBLE_PREC_FLOATS
+        if (sc->falcon->b_gs) {
+            SC_FREE(sc->falcon->b_gs, sizeof(DOUBLE) * 4 * n * n);
+        }
+        if (sc->falcon->b_gs_inv_norm) {
+            SC_FREE(sc->falcon->b_gs_inv_norm, sizeof(DOUBLE) * 2 * n);
+        }
+#else
+        if (sc->falcon->b_gs) {
+            SC_FREE(sc->falcon->b_gs, sizeof(FLOAT) * 4 * n * n);
+        }
+        if (sc->falcon->b_gs_inv_norm) {
+            SC_FREE(sc->falcon->b_gs_inv_norm, sizeof(FLOAT) * 2 * n);
+        }
+#endif
+#endif
+    }
+
     utils_crypto_hash_destroy(sc->hash);
     utils_crypto_xof_destroy(sc->xof);
 
@@ -294,7 +351,66 @@ SINT32 falcon_sig_destroy(safecrypto_t *sc)
         SC_FREE(sc->falcon, sizeof(falcon_cfg_t));
     }
 
-    SC_PRINT_DEBUG(sc, "FALCON Signature algorithm destroyed");
+    SC_PRINT_DEBUG(sc, "ENS/DLP Signature algorithm destroyed");
+
+    return SC_FUNC_SUCCESS;
+}
+
+static SINT32 create_gpv_matrices(safecrypto_t *sc, gpv_t *gpv, UINT32 q, UINT32 n)
+{
+    if (sc->falcon->b) {
+        SC_FREE(sc->falcon->b, sizeof(SINT32) * 4 * n * n);
+    }
+    sc->falcon->b = SC_MALLOC(sizeof(SINT32) * 4 * n * n);
+#ifdef FALCON_USE_LONGDOUBLE_PREC_FLOATS
+    if (sc->falcon->b_gs) {
+        SC_FREE(sc->falcon->b_gs, sizeof(LONGDOUBLE) * 4 * n * n);
+    }
+    if (sc->falcon->b_gs_inv_norm) {
+        SC_FREE(sc->falcon->b_gs_inv_norm, sizeof(LONGDOUBLE) * 2 * n);
+    }
+    sc->falcon->b_gs = SC_MALLOC(sizeof(LONGDOUBLE) * 4 * n * n);
+    sc->falcon->b_gs_inv_norm = SC_MALLOC(sizeof(LONGDOUBLE) * 2 * n);
+#else
+#ifdef FALCON_USE_DOUBLE_PREC_FLOATS
+    if (sc->falcon->b_gs) {
+        SC_FREE(sc->falcon->b_gs, sizeof(DOUBLE) * 4 * n * n);
+    }
+    if (sc->falcon->b_gs_inv_norm) {
+        SC_FREE(sc->falcon->b_gs_inv_norm, sizeof(DOUBLE) * 2 * n);
+    }
+    sc->falcon->b_gs = SC_MALLOC(sizeof(DOUBLE) * 4 * n * n);
+    sc->falcon->b_gs_inv_norm = SC_MALLOC(sizeof(DOUBLE) * 2 * n);
+#else
+    if (sc->falcon->b_gs) {
+        SC_FREE(sc->falcon->b_gs, sizeof(FLOAT) * 4 * n * n);
+    }
+    if (sc->falcon->b_gs_inv_norm) {
+        SC_FREE(sc->falcon->b_gs_inv_norm, sizeof(FLOAT) * 2 * n);
+    }
+    sc->falcon->b_gs = SC_MALLOC(sizeof(FLOAT) * 4 * n * n);
+    sc->falcon->b_gs_inv_norm = SC_MALLOC(sizeof(FLOAT) * 2 * n);
+#endif
+#endif
+    gpv->b = sc->falcon->b;
+
+    // Generate the polynomial basis matrix
+    gpv_expand_basis(gpv);
+
+    // Gram-Schmidt orthogonolisation of the polynomial basis and
+    // precompute the norm of each row of b_gs
+#ifdef FALCON_USE_LONGDOUBLE_PREC_FLOATS
+    modified_gram_schmidt_fast_ldbl(gpv, sc->falcon->b_gs, q);
+    gpv_precompute_inv_ldbl(sc->falcon->b_gs, sc->falcon->b_gs_inv_norm, 2*n);
+#else
+#ifdef FALCON_USE_DOUBLE_PREC_FLOATS
+    modified_gram_schmidt_fast_dbl(gpv, sc->falcon->b_gs, q);
+    gpv_precompute_inv_dbl(sc->falcon->b_gs, sc->falcon->b_gs_inv_norm, 2*n);
+#else
+    modified_gram_schmidt_fast_flt(gpv, sc->falcon->b_gs, q);
+    gpv_precompute_inv_flt(sc->falcon->b_gs, sc->falcon->b_gs_inv_norm, 2*n);
+#endif
+#endif
 
     return SC_FUNC_SUCCESS;
 }
@@ -404,7 +520,26 @@ SINT32 falcon_sig_privkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_le
         SIGNED_COEFF, SC_ENTROPY_NONE, 2);
     utils_entropy.pack_destroy(&packer);
 
-    sc->privkey->len = 4* n;
+    sc->privkey->len = 4 * n;
+
+    // Reconstruct the GPV matrices if necessary
+    if (sc->falcon->keep_matrices) {
+        size_t i;
+        gpv_t gpv;
+        SINT32 *t = sc->temp;
+        for (i=0; i<4*n; i++) {
+            t[i] = privkey[i];
+        }
+
+        gpv.f = t;
+        gpv.g = t+n;
+        gpv.F = t+2*n;
+        gpv.G = t+3*n;
+        gpv.n = n;
+        create_gpv_matrices(sc, &gpv, sc->falcon->params->q, n);
+
+        SC_MEMZERO(t, 4 * n * sizeof(SINT32));
+    }
 
     return SC_FUNC_SUCCESS;
 }
@@ -509,18 +644,6 @@ SINT32 falcon_sig_privkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
 
 #endif // DISABLE_SIGNATURES_SERVER
 
-static SINT32 check_norm_bd(FLOAT bd, const SINT32 *s1, const SINT32 *s2, size_t n)
-{
-    size_t i;
-    FLOAT norm = 0;
-    for (i=n; i--;) {
-        norm += s1[i] * s1[i] + s2[i] * s2[i];
-    }
-    norm = sqrtf(norm);
-
-    return (norm >= bd)? SC_FUNC_FAILURE : SC_FUNC_SUCCESS;
-}
-
 // A random oracle that generates a fixed length random number sequence
 // if given a variable length unique user ID.
 static void oracle_csprng(safecrypto_t *sc, const UINT8 *msg, size_t msg_len, UINT8 *md)
@@ -572,26 +695,100 @@ static void h_function_csprng(safecrypto_t *sc, const UINT8 *md, SINT32 *c, size
 static void h_function_xof(safecrypto_t *sc, SINT32 *c, size_t n)
 {
     size_t i;
-    const UINT32 q        = sc->falcon->params->q;
-    const SINT32 q_bits   = sc->falcon->params->q_bits;
-    const SINT32 buf_size = 32;
-    UINT32       mask     = (1 << q_bits) - 1;
-    SINT32      *x        = c;
-    size_t       xof_len  = buf_size * sizeof(SINT32);
+    const SINT32 q      = sc->falcon->params->q;
+    const SINT32 q_bits = sc->falcon->params->q_bits;
 
-    SINT32 c_tmp[buf_size];
+    UINT32 mask = (1 << q_bits) - 1;
+    xof_squeeze(sc->xof, c, n*sizeof(SINT32));
 
-    for (int j=0; j < n/buf_size; j++){
-	    //SINT32 c_tmp[buf_size];
-        xof_squeeze(sc->xof, c_tmp, xof_len);
+    // Generate polynomial coefficients mod q from the CSPRNG
+    for (i=0; i<n; i++) {
+        c[i] &= mask;
+        c[i] -= (c[i] >= q) * q;
+    }
+}
 
-        // Generate polynomial coefficients mod q from the CSPRNG
-        for (i=0; i<buf_size; i++) {
-            UINT32 y = c_tmp[i] & mask;
-            y -= ((SINT32)(q - y) >> 31) * q;
-	        *x++ = y;
+// Extract m1 from the ring c and copy it to the message array that already contains m2
+static SINT32 recover_msg(safecrypto_t *sc, UINT8 **m, size_t *m_len, SINT32 *c, UINT32 q_bits, size_t n, size_t k)
+{
+    SINT32 retval = SC_FUNC_FAILURE;
+    size_t i, offset;
+    UINT32 mask, bound;
+    UINT8 *buffer;
+    size_t buffer_len = 0;
+    offset  = (n - k) * (M1_BITS(q_bits));
+    offset -= (offset >> 3) << 3;
+    mask    = ((1 << (8 - offset)) - 1) ^ 0xFF;
+    bound   = (1 << M1_BITS(q_bits)) - 1;
+
+    SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "Input m", *m, *m_len);
+
+    // Use packers to obtain a byte array from the first (n-k) input ring coefficients
+    sc_entropy_t coding_raw = {
+        .type = SC_ENTROPY_NONE,
+    };
+    sc_packer_t *packer;
+    packer = utils_entropy.pack_create(sc, &coding_raw, (n-k)*(M1_BITS(q_bits)), NULL, 0, &buffer, &buffer_len);
+    for (i=0; i<n-k; i++) {
+        // Check if the input sample is within bounds
+        if (c[i] > bound) {
+            utils_entropy.pack_destroy(&packer);
+            goto finish;
         }
-	}
+
+        // Write M!_BITS to the data stream
+        utils_entropy.pack_insert(packer, c[i], M1_BITS(q_bits));
+    }
+    utils_entropy.pack_insert(packer, 0, 16);
+    utils_entropy.pack_get_buffer(packer, &buffer, &buffer_len);
+    utils_entropy.pack_destroy(&packer);
+
+    // Extract m1 from the buffer, ORing the last byte with the first few bits of m2
+    for (i=0; i<buffer_len-3; i++) {
+        (*m)[i] = buffer[i];
+    }
+    if (0 == offset) {
+        (*m)[i] = buffer[buffer_len-3];
+    }
+    else {
+        (*m)[i] &= (mask ^ 0xFF);
+        (*m)[i] |= buffer[buffer_len-3] & mask;
+    }
+
+    //*m_len = ((*m_len * 8) + (n - k) * (M1_BITS(q_bits))) >> 3;
+    SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "Recovered m", *m, *m_len);
+
+    // Free the memory associated with the buffer
+    SC_FREE(buffer, buffer_len);
+
+    retval = SC_FUNC_SUCCESS;
+
+finish:
+    return retval;
+}
+
+static void small_mul_mod_ring(SINT32 *r, const SINT32 *a, const SINT16 *b_sparse,
+    size_t n, UINT32 q, SINT32 *sparse)
+{
+    size_t j, k;
+
+    // Reset the output to zero
+    for (j=2*n-1; j--;) {
+        sparse[j] = 0;
+    }
+
+    // Accumulate the a coefficients with the sparse b coefficient with the
+    // knowledge that they only have the values -1, 0 or 1.
+    for (j=0; j<n; j++) {
+        for (k=0; k<n; k++) {
+            sparse[j+k] += a[k] * b_sparse[j];
+        }
+    }
+
+    // Perform the ring modular reduction
+    for (j=n; j--;) {
+        r[j] = sparse[j] - sparse[j + n];
+    }
 }
 
 SINT32 falcon_sig_set_key_coding(safecrypto_t *sc, sc_entropy_type_e pub,
@@ -605,24 +802,6 @@ SINT32 falcon_sig_get_key_coding(safecrypto_t *sc, sc_entropy_type_e *pub,
 {
     return SC_FUNC_FAILURE;
 }
-
-
-#if !defined(DISABLE_SIGNATURES_SERVER) || !defined(DISABLE_SIGNATURES_CLIENT)
-// Translate a message of arbitrary length to a unique polynomial ring
-static inline void map_message_to_ring(safecrypto_t *sc, const UINT8 *m, size_t m_len,
-    SINT32 *c, size_t c_len)
-{
-    UINT8 md[64];
-#ifdef FALCON_USE_RANDOM_ORACLE_CSPRNG
-    oracle_csprng(sc, m, m_len, md);
-    h_function_csprng(sc, md, c, c_len);
-#else
-    oracle_xof(sc, m, m_len);
-    h_function_xof(sc, c, c_len);
-#endif
-}
-#endif
-
 
 #ifdef DISABLE_SIGNATURES_SERVER
 
@@ -641,11 +820,67 @@ SINT32 falcon_sig_sign(safecrypto_t *sc, const UINT8 *m, size_t m_len,
 
 #else
 
+static SINT32 get_gso(safecrypto_t *sc, UINT32 n, SINT32 q, gpv_t *gpv, SINT32 **b, GSO_TYPE **b_gs, GSO_TYPE **b_gs_inv_norm)
+{
+    // Obtain the Gram Scmidt orthogonalisation of the polynomial basis
+    if (0 == sc->falcon->keep_matrices) {
+        *b    = SC_MALLOC(sizeof(SINT32) * 4*n*n);
+        if (NULL == *b) {
+            SC_FREE(*b, sizeof(SINT32) * 4*n*n);
+            SC_LOG_ERROR(sc, SC_NULL_POINTER);
+            return SC_FUNC_FAILURE;
+        }
+        *b_gs = SC_MALLOC(sizeof(GSO_TYPE) * (4*n*n + 2*n));
+        if (NULL == *b_gs) {
+            SC_FREE(*b_gs, sizeof(GSO_TYPE) * (4*n*n + 2*n));
+            SC_LOG_ERROR(sc, SC_NULL_POINTER);
+            return SC_FUNC_FAILURE;
+        }
+        *b_gs_inv_norm = *b_gs + 4*n*n;
+        gpv->b = *b;
+
+        // Generate the polynomial basis matrix
+        gpv_expand_basis(gpv);
+
+        // Gram-Schmidt orthogonolisation of the polynomial basis
+        // and precompute the norm of each row of b_gs
+        modified_gram_schmidt(gpv, *b_gs, q);
+        gpv_precompute_inv(*b_gs, *b_gs_inv_norm, 2*n);
+    }
+    else {
+        gpv->b         = sc->falcon->b;
+        *b             = sc->falcon->b;
+        *b_gs          = sc->falcon->b_gs;
+        *b_gs_inv_norm = sc->falcon->b_gs_inv_norm;
+    }
+}
+
+static FLOAT get_std_dev(SINT32 *s, size_t n)
+{
+    size_t i;
+    FLOAT mean = 0, sd = 0;
+
+    // Calculate the mean
+    for (i=0; i<n; i++) {
+        mean += s[i];
+    }
+    mean /= n;
+
+    // Calculate the standard deviation
+    for (i=0; i<n; i++) {
+        FLOAT temp = s[i] - mean;
+        sd += temp * temp;
+    }
+    sd /= n - 1;
+
+    return sd;
+}
+
 SINT32 falcon_sig_keygen(safecrypto_t *sc)
 {
     SINT32 i, iter;
     SINT32 *f, *g, *F, *G, *h, *h_ntt;
-    UINT32 n, q, logn, ter;
+    UINT32 n, q;
     gpv_t gpv;
     UINT32 gaussian_flags = 0;
 #if defined(FALCON_USE_EFFICIENT_GAUSSIAN_SAMPLING)
@@ -659,18 +894,16 @@ SINT32 falcon_sig_keygen(safecrypto_t *sc)
     GSO_TYPE  sig;
     SINT32 sample_error;
     FLOAT std_dev;
-	
 
     if (NULL == sc) {
         SC_LOG_ERROR(sc, SC_NULL_POINTER);
         return SC_FUNC_FAILURE;
     }
 
-    SC_PRINT_DEBUG(sc, "FALCON Signature KeyGen\n");
+    SC_PRINT_DEBUG(sc, "ENS/DLP Signature KeyGen\n");
 
     n      = sc->falcon->params->n;
     q      = sc->falcon->params->q;
-    logn   = sc->falcon->params->n_bits;
 
     SINT32 s1[n] SC_DEFAULT_ALIGNED;
     SINT32 c[n];
@@ -681,49 +914,16 @@ SINT32 falcon_sig_keygen(safecrypto_t *sc)
         SC_LOG_ERROR(sc, SC_NULL_POINTER);
         return SC_FUNC_FAILURE;
     }
-
     g     = f + n;
     F     = f + 2 * n;
     G     = f + 3 * n;
     h     = f + 4 * n;
     h_ntt = f + 5 * n;
-    ter   = 1 == sc->falcon->params->set;
- 	
     gpv.f = f;
     gpv.g = g;
     gpv.F = F;
     gpv.G = G;
     gpv.n = n;
-    
-	size_t sk_len, tmp_len;
-    if (ter) {
-        sk_len  = ((size_t)(3*(logn + 6)) << (logn - 1)) * sizeof(DOUBLE);
-	    tmp_len = ((size_t)21 << (logn - 1)) * sizeof(DOUBLE);
-    }
-    else {
-        sk_len  = ((size_t)(logn + 5) << logn) * sizeof(DOUBLE);
-        tmp_len = ((size_t)7 << logn) * sizeof(DOUBLE);
-    }
-	
-    DOUBLE *sk = NULL, *tmp = NULL;
-	sk = SC_MALLOC(sk_len);
-	if (sk == NULL) {
-		SC_LOG_ERROR(sc, SC_NULL_POINTER);
-        goto finish_free;
-	} 
-	sc->falcon->sk = sk;
-	tmp = SC_MALLOC(tmp_len);
-	if (tmp == NULL) {
-		SC_LOG_ERROR(sc, SC_NULL_POINTER);
-        goto finish_free;
-	} 
-    if (NULL == sc->privkey->key) {
-        sc->privkey->key = SC_MALLOC(4 * n * sizeof(SINT32));
-        if (NULL == sc->privkey->key) {
-            SC_LOG_ERROR(sc, SC_NULL_POINTER);
-            goto finish_free;
-        }
-    }
 
     // Generate the public and private keys
     iter = 0;
@@ -741,6 +941,15 @@ restart:
 
     SC_PRINT_DEBUG(sc, "Memory allocation for keys\n");
 
+    // Allocate key pair memory
+    if (NULL == sc->privkey->key) {
+        sc->privkey->key = SC_MALLOC(4 * n * sizeof(SINT32));
+        if (NULL == sc->privkey->key) {
+            SC_LOG_ERROR(sc, SC_NULL_POINTER);
+            goto finish_free;
+        }
+    }
+
     if (NULL == sc->pubkey->key) {
         sc->pubkey->key = SC_MALLOC(2 * n * sizeof(SINT16));
         if (NULL == sc->pubkey->key) {
@@ -751,8 +960,45 @@ restart:
         }
     }
 
-    // Load the secret key and convert to the Falcon tree
-    load_skey(sk, q, f, g, F, G, logn, ter, tmp);
+    // Create the polynomial basis matrices if they are to be maintained in memory
+    if (sc->falcon->keep_matrices) {
+        create_gpv_matrices(sc, &gpv, q, n);
+    }
+
+    // Obtain the Gram Scmidt orthogonalisation of the polynomial basis
+    get_gso(sc, n, q, &gpv, &b, &b_gs, &b_gs_inv_norm);
+
+    // Generate a sampled polynomial using the polynomial basis
+    sig = 2.0L / b_gs_inv_norm[0];
+    for (i=0; i<n; i++) {
+        c[i] = q >> 1;
+    }
+
+    sample_error = gaussian_lattice_sample(sc, &gpv, b_gs, b_gs_inv_norm,
+        c, s1, NULL, q, sig, gaussian_flags);
+
+    // Free memory resources associated with the polynomial basis
+    if (0 == sc->falcon->keep_matrices) {
+        if (b) {
+            SC_FREE(b, sizeof(SINT32) * 4*n*n);
+        }
+        if (b_gs) {
+            SC_FREE(b_gs, sizeof(GSO_TYPE) * (4*n*n + 2*n));
+        }
+    }
+
+    if (SC_FUNC_FAILURE == sample_error) {
+        SC_LOG_ERROR(sc, SC_ERROR);
+        return SC_FUNC_FAILURE;
+    }
+
+    // Verify that we can correctly sample over the lattice by checking that s1
+    // has a standard deviation of not more than 2*1.17*sqrt(q)
+    std_dev = get_std_dev(s1, n);
+    if (std_dev > n*sig)
+    {
+        goto restart;
+    }
 
     // Store the key pair in the SAFEcrypto structure for future use
     SINT32 *privkey = (SINT32*) sc->privkey->key;
@@ -767,12 +1013,14 @@ restart:
     sc->pubkey->len = n; // Actually 2n as the NTT version is also stored
 
     // Store an NTT domain version of the public key
-    sc->sc_ntt->fwd_ntt_32_16(h_ntt, &sc->falcon->ntt,
+#if 0
+    sc->sc_ntt->fwd_ntt_32_16_large(h_ntt, &sc->falcon->ntt,
         h, sc->falcon->params->w);
     sc->sc_ntt->normalize_32(h_ntt, n, &sc->falcon->ntt);
     for (i=n; i--;) {
         pubkey[i + n] = h_ntt[i];
     }
+#endif
 
     // Polynomial basis check
     FLOAT sd = 0;
@@ -783,34 +1031,33 @@ restart:
     SC_PRINT_DEBUG(sc, "Print keys\n");
     SC_PRINT_KEYS(sc, SC_LEVEL_DEBUG, 16);
 
-    if (tmp) {
-        SC_FREE(tmp, tmp_len);
-    }
-
     // Clear the temporary memory used for generation
     SC_MEMZERO(f, 6 * n * sizeof(SINT32));
     return SC_FUNC_SUCCESS;
 
 finish_free:
-    if (sk) {
-        SC_FREE(sk, sk_len);
-    }
-    if (tmp) {
-        SC_FREE(tmp, tmp_len);
-    }
     SC_MEMZERO(f, 6 * n * sizeof(SINT32));
     return SC_FUNC_FAILURE;
 }
 
 SINT32 falcon_sig_sign(safecrypto_t *sc, const UINT8 *m, size_t m_len, UINT8 **sigret, size_t *siglen)
 {
- 	SINT32 *s2;	
+    // WITHOUT message recovery:
+    // 1. Hash the message m, t = H(m)
+    // 2. As per IBE Extract, obtain the polynomials s1 and s2 using a
+    //    Gaussian sampler and the polynomial basis B such that
+    //    hs1 + s2 = t mod q
+    // 3. Return the signature (s1, m)
+
+#ifdef DEBUG_FALCON_SIG
     size_t i;
     SINT16 *h, *h_ntt;
-    SINT32 *s2_ntt;
-    UINT32 n, q, q_bits, n_bits, ter;
-    SINT32 *f, *g, *F, *G, *c;
-    SINT32 *s1;
+    SINT32 *s2, *s1_ntt;
+#endif
+    UINT32 n, q, q_bits;
+    SINT32 *f, *g, *F, *G;
+    SINT32 *c, *s1;
+    UINT8 md[64];
     SINT32 retval = SC_FUNC_FAILURE;
     gpv_t gpv;
     UINT32 gaussian_flags = 0;
@@ -820,17 +1067,10 @@ SINT32 falcon_sig_sign(safecrypto_t *sc, const UINT8 *m, size_t m_len, UINT8 **s
     gaussian_flags = GPV_GAUSSIAN_SAMPLE_MW_BOOTSTRAP;
 #endif
 
-    if (NULL == sc->falcon) {
-        SC_LOG_ERROR(sc, SC_NULL_POINTER);
-        return SC_FUNC_FAILURE;
-    }
-
     // Obtain all the constants and variables
     n        = sc->falcon->params->n;
     q        = sc->falcon->params->q;
     q_bits   = sc->falcon->params->q_bits;
-    n_bits   = sc->falcon->params->n_bits;
-    ter      = 1 == sc->falcon->params->set;
 
     f        = sc->privkey->key;
     g        = f + n;
@@ -841,50 +1081,61 @@ SINT32 falcon_sig_sign(safecrypto_t *sc, const UINT8 *m, size_t m_len, UINT8 **s
     gpv.F    = F;
     gpv.G    = G;
     gpv.n    = n;
-    FLOAT bd;
-    
+
     c        = sc->temp;
     s1       = c + n;
+#ifdef DEBUG_FALCON_SIG
     s2       = s1 + n;
-    s2_ntt   = s2 + n;
+    s1_ntt   = s2 + n;
 
     // Obtain pointers to the public key (NTT domain version)
     h        = (SINT16 *) sc->pubkey->key;
     h_ntt    = (SINT16 *) sc->pubkey->key + n;
+#endif
 
-    bd       = sc->falcon->params->bd;
-
+#ifdef DEBUG_FALCON_SIG
     const SINT16 *w        = sc->falcon->params->w;
     const SINT16 *r        = sc->falcon->params->r;
     ntt_params_t *ntt      = &sc->falcon->ntt;
     const utils_arith_ntt_t *sc_ntt = sc->sc_ntt;
     const utils_arith_poly_t *sc_poly  = sc->sc_poly;
+#endif
 
-restart:
+    // Translate the message into a polynomial using a random oracle
+#ifdef FALCON_USE_RANDOM_ORACLE_CSPRNG
+    oracle_csprng(sc, m, m_len, md);
+    h_function_csprng(sc, md, c, n);
+#else
+    oracle_xof(sc, m, m_len);
+    h_function_xof(sc, c, n);
+#endif
+
+    // Obtain the Gram Scmidt orthogonalisation of the polynomial basis
+    SINT32 *b = NULL;
+    GSO_TYPE *b_gs = NULL;
+    GSO_TYPE *b_gs_inv_norm = NULL;
+    GSO_TYPE sig;
+    get_gso(sc, n, q, &gpv, &b, &b_gs, &b_gs_inv_norm);
 
     // Increment the trial statistics for signature generation
     sc->stats.sig_num++;
     sc->stats.sig_num_trials++;
 
-    // Translate the message into a polynomial using a random oracle
-    map_message_to_ring(sc, m, m_len, c, n);
-    SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "m", m, m_len);
-    SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "c", c, n);
-
-    // Gaussian sampling over the basis vector to generate the signature polynomials
-    gaussian_sample_with_tree(sc, sc->falcon->sk, ter, n, q, n_bits, c, gaussian_flags, s1, s2);
-    SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "s1", s1, n);
-    SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "s2", s2, n);
-
-    // Centre s2 around 0 for output as a signed integer with a Gaussian distribution
-    sc->sc_ntt->center_32(s2, n, &sc->falcon->ntt);
-
-    if (SC_FUNC_FAILURE == check_norm_bd(bd, s1, s2, n)) {
-        SC_PRINT_DEBUG(sc, "Norm failed\n");
-        goto finish;//restart;
+    // Generate a sampled polynomial using the polynomial basis
+    sig = 2.0L / b_gs_inv_norm[0];
+    SC_PRINT_DEBUG(sc, "Sign() sigma = %3.6f\n", sig);
+    SINT32 sample_error;
+    sample_error = gaussian_lattice_sample(sc, &gpv, b_gs, b_gs_inv_norm,
+        c, s1, NULL, q, sig, gaussian_flags);
+    if (SC_FUNC_FAILURE == sample_error) {
+        SC_LOG_ERROR(sc, SC_ERROR);
+        goto finish;
     }
+    SC_PRINT_1D_UINT8_HEX(sc, SC_LEVEL_DEBUG, "m", m, m_len);
+    SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "s1", s1, n);
+    sc->sc_ntt->center_32(s1, n, &sc->falcon->ntt);
 
-    // Output an encoded byte stream representing the signature
+    // Output an encoded byte stream representing the secret key SK
     sc_entropy_t coding_raw = {
         .type = SC_ENTROPY_NONE,
     };
@@ -896,37 +1147,37 @@ restart:
         goto finish;
     }
 
-    // Send s2
-    entropy_poly_encode_32(packer, n, s2, q_bits-2,
+    // Send s1
+    entropy_poly_encode_32(packer, n, s1, q_bits,
         SIGNED_COEFF, sc->coding_signature.type, 3, &sc->stats.components[SC_STAT_SIGNATURE][0].bits_coded);
 
-    sc->stats.components[SC_STAT_SIGNATURE][0].bits += (q_bits-2)*n;
+    sc->stats.components[SC_STAT_SIGNATURE][0].bits += q_bits*n;
     utils_entropy.pack_get_buffer(packer, sigret, siglen);
     utils_entropy.pack_destroy(&packer);
 
-#if 0
-    // Verification of the signature as a countermeasure to fault attack
-
-    // Calculate s1 = h*s2 - c0
-    /// @todo Why do we have to reverse the sign here - is f/F not negated somewhere?
-    sc_ntt->normalize_32(s2, n, &sc->falcon->ntt);
-    sc_ntt->fwd_ntt_32_16(s2_ntt, ntt, s2, w);
-    sc_ntt->mul_32_pointwise_16(s1, ntt, s2_ntt, h_ntt);
-    sc_ntt->inv_ntt_32_16(s1, ntt, s1, w, r);
-    sc_poly->sub_32(s1, n, c, s1);
-    sc_ntt->center_32(s1, n, ntt);
+#ifdef DEBUG_FALCON_SIG
+    // Calculate s2 = t - h*s1 mod q
+    sc_ntt->fwd_ntt_32_16_large(s1_ntt, ntt, s1, w);
+    sc->sc_ntt->mul_32_pointwise_16(s2, ntt, s1_ntt, h_ntt);
+    sc_ntt->inv_ntt_32_16_large(s2, ntt, s2, w, r);
+    sc_poly->sub_32(s2, n, c, s2);
     sc_ntt->center_32(s2, n, ntt);
 
-    SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "s1 (regen) = h*s2 - c0", s1, n);
-
-    if (SC_FUNC_FAILURE == check_norm_bd(bd, s1, s2, n)) {
-        goto finish;
-    }
+    SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "s2 = t - h*s1 mod q", s2, n);
 #endif
 
     retval = SC_FUNC_SUCCESS;
 
 finish:
+    // Free all memory resources
+    if (0 == sc->falcon->keep_matrices) {
+        if (b) {
+            SC_FREE(b, sizeof(SINT32) * 4*n*n);
+        }
+        if (b_gs) {
+            SC_FREE(b_gs, sizeof(GSO_TYPE) * (4*n*n + 2*n));
+        }
+    }
 
     // Reset the temporary memory
     SC_MEMZERO(sc->temp, 4 * n * sizeof(SINT32));
@@ -947,16 +1198,51 @@ SINT32 falcon_sig_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
 
 #else
 
+static SINT32 check_norm_bd(FLOAT bd, const SINT32 *s1, const SINT32 *s2, size_t n)
+{
+    size_t i;
+#ifdef FALCON_USE_LONGDOUBLE_PREC_FLOATS
+    LONGDOUBLE norm = 0;
+    for (i=n; i--;) {
+        norm += s1[i] * s1[i] + s2[i] * s2[i];
+    }
+    norm = sqrtl(norm);
+#else
+#ifdef FALCON_USE_DOUBLE_PREC_FLOATS
+    DOUBLE norm = 0;
+    for (i=n; i--;) {
+        norm += s1[i] * s1[i] + s2[i] * s2[i];
+    }
+    norm = sqrt(norm);
+#else
+    FLOAT norm = 0;
+    for (i=n; i--;) {
+        norm += s1[i] * s1[i] + s2[i] * s2[i];
+    }
+    norm = sqrtf(norm);
+#endif
+#endif
+
+    return (norm >= bd)? SC_FUNC_FAILURE : SC_FUNC_SUCCESS;
+}
+
 SINT32 falcon_sig_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
     const UINT8 *sigbuf, size_t siglen)
 {
-    size_t i;
+    // WITHOUT message recovery:
+    // 1. Hash the received message, t = H(m)
+    // 2. Compute the s2 polynomial, s2 = t - h*s1 mod q
+    // 3. Compute the norm, ||(s1, s2)||
+    //    ACCEPT if norm < B, REJECT otherwise
+
     UINT32 n, q, q_bits;
     FLOAT bd;
+#ifdef DEBUG_FALCON_SIG
     SINT16 *h_ntt;
+#endif
     SINT16 *h;
-    SINT32 *s1, *s2, *s2_ntt, *c;
-    DOUBLE *C;
+    SINT32 *c, *s1, *s2, *s1_ntt;
+    UINT8 md[64];
 
     // Obtain all the constants and variables
     n        = sc->falcon->params->n;
@@ -967,14 +1253,18 @@ SINT32 falcon_sig_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
     c        = sc->temp;
     s1       = c + n;
     s2       = s1 + n;
-    s2_ntt   = s2 + n;
+    s1_ntt   = s2 + n;
 
     // Obtain pointers to the public key (NTT domain version)
     h        = (SINT16 *) sc->pubkey->key;
+#ifdef DEBUG_FALCON_SIG
     h_ntt    = (SINT16 *) sc->pubkey->key + n;
+#endif
 
+#ifdef DEBUG_FALCON_SIG
     const SINT16 *w        = sc->falcon->params->w;
     const SINT16 *r        = sc->falcon->params->r;
+#endif
     ntt_params_t *ntt      = &sc->falcon->ntt;
     const utils_arith_ntt_t *sc_ntt = sc->sc_ntt;
     const utils_arith_poly_t *sc_poly  = sc->sc_poly;
@@ -989,29 +1279,34 @@ SINT32 falcon_sig_verify(safecrypto_t *sc, const UINT8 *m, size_t m_len,
     }
 
     // Decode s1
-    entropy_poly_decode_32(ipacker, n, s2, q_bits-2,
+    entropy_poly_decode_32(ipacker, n, s1, q_bits,
         SIGNED_COEFF, sc->coding_signature.type, 3);
-    sc_ntt->center_32(s2, n, ntt);
 
-    SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Received s2", s2, n);
+    SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "Received s1", s1, n);
 
     // Destroy the input packer
     utils_entropy.pack_destroy(&ipacker);
 
     // Translate the message into a polynomial using a random oracle
-    map_message_to_ring(sc, m, m_len, c, n);
+#ifdef FALCON_USE_RANDOM_ORACLE_CSPRNG
+    oracle_csprng(sc, m, m_len, md);
+    h_function_csprng(sc, md, c, n);
+#else
+    oracle_xof(sc, m, m_len);
+    h_function_xof(sc, c, n);
+#endif
 
-    // Compute s1 = s2*h  - c
-    /// @todo Why do we have to reverse the sign here - is f/F not negated somewhere?
-    sc_ntt->fwd_ntt_32_16(s2_ntt, ntt, s2, w);
-    sc->sc_ntt->mul_32_pointwise_16(s1, ntt, s2_ntt, h_ntt);
-    sc_ntt->inv_ntt_32_16(s1, ntt, s1, w, r);
-    sc_poly->sub_32(s1, n, c, s1);
-    sc_ntt->center_32(s1, n, ntt);
-    SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "s1", s1, n);
+#if 1
+    small_mul_mod_ring(s2, s1, h, n, q, s1_ntt);
+#else
+    sc_ntt->fwd_ntt_32_16(s1_ntt, ntt, s1, w);
+    sc->sc_ntt->mul_32_pointwise_16(s2, ntt, s1_ntt, h_ntt);
+    sc_ntt->inv_ntt_32_16(s2, ntt, s2, w, r);
+#endif
+    sc_poly->sub_32(s2, n, c, s2);
+    sc_ntt->center_32(s2, n, ntt);
+    SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "s2", s2, n);
 
-    // Verify that the l2 norm of the two signature polynomials lies below
-    // the required threshold
     if (SC_FUNC_FAILURE == check_norm_bd(bd, s1, s2, n)) {
         sc->stats.sig_num_unverified++;
         goto error_return;
@@ -1034,7 +1329,7 @@ error_return:
 
 char * falcon_sig_stats(safecrypto_t *sc)
 {
-    static const char* param_set_name[] = {"0", "1", "2"};
+    static const char* param_set_name[] = {"0", "I"};
     static char stats[2048];
     snprintf(stats, 2047, "\n%s Signature (%s-%s):\n\
 Keys           %8" FMT_LIMB " key-pairs  / %8" FMT_LIMB " trials [%.6f trials per key-pair]\n\

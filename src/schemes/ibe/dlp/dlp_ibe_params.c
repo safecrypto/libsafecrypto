@@ -19,28 +19,6 @@
 #include "utils/arith/arith.h"
 
 
-#if 1
-dlp_ibe_set_t param_dlp_ibe_0 = {
-    0, SC_HASH_SHA3_512, 0x403001, 23, 512, 9,
-    0x201800, 18, 990,
-#ifdef USE_RUNTIME_NTT_TABLES
-    NULL, NULL
-#else
-    w4206593_n512, r4206593_n512
-#endif
-};
-
-dlp_ibe_set_t param_dlp_ibe_1 = {
-    1, SC_HASH_SHA3_512, 0x403001, 23, 1024, 10,
-    0x201800, 17, 1332,
-#ifdef USE_RUNTIME_NTT_TABLES
-    NULL, NULL
-#else
-    w4206593_n1024, r4206593_n1024
-#endif
-};
-
-#else
 dlp_ibe_set_t param_dlp_ibe_0 = {
     0, SC_HASH_SHA3_512, 5767169, 23, 512, 9,
     2883584, 19, 971,
@@ -100,7 +78,6 @@ dlp_ibe_set_t param_dlp_ibe_5 = {
     w51750913_n1024, r51750913_n1024
 #endif
 };
-#endif
 
 #if 0
 dlp_ibe_set_t param_dlp_ibe_6 = {

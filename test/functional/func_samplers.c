@@ -25,8 +25,6 @@
 #include <string.h>
 
 
-#define ENABLE_FILE_OUTPUT    1
-
 #define MAX_ITER    1048576
 
 static const UINT8 nonce[16] = "SAFEcrypto nonce";
@@ -77,7 +75,7 @@ int main(void)
         SC_TIMER_INSTANCE(sampler_timer);
         SC_TIMER_CREATE(sampler_timer);
     
-#if 1 == ENABLE_FILE_OUTPUT
+#if 0
         UINT32 *dist[NUM_SAMPLERS];
         for (j=0; j<NUM_SAMPLERS; j++) {
             dist[j] = SC_MALLOC(sizeof(UINT32) * 4096 * 2);
@@ -145,7 +143,7 @@ int main(void)
     
                 SINT32 sample = sampler->sample(gauss);
                 sample += 4096;
-#if 1 == ENABLE_FILE_OUTPUT
+#if 0
                 dist[j][sample]++;
 #endif
     
@@ -179,7 +177,7 @@ int main(void)
     
         printf("\n");
     
-#if 1 == ENABLE_FILE_OUTPUT
+#if 0
         FILE *fp = fopen("gaussian_dist.dat", "w");
         if (fp) {
             for (k=0; k<NUM_SAMPLERS; k++) {

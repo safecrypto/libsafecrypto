@@ -20,7 +20,6 @@
 #include "sha2/sha2.h"
 #include "prng_types.h"
 
-SINT32 sc_sha2_make_copy(void *c, void *c_copy);
 SINT32 sc_sha2_init(void *c, SINT32 outlen);
 SINT32 sc_sha2_update(void *c, const void *data, size_t inlen);
 SINT32 sc_sha2_final(void *c, void *out);

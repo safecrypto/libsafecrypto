@@ -18,11 +18,11 @@ START_TEST(test_prng_create)
     prng_ctx_t *prng;
     prng = prng_create(-1, -1, SC_PRNG_THREADING_NONE, 0x00100000);
     ck_assert_ptr_eq(prng, NULL);
-    prng = prng_create(-1, SC_PRNG_AES_CTR_DRBG, SC_PRNG_THREADING_NONE, 0x00100000);
+    prng = prng_create(-1, SC_PRNG_SYSTEM, SC_PRNG_THREADING_NONE, 0x00100000);
     ck_assert_ptr_eq(prng, NULL);
     prng = prng_create(SC_ENTROPY_RANDOM, -1, SC_PRNG_THREADING_NONE, 0x00100000);
     ck_assert_ptr_eq(prng, NULL);
-    prng = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_AES_CTR_DRBG, SC_PRNG_THREADING_NONE, 0x00100000);
+    prng = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM, SC_PRNG_THREADING_NONE, 0x00100000);
     ck_assert_ptr_ne(prng, NULL);
     retval = prng_destroy(NULL);
     ck_assert_int_eq(retval, SC_FUNC_FAILURE);
@@ -45,7 +45,7 @@ START_TEST(test_prng_entropy_callback)
     SINT32 retval;
     UINT32 sum = 0, ave;
     int32_t bit;
-    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_CALLBACK, SC_PRNG_AES_CTR_DRBG,
+    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_CALLBACK, SC_PRNG_SYSTEM,
         SC_PRNG_THREADING_NONE, 0x00100000);
     prng_set_entropy_callback((void*)prng_entropy_source);
     prng_init(prng_ctx, NULL, 0);

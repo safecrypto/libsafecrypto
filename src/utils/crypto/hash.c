@@ -36,7 +36,6 @@ utils_crypto_hash_t * utils_crypto_hash_create(sc_hash_e type)
         {
             crypto_hash->type   = SC_HASH_SHA3_512;
             crypto_hash->length = 64;
-            crypto_hash->copy   = tinysha3_make_copy;
             crypto_hash->init   = tinysha3_init;
             crypto_hash->update = tinysha3_update;
             crypto_hash->final  = tinysha3_final;
@@ -47,7 +46,6 @@ utils_crypto_hash_t * utils_crypto_hash_create(sc_hash_e type)
         {
             crypto_hash->type   = SC_HASH_SHA3_384;
             crypto_hash->length = 48;
-            crypto_hash->copy   = tinysha3_make_copy;
             crypto_hash->init   = tinysha3_init;
             crypto_hash->update = tinysha3_update;
             crypto_hash->final  = tinysha3_final;
@@ -58,7 +56,6 @@ utils_crypto_hash_t * utils_crypto_hash_create(sc_hash_e type)
         {
             crypto_hash->type   = SC_HASH_SHA3_256;
             crypto_hash->length = 32;
-            crypto_hash->copy   = tinysha3_make_copy;
             crypto_hash->init   = tinysha3_init;
             crypto_hash->update = tinysha3_update;
             crypto_hash->final  = tinysha3_final;
@@ -67,9 +64,8 @@ utils_crypto_hash_t * utils_crypto_hash_create(sc_hash_e type)
 
         case SC_HASH_SHA3_224:
         {
-            crypto_hash->type   = SC_HASH_SHA3_224;
+            crypto_hash->type   = SC_HASH_SHA3_256;
             crypto_hash->length = 28;
-            crypto_hash->copy   = tinysha3_make_copy;
             crypto_hash->init   = tinysha3_init;
             crypto_hash->update = tinysha3_update;
             crypto_hash->final  = tinysha3_final;
@@ -82,7 +78,6 @@ utils_crypto_hash_t * utils_crypto_hash_create(sc_hash_e type)
         {
             crypto_hash->type   = SC_HASH_SHA2_512;
             crypto_hash->length = 64;
-            crypto_hash->copy   = sc_sha2_make_copy;
             crypto_hash->init   = sc_sha2_init;
             crypto_hash->update = sc_sha2_update;
             crypto_hash->final  = sc_sha2_final;
@@ -93,7 +88,6 @@ utils_crypto_hash_t * utils_crypto_hash_create(sc_hash_e type)
         {
             crypto_hash->type   = SC_HASH_SHA2_384;
             crypto_hash->length = 48;
-            crypto_hash->copy   = sc_sha2_make_copy;
             crypto_hash->init   = sc_sha2_init;
             crypto_hash->update = sc_sha2_update;
             crypto_hash->final  = sc_sha2_final;
@@ -104,7 +98,6 @@ utils_crypto_hash_t * utils_crypto_hash_create(sc_hash_e type)
         {
             crypto_hash->type   = SC_HASH_SHA2_256;
             crypto_hash->length = 32;
-            crypto_hash->copy   = sc_sha2_make_copy;
             crypto_hash->init   = sc_sha2_init;
             crypto_hash->update = sc_sha2_update;
             crypto_hash->final  = sc_sha2_final;
@@ -115,7 +108,6 @@ utils_crypto_hash_t * utils_crypto_hash_create(sc_hash_e type)
         {
             crypto_hash->type   = SC_HASH_SHA2_224;
             crypto_hash->length = 28;
-            crypto_hash->copy   = sc_sha2_make_copy;
             crypto_hash->init   = sc_sha2_init;
             crypto_hash->update = sc_sha2_update;
             crypto_hash->final  = sc_sha2_final;
@@ -128,7 +120,6 @@ utils_crypto_hash_t * utils_crypto_hash_create(sc_hash_e type)
         {
             crypto_hash->type   = SC_HASH_BLAKE2_512;
             crypto_hash->length = 64;
-            crypto_hash->copy   = sc_blake2b_make_copy;
             crypto_hash->init   = sc_blake2b_init;
             crypto_hash->update = sc_blake2b_update;
             crypto_hash->final  = sc_blake2b_final;
@@ -139,7 +130,6 @@ utils_crypto_hash_t * utils_crypto_hash_create(sc_hash_e type)
         {
             crypto_hash->type   = SC_HASH_BLAKE2_384;
             crypto_hash->length = 48;
-            crypto_hash->copy   = sc_blake2b_make_copy;
             crypto_hash->init   = sc_blake2b_init;
             crypto_hash->update = sc_blake2b_update;
             crypto_hash->final  = sc_blake2b_final;
@@ -150,7 +140,6 @@ utils_crypto_hash_t * utils_crypto_hash_create(sc_hash_e type)
         {
             crypto_hash->type   = SC_HASH_BLAKE2_256;
             crypto_hash->length = 32;
-            crypto_hash->copy   = sc_blake2b_make_copy;
             crypto_hash->init   = sc_blake2b_init;
             crypto_hash->update = sc_blake2b_update;
             crypto_hash->final  = sc_blake2b_final;
@@ -161,7 +150,6 @@ utils_crypto_hash_t * utils_crypto_hash_create(sc_hash_e type)
         {
             crypto_hash->type   = SC_HASH_BLAKE2_224;
             crypto_hash->length = 28;
-            crypto_hash->copy   = sc_blake2b_make_copy;
             crypto_hash->init   = sc_blake2b_init;
             crypto_hash->update = sc_blake2b_update;
             crypto_hash->final  = sc_blake2b_final;
@@ -174,7 +162,6 @@ utils_crypto_hash_t * utils_crypto_hash_create(sc_hash_e type)
         {
             crypto_hash->type   = SC_HASH_WHIRLPOOL_512;
             crypto_hash->length = 64;
-            crypto_hash->copy   = whirlpool_make_copy;
             crypto_hash->init   = whirlpool_init;
             crypto_hash->update = whirlpool_update;
             crypto_hash->final  = whirlpool_final;
@@ -265,69 +252,6 @@ size_t hash_length(utils_crypto_hash_t *c)
     }
 
     return c->length;
-}
-
-utils_crypto_hash_t * hash_make_copy(utils_crypto_hash_t *c)
-{
-    if (NULL == c) {
-        return NULL;
-    }
-
-    utils_crypto_hash_t *out_hash = SC_MALLOC(sizeof(utils_crypto_hash_t));
-    if (NULL == out_hash) {
-        return NULL;
-    }
-
-    *out_hash = *c;
-
-    switch (c->type)
-    {
-#ifdef ENABLE_WHIRLPOOL
-        case SC_HASH_WHIRLPOOL_512:
-        {
-            out_hash->ctx = SC_MALLOC(sizeof(whirlpool_ctx));
-        } break;
-#endif
-
-#ifdef ENABLE_SHA3
-        case SC_HASH_SHA3_512:
-        case SC_HASH_SHA3_384:
-        case SC_HASH_SHA3_256:
-        case SC_HASH_SHA3_224:
-        {
-            out_hash->ctx = SC_MALLOC(sizeof(sha3_ctx_t));
-        } break;
-#endif
-
-#ifdef ENABLE_SHA2
-        case SC_HASH_SHA2_512:
-        case SC_HASH_SHA2_384:
-        case SC_HASH_SHA2_256:
-        case SC_HASH_SHA2_224:
-        {
-            out_hash->ctx = SC_MALLOC(sizeof(sha2_ctx));
-        } break;
-#endif
-
-#ifdef ENABLE_BLAKE2
-        case SC_HASH_BLAKE2_512:
-        case SC_HASH_BLAKE2_384:
-        case SC_HASH_BLAKE2_256:
-        case SC_HASH_BLAKE2_224:
-        {
-            out_hash->ctx = SC_MALLOC(sizeof(blake2b_state));
-        } break;
-#endif
-
-        default:
-        {
-            SC_FREE(out_hash, sizeof(utils_crypto_hash_t))
-            return NULL;
-        };
-    }
-
-    c->copy(c->ctx, out_hash->ctx);
-    return out_hash;
 }
 
 SINT32 hash_init(utils_crypto_hash_t *c)

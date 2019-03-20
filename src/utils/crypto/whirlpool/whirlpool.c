@@ -560,19 +560,6 @@ UINT64 rhash_whirlpool_sbox[8][256] = {
 
 
 /**
- * Make a deep copy of the whirlpool hash context
- *
- * @param ctx context to copy
- */
-SINT32 whirlpool_make_copy(void *c, void *c_copy)
-{
-	whirlpool_ctx *ctx      = (whirlpool_ctx *) c;
-	whirlpool_ctx *ctx_copy = (whirlpool_ctx *) c_copy;
-	*ctx_copy = *ctx;
-	return SC_FUNC_SUCCESS;
-}
-
-/**
  * Initialize context before calculaing hash.
  *
  * @param ctx context to initialize

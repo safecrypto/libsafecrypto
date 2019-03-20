@@ -204,7 +204,7 @@ START_TEST(test_div_3)
     sc_poly_mpz_init(&quo, 128);
     sc_poly_mpz_init(&rem, 256);
     sc_poly_mpz_init(&prod, 256);
-    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_AES_CTR_DRBG,
+    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM,
         SC_PRNG_THREADING_NONE, 0x00100000);
     prng_init(prng_ctx, NULL, 0);
 
@@ -339,7 +339,7 @@ START_TEST(test_content)
     for (i=0; i<8; i++) {
         sc_poly_mpz_set_si(&a, i, data[i]);
     }
-    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_AES_CTR_DRBG,
+    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM,
         SC_PRNG_THREADING_NONE, 0x00100000);
     prng_init(prng_ctx, NULL, 0);
 

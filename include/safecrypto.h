@@ -694,13 +694,6 @@ extern sc_hash_e safecrypto_hash_type(safecrypto_hash_t *hash);
  */
 extern size_t safecrypto_hash_length(safecrypto_hash_t *hash);
 
-/** @brief Create a copy of the hash context
- *
- *  @param hash A pointer to the hash struct
- *  @return Returns a new hash context on the heap
- */
-extern safecrypto_hash_t * safecrypto_hash_make_copy(safecrypto_hash_t *hash);
-
 /** @brief The common hash API function used to initialise
  *
  *  @param hash A pointer to the hash struct

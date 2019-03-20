@@ -19,7 +19,6 @@ TESTS                    = func_safecrypto \
                            func_csprng \
                            func_sc_math \
                            func_ntt \
-                           func_fft_falcon \
                            func_alg_2way_ake \
                            func_alg_2way_ake_huffman \
                            func_signatures_schemes
@@ -91,14 +90,6 @@ TESTS                   += func_alg_dilithium \
                            func_alg_dilithium_huffman \
                            func_alg_dilithium_g_huffman
 endif BUILD_DILITHIUM
-
-if WITH_FALCON_SIG
-TESTS                   += func_alg_falcon \
-                           func_alg_falcon_huffman
-endif WITH_FALCON_SIG
-
-TESTS                   += func_alg_ecdh
-TESTS                   += func_alg_ecdsa
 
 noinst_PROGRAMS          = $(TESTS)
 
@@ -181,19 +172,6 @@ func_alg_dlp_sig_recovery_huffman_LDADD   = $(top_builddir)/libs/libsafecrypto.l
 func_alg_dlp_sig_recovery_huffman_CFLAGS  = -DUSE_HUFFMAN_STATIC_ENTROPY
 func_alg_dlp_sig_recovery_huffman_LDFLAGS = -static
 endif
-
-if WITH_FALCON_SIG
-func_alg_falcon_SOURCES             = func_alg_falcon.c \
-                                       $(top_srcdir)/include/safecrypto.h
-func_alg_falcon_LDADD               = $(top_builddir)/libs/libsafecrypto.la -lm
-func_alg_falcon_LDFLAGS             = -static
-
-func_alg_falcon_huffman_SOURCES     = func_alg_falcon.c \
-                                       $(top_srcdir)/include/safecrypto.h
-func_alg_falcon_huffman_LDADD       = $(top_builddir)/libs/libsafecrypto.la -lm
-func_alg_falcon_huffman_CFLAGS      = -DUSE_HUFFMAN_STATIC_ENTROPY
-func_alg_falcon_huffman_LDFLAGS     = -static
-endif 
 
 if WITH_DILITHIUM_SIG
 func_alg_dilithium_SOURCES           = func_alg_dilithium.c \
@@ -330,11 +308,6 @@ func_ntt_SOURCES                     = func_ntt.c \
 func_ntt_LDADD                       = $(top_builddir)/libs/libsafecrypto.la -lm
 func_ntt_LDFLAGS                     = -static
 
-func_fft_falcon_SOURCES              = func_fft_falcon.c \
-                                       $(top_srcdir)/include/safecrypto.h
-func_fft_falcon_LDADD                = $(top_builddir)/libs/libsafecrypto.la -lm
-func_fft_falcon_LDFLAGS              = -static
-
 func_threading_SOURCES               = func_threading.c \
                                        $(top_srcdir)/include/safecrypto.h
 func_threading_LDADD                 = $(top_builddir)/libs/libsafecrypto.la -lm
@@ -368,17 +341,7 @@ endif WITH_ENS_KEM
 
 func_signatures_schemes_SOURCES      = func_signatures_schemes.c \
                                        $(top_srcdir)/include/safecrypto.h
-func_signatures_schemes_LDADD        = $(top_builddir)/libs/libsafecrypto.la -lm
+func_signatures_schemes_LDADD        =  $(top_builddir)/libs/libsafecrypto.la -lm
 func_signatures_schemes_LDFLAGS      = -static
-
-func_alg_ecdh_SOURCES                = func_alg_ecdh.c \
-                                       $(top_srcdir)/include/safecrypto.h
-func_alg_ecdh_LDADD                  = $(top_builddir)/libs/libsafecrypto.la -lm
-func_alg_ecdh_LDFLAGS                = -static
-
-func_alg_ecdsa_SOURCES               = func_alg_ecdsa.c \
-                                       $(top_srcdir)/include/safecrypto.h
-func_alg_ecdsa_LDADD                 = $(top_builddir)/libs/libsafecrypto.la -lm
-func_alg_ecdsa_LDFLAGS               = -static
 
 endif
