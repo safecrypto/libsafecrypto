@@ -32,7 +32,7 @@ START_TEST(test_create_rand_product)
     SINT32 *z = SC_MALLOC(sizeof(SINT32) * n * 2);
     SINT32 *c = SC_MALLOC(sizeof(SINT32) * n);
     SINT32 *temp = SC_MALLOC(sizeof(SINT32) * n);
-    roots_of_unity_s32(w, r, n, q, 0);
+    roots_of_unity_s32(w, r, n, q, 0, 0);
     const utils_arith_ntt_t *sc_ntt = utils_arith_ntt(SC_NTT_FLOATING_POINT);
     const utils_arith_poly_t *sc_poly  = utils_arith_poly();
     ntt_params_t ntt;
@@ -92,7 +92,7 @@ START_TEST(test_create_rand_product_16)
     SINT32 *z = SC_MALLOC(sizeof(SINT32) * n * 2);
     SINT32 *c = SC_MALLOC(sizeof(SINT32) * n);
     SINT32 *temp = SC_MALLOC(sizeof(SINT32) * n);
-    roots_of_unity_s16(w, r, n, q, 0);
+    roots_of_unity_s16(w, r, n, q, 0, 0);
     const utils_arith_ntt_t *sc_ntt = utils_arith_ntt(SC_NTT_FLOATING_POINT);
     const utils_arith_poly_t *sc_poly  = utils_arith_poly();
     ntt_params_t ntt;
@@ -153,7 +153,7 @@ START_TEST(test_create_rand_product_k)
     SINT32 *z = SC_MALLOC(sizeof(SINT32) * k * n * 2);
     SINT32 *c = SC_MALLOC(sizeof(SINT32) * n);
     SINT32 *temp = SC_MALLOC(sizeof(SINT32) * k * n);
-    roots_of_unity_s32(w, r, n, q, 0);
+    roots_of_unity_s32(w, r, n, q, 0, 0);
     const utils_arith_ntt_t *sc_ntt = utils_arith_ntt(SC_NTT_FLOATING_POINT);
     const utils_arith_poly_t *sc_poly  = utils_arith_poly();
     ntt_params_t ntt;
@@ -214,7 +214,7 @@ START_TEST(test_create_rand_product_k_16)
     SINT32 *z = SC_MALLOC(sizeof(SINT32) * k * n * 2);
     SINT32 *c = SC_MALLOC(sizeof(SINT32) * n);
     SINT32 *temp = SC_MALLOC(sizeof(SINT32) * k * n);
-    roots_of_unity_s16(w, r, n, q, 0);
+    roots_of_unity_s16(w, r, n, q, 0, 0);
     const utils_arith_ntt_t *sc_ntt = utils_arith_ntt(SC_NTT_FLOATING_POINT);
     const utils_arith_poly_t *sc_poly  = utils_arith_poly();
     ntt_params_t ntt;

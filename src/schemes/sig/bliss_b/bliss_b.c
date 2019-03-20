@@ -109,12 +109,14 @@ void * keygen_f_producer_worker(void *p)
     ntt_params_t *ntt = &sc->bliss->ntt;
 
     UINT16 n = sc->bliss->params->n;
+    UINT16 q = sc->bliss->params->q;
     const UINT16 *nz = sc->bliss->params->nz;
     const SINT16 *w = sc->bliss->params->w;
 
     SINT32 data[1024];
     SINT32 *f = data;
     SINT32 *u = data + n;
+    size_t i;
 
 restart:
     sc->stats.keygen_num_trials++;
@@ -128,6 +130,10 @@ restart:
     // Attempt to invert NTT(f)
     if (SC_FUNC_FAILURE == sc_ntt->invert_32(u, ntt, n)) {
         goto restart;
+    }
+
+    for (i=n; i--;) {
+        u[i] = -u[i];
     }
 
     // Success, write the two polynomials to the data pipeline
@@ -364,7 +370,7 @@ SINT32 bliss_b_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
     sc->bliss->params->r     = temp + 2*n;
     sc->bliss->params->r_rev = temp + 3*n;
     roots_of_unity_s16(sc->bliss->params->w, sc->bliss->params->r,
-        n, sc->bliss->params->q, 0);
+        n, sc->bliss->params->q, 0, 0);
 #endif
 
     // Dynamically allocate memory for temporary storage
@@ -501,7 +507,7 @@ static SINT32 keygen_params(safecrypto_t *sc, UINT16 *n, UINT16 *n_bits, UINT16 
     *nz = sc->bliss->params->nz;
     *w = (sc->bliss->ntt_optimisation >= SC_NTT_REFERENCE_REV)? sc->bliss->params->w_rev : sc->bliss->params->w;
     *w_inv = (sc->bliss->ntt_optimisation >= SC_NTT_REFERENCE_REV)? sc->bliss->params->w_inv : sc->bliss->params->w;
-    *r = (sc->bliss->ntt_optimisation >= SC_NTT_REFERENCE_REV)? sc->bliss->params->r_inv : sc->bliss->params->r;
+    *r = (sc->bliss->ntt_optimisation >= SC_NTT_REFERENCE_REV)? sc->bliss->params->r_rev : sc->bliss->params->r;
 
     return SC_FUNC_SUCCESS;
 }
@@ -526,7 +532,7 @@ static SINT32 signature_params(safecrypto_t *sc, UINT16 *n, UINT16 *n_bits, UINT
     *z2_bits = sc->bliss->params->z2_bits;
     *w = (sc->bliss->ntt_optimisation >= SC_NTT_REFERENCE_REV)? sc->bliss->params->w_rev : sc->bliss->params->w;
     *w_inv = (sc->bliss->ntt_optimisation >= SC_NTT_REFERENCE_REV)? sc->bliss->params->w_inv : sc->bliss->params->w;
-    *r = (sc->bliss->ntt_optimisation >= SC_NTT_REFERENCE_REV)? sc->bliss->params->r_inv : sc->bliss->params->r;
+    *r = (sc->bliss->ntt_optimisation >= SC_NTT_REFERENCE_REV)? sc->bliss->params->r_rev : sc->bliss->params->r;
 
     return SC_FUNC_SUCCESS;
 }
@@ -767,13 +773,15 @@ SINT32 bliss_b_privkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len)
 SINT32 bliss_b_privkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len)
 {
     size_t i;
-    UINT16 n, nz2;
+    UINT16 n, q, nz2;
     SINT32 *f, *g;
     const SINT16 *w;
+    const utils_arith_poly_t *sc_poly = sc->sc_poly;
     const utils_arith_ntt_t *sc_ntt = sc->sc_ntt;
     ntt_params_t *ntt = &sc->bliss->ntt;
 
     n = sc->bliss->params->n;
+    q = sc->bliss->params->q;
     nz2 = sc->bliss->params->nz[0];
 
     f = sc->temp;
@@ -823,14 +831,29 @@ SINT32 bliss_b_privkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len)
     sc_ntt->fwd_ntt_32_16(g, ntt, g, w);
     sc_ntt->fwd_ntt_32_16(f, ntt, f, w);
 
+#if 0
+    // Attempt to invert NTT(f)
+    if (SC_FUNC_FAILURE == sc_ntt->div_32(g, f, ntt, n)) {
+        SC_LOG_ERROR(sc, SC_ERROR);
+        return SC_FUNC_FAILURE;
+    }
+
+    // Negate h
+    sc_poly->mod_negate_32(g, n, q, g);
+#else
     // Attempt to invert NTT(f)
     if (SC_FUNC_FAILURE == sc_ntt->invert_32(f, ntt, n)) {
         SC_LOG_ERROR(sc, SC_ERROR);
         return SC_FUNC_FAILURE;
     }
 
+    for (i=n; i--;) {
+        f[i] = -f[i];
+    }
+
     // a = (2g+1)/f and f is invertible, so calculate ...
     sc_ntt->mul_32_pointwise(g, ntt, g, f);
+#endif
 
     // Normalize a
     sc_ntt->normalize_32(g, n, ntt);
@@ -1169,6 +1192,10 @@ restart:
         // Attempt to invert NTT(f)
         if (SC_FUNC_FAILURE == sc_ntt->invert_32(u, ntt, n)) {
             goto restart;
+        }
+
+        for (i=n; i--;) {
+            u[i] = -u[i];
         }
 
         SC_PRINT_DEBUG(sc, "Inversion after %d attempts\n", iter);

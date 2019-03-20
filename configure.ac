@@ -795,6 +795,15 @@ if test "x${enable_kem_ens}" = "xno"; then
     AC_SUBST([AM_CPPFLAGS], ["$AM_CPPFLAGS -DDISABLE_KEM_ENS"])
 fi
 
+AC_ARG_ENABLE([sig_falcon],
+    AC_HELP_STRING([--enable-sig-falcon], [Enable support for the Falcon Signature scheme (default: enable)]),
+    [enable_sig_falcon=$enableval],
+    [enable_sig_falcon=$enable_signatures])
+AM_CONDITIONAL([WITH_FALCON_SIG], [test "x${enable_sig_falcon}" = "xyes"])
+if test "x${enable_sig_falcon}" = "xno"; then
+    AC_SUBST([AM_CPPFLAGS], ["$AM_CPPFLAGS -DDISABLE_SIG_FALCON"])
+fi
+
 AC_ARG_ENABLE([ibe_dlp],
     AC_HELP_STRING([--enable-ibe-dlp], [Enable support for the DLP IBE scheme (default: enable)]),
     [enable_ibe_dlp=$enableval],
@@ -856,18 +865,21 @@ AM_CONDITIONAL([WITH_ARITH_MLWE],
 AM_CONDITIONAL([WITH_ARITH_INTEGER_MP],
   [test "x${enable_ibe_dlp}" = "xyes" ||
    test "x${enable_sig_ens}" = "xyes" ||
-   test "x${enable_sig_dlp}" = "xyes"])
+   test "x${enable_sig_dlp}" = "xyes" ||
+   test "x${enable_sig_falcon}" = "xyes"])
 AM_CONDITIONAL([WITH_ARITH_FLOAT_MP],
   [test "x${enable_high_prec_gaussian}" = "xyes"])
 AM_CONDITIONAL([WITH_ARITH_NATURAL_MP],
   [test "x${enable_high_prec_gaussian}" = "xyes" ||
    test "x${enable_ibe_dlp}" = "xyes" ||
    test "x${enable_sig_ens}" = "xyes" ||
-   test "x${enable_sig_dlp}" = "xyes"])
+   test "x${enable_sig_dlp}" = "xyes" ||
+   test "x${enable_sig_falcon}" = "xyes"])
 AM_CONDITIONAL([WITH_ARITH_GPV],
   [test "x${enable_ibe_dlp}" = "xyes" ||
    test "x${enable_sig_ens}" = "xyes" ||
-   test "x${enable_sig_dlp}" = "xyes"])
+   test "x${enable_sig_dlp}" = "xyes" ||
+   test "x${enable_sig_falcon}" = "xyes"])
 
 
 # Disable support for the x87 FPU on 386 as gcc optimisation is proving dangerous - use
@@ -1212,6 +1224,9 @@ if test "x${enable_ibe_dlp}" = "xyes"; then
 fi
 if test "x${enable_sig_ens}" = "xyes" || test "x${enable_sig_dlp}" = "xyes"; then
     AC_CONFIG_FILES([src/schemes/sig/ens_dlp/Makefile])
+fi
+if test "x${enable_sig_falcon}" = "xyes"; then
+    AC_CONFIG_FILES([src/schemes/sig/falcon/Makefile])
 fi
 if test "x${enable_enc_kyber}" = "xyes"; then
     AC_CONFIG_FILES([src/schemes/enc/kyber/Makefile])

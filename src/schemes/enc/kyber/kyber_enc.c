@@ -227,7 +227,7 @@ SINT32 kyber_enc_pubkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len)
     const utils_arith_ntt_t *sc_ntt = sc->sc_ntt;
     ntt_params_t *ntt = &sc->kyber->ntt;
     mlwe_decompress(t, n, k, dt_bits, q);
-    sc_ntt->normalize_32(t + n*i, k*n, ntt);
+    sc_ntt->normalize_32(t, k*n, ntt);
 
 #if KYBER_ENC_STORE_NTT_T == 1
     // If t is stored in the NTT domain it must be converted to the normal domain

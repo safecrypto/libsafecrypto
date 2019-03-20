@@ -18,7 +18,7 @@ Signatures:
 - ENS
 - DLP
 - Ring-TESLA
-- Falcon (note currently exists on seperate branch)
+- Falcon
 
 KEM:
 - ENS
@@ -63,6 +63,7 @@ pkg-config, check-devel, subunit-devel, texlive-latex-extra, graphviz
 
 Optionally: gmp, mpfr
 
+Dockerfile available in master branch
 
 ### Docker
 

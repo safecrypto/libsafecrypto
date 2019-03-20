@@ -64,13 +64,20 @@ const utils_arith_vec_t *utils_arith_vectors(void)
 
 
 static const utils_arith_ntt_t utils_arith_ntt_barrett = {
+    ntt16_modn_barrett, ntt16_muln_barrett, ntt16_sqrn_barrett,
+    ntt16_mult_sparse_generic, ntt16_mult_pointwise_barrett, ntt16_mult_scalar_generic,
+    ntt16_fft_barrett, ntt16_large_fft_barrett,
+    ntt16_pwr_barrett, ntt16_invert_barrett, ntt16_div_barrett, ntt16_flip_generic,
+    ntt16_center_barrett, ntt16_normalize_barrett,
+    ntt16_fwd_ntt_barrett, ntt16_inv_ntt_barrett, ntt16_large_fwd_ntt_barrett, ntt16_large_inv_ntt_barrett,
+
     ntt32_modn_barrett, ntt32_muln_barrett, ntt32_sqrn_barrett,
     ntt32_mult_sparse_32_generic, ntt32_mult_sparse_16_generic,
     ntt32_mult_pointwise_barrett, ntt32_mult_pointwise_16_barrett, ntt32_mult_scalar_generic,
     ntt32_fft_32_barrett, ntt32_large_fft_32_barrett,
     ntt32_fft_16_barrett, ntt32_large_fft_16_barrett,
-    ntt32_pwr_barrett, ntt32_invert_barrett, ntt32_flip_generic,
-    ntt32_center_32_barrett, ntt32_normalize_32_barrett, ntt32_center_16_barrett, ntt32_normalize_16_barrett,
+    ntt32_pwr_barrett, ntt32_invert_barrett, ntt32_div_barrett, ntt32_flip_generic,
+    ntt32_center_barrett, ntt32_normalize_barrett,
     ntt32_fwd_ntt_32_barrett, ntt32_inv_ntt_32_barrett, ntt32_large_fwd_ntt_32_barrett, ntt32_large_inv_ntt_32_barrett,
     ntt32_fwd_ntt_16_barrett, ntt32_inv_ntt_16_barrett, ntt32_large_fwd_ntt_16_barrett, ntt32_large_inv_ntt_16_barrett,
 
@@ -81,7 +88,7 @@ static const utils_arith_ntt_t utils_arith_ntt_barrett = {
     ntt_fft_barrett, ntt_large_fft_barrett,
     ntt_fft_32_barrett, ntt_large_fft_32_barrett,
     ntt_fft_16_barrett, ntt_large_fft_16_barrett,
-    ntt_pwr_barrett, ntt_invert_barrett, ntt_flip_generic,
+    ntt_pwr_barrett, ntt_invert_barrett, ntt_div_barrett, ntt_flip_generic,
     ntt_center_barrett, ntt_normalize_barrett,
     ntt_fwd_ntt_barrett,  ntt_inv_ntt_barrett,ntt_large_fwd_ntt_barrett, ntt_large_inv_ntt_barrett,
     ntt_fwd_ntt_32_barrett, ntt_inv_ntt_32_barrett, ntt_large_fwd_ntt_32_barrett, ntt_large_inv_ntt_32_barrett,
@@ -114,13 +121,20 @@ static const utils_arith_ntt_t utils_arith_ntt_barrett = {
 };*/
 
 static const utils_arith_ntt_t utils_arith_ntt_fp = {
+    ntt16_modn_fp, ntt16_muln_fp, ntt16_sqrn_fp,
+    ntt16_mult_sparse_generic, ntt16_mult_pointwise_fp, ntt16_mult_scalar_generic,
+    ntt16_fft_fp, ntt16_large_fft_fp,
+    ntt16_pwr_fp, ntt16_invert_fp, ntt16_div_fp, ntt16_flip_generic,
+    ntt16_center_fp, ntt16_normalize_fp,
+    ntt16_fwd_ntt_fp, ntt16_inv_ntt_fp, ntt16_large_fwd_ntt_fp, ntt16_large_inv_ntt_fp,
+
     ntt32_modn_fp, ntt32_muln_fp, ntt32_sqrn_fp,
     ntt32_mult_sparse_32_generic, ntt32_mult_sparse_16_generic,
     ntt32_mult_pointwise_fp, ntt32_mult_pointwise_16_fp, ntt32_mult_scalar_generic,
     ntt32_fft_32_fp, ntt32_large_fft_32_fp,
     ntt32_fft_16_fp, ntt32_large_fft_16_fp,
-    ntt32_pwr_fp, ntt32_invert_fp, ntt32_flip_generic,
-    ntt32_center_32_fp, ntt32_normalize_32_fp, ntt32_center_16_fp, ntt32_normalize_16_fp,
+    ntt32_pwr_fp, ntt32_invert_fp, ntt32_div_fp, ntt32_flip_generic,
+    ntt32_center_fp, ntt32_normalize_fp,
     ntt32_fwd_ntt_32_fp, ntt32_inv_ntt_32_fp, ntt32_large_fwd_ntt_32_fp, ntt32_large_inv_ntt_32_fp,
     ntt32_fwd_ntt_16_fp, ntt32_inv_ntt_16_fp, ntt32_large_fwd_ntt_16_fp, ntt32_large_inv_ntt_16_fp,
 
@@ -131,7 +145,7 @@ static const utils_arith_ntt_t utils_arith_ntt_fp = {
     ntt_fft_fp, ntt_large_fft_fp,
     ntt_fft_32_fp, ntt_large_fft_32_fp,
     ntt_fft_16_fp, ntt_large_fft_16_fp,
-    ntt_pwr_fp, ntt_invert_fp, ntt_flip_generic,
+    ntt_pwr_fp, ntt_invert_fp, ntt_div_fp, ntt_flip_generic,
     ntt_center_fp, ntt_normalize_fp,
     ntt_fwd_ntt_fp, ntt_inv_ntt_fp, ntt_large_fwd_ntt_fp, ntt_large_inv_ntt_fp,
     ntt_fwd_ntt_32_fp, ntt_inv_ntt_32_fp, ntt_large_fwd_ntt_32_fp, ntt_large_inv_ntt_32_fp,
@@ -139,13 +153,20 @@ static const utils_arith_ntt_t utils_arith_ntt_fp = {
 };
 
 static const utils_arith_ntt_t utils_arith_ntt_reference = {
+    ntt16_modn_reference, ntt16_muln_reference, ntt16_sqrn_reference,
+    ntt16_mult_sparse_generic, ntt16_mult_pointwise_reference, ntt16_mult_scalar_generic,
+    ntt16_fft_reference, ntt16_large_fft_reference,
+    ntt16_pwr_reference, ntt16_invert_reference, ntt16_div_reference, ntt16_flip_generic,
+    ntt16_center_reference, ntt16_normalize_reference,
+    ntt16_fwd_ntt_reference, ntt16_inv_ntt_reference, ntt16_large_fwd_ntt_reference, ntt16_large_inv_ntt_reference,
+
     ntt32_modn_reference, ntt32_muln_reference, ntt32_sqrn_reference,
     ntt32_mult_sparse_32_generic, ntt32_mult_sparse_16_generic,
     ntt32_mult_pointwise_reference, ntt32_mult_pointwise_16_reference, ntt32_mult_scalar_generic,
     ntt32_fft_32_reference, ntt32_large_fft_32_reference,
     ntt32_fft_16_reference, ntt32_large_fft_16_reference,
-    ntt32_pwr_reference, ntt32_invert_reference, ntt32_flip_generic,
-    ntt32_center_32_reference, ntt32_normalize_32_reference, ntt32_center_16_reference, ntt32_normalize_16_reference,
+    ntt32_pwr_reference, ntt32_invert_reference, ntt32_div_reference, ntt32_flip_generic,
+    ntt32_center_reference, ntt32_normalize_reference,
     ntt32_fwd_ntt_32_reference, ntt32_inv_ntt_32_reference, ntt32_large_fwd_ntt_32_reference, ntt32_large_inv_ntt_32_reference,
     ntt32_fwd_ntt_16_reference, ntt32_inv_ntt_16_reference, ntt32_large_fwd_ntt_16_reference, ntt32_large_inv_ntt_16_reference,
 
@@ -156,7 +177,7 @@ static const utils_arith_ntt_t utils_arith_ntt_reference = {
     ntt_fft_reference, ntt_large_fft_reference,
     ntt_fft_32_reference, ntt_large_fft_32_reference,
     ntt_fft_16_reference, ntt_large_fft_16_reference,
-    ntt_pwr_reference, ntt_invert_reference, ntt_flip_generic,
+    ntt_pwr_reference, ntt_invert_reference, ntt_div_reference, ntt_flip_generic,
     ntt_center_reference, ntt_normalize_reference,
     ntt_fwd_ntt_reference, ntt_inv_ntt_reference, ntt_large_fwd_ntt_reference, ntt_large_inv_ntt_reference,
     ntt_fwd_ntt_32_reference, ntt_inv_ntt_32_reference, ntt_large_fwd_ntt_32_reference, ntt_large_inv_ntt_32_reference,
@@ -165,13 +186,20 @@ static const utils_arith_ntt_t utils_arith_ntt_reference = {
 
 #ifdef HAVE_AVX2
 static const utils_arith_ntt_t utils_arith_ntt_avx = {
+    ntt16_modn_avx, ntt16_muln_avx, ntt16_sqrn_avx,
+    ntt16_mult_sparse_generic, ntt16_mult_pointwise_avx, ntt16_mult_scalar_generic,
+    ntt16_fft_avx, ntt16_large_fft_avx,
+    ntt16_pwr_avx, ntt16_invert_avx, ntt16_div_avx, ntt16_flip_generic,
+    ntt16_center_avx, ntt16_normalize_avx,
+    ntt16_fwd_ntt_avx, ntt16_inv_ntt_avx, ntt16_large_fwd_ntt_avx, ntt16_large_inv_ntt_avx,
+
     ntt32_modn_avx, ntt32_muln_avx, ntt32_sqrn_avx,
     ntt32_mult_sparse_32_generic, ntt32_mult_sparse_16_generic,
     ntt32_mult_pointwise_avx, ntt32_mult_pointwise_16_avx, ntt32_mult_scalar_generic,
     ntt32_fft_32_avx, ntt32_large_fft_32_avx,
     ntt32_fft_16_avx, ntt32_large_fft_16_avx,
-    ntt32_pwr_avx, ntt32_invert_avx, ntt32_flip_generic,
-    ntt32_center_32_avx, ntt32_normalize_32_avx, ntt32_center_16_avx, ntt32_normalize_16_avx,
+    ntt32_pwr_avx, ntt32_invert_avx, ntt32_div_avx, ntt32_flip_generic,
+    ntt32_center_avx, ntt32_normalize_avx,
     ntt32_fwd_ntt_32_avx, ntt32_inv_ntt_32_avx, ntt32_large_fwd_ntt_32_avx, ntt32_large_inv_ntt_32_avx,
     ntt32_fwd_ntt_16_avx, ntt32_inv_ntt_16_avx, ntt32_large_fwd_ntt_16_avx, ntt32_large_inv_ntt_16_avx,
 
@@ -182,7 +210,7 @@ static const utils_arith_ntt_t utils_arith_ntt_avx = {
     ntt_fft_avx, ntt_large_fft_avx,
     ntt_fft_32_avx, ntt_large_fft_32_avx,
     ntt_fft_16_avx, ntt_large_fft_16_avx,
-    ntt_pwr_avx, ntt_invert_avx, ntt_flip_generic,
+    ntt_pwr_avx, ntt_invert_avx, ntt_div_avx, ntt_flip_generic,
     ntt_center_avx, ntt_normalize_avx,
     ntt_fwd_ntt_avx, ntt_inv_ntt_avx, ntt_large_fwd_ntt_avx, ntt_large_inv_ntt_avx,
     ntt_fwd_ntt_32_avx, ntt_inv_ntt_32_avx, ntt_large_fwd_ntt_32_avx, ntt_large_inv_ntt_32_avx,
@@ -216,13 +244,20 @@ static const utils_arith_ntt_t utils_arith_ntt_avx = {
 #endif
 
 static const utils_arith_ntt_t utils_arith_ntt_7681 = {
+    ntt16_modn_reference, ntt16_muln_reference, ntt16_sqrn_reference,
+    ntt16_mult_sparse_generic, ntt16_mult_pointwise_reference, ntt16_mult_scalar_generic,
+    ntt16_fft_reference, ntt16_large_fft_reference,
+    ntt16_pwr_reference, ntt16_invert_reference, ntt16_div_reference, ntt16_flip_generic,
+    ntt16_center_reference, ntt16_normalize_reference,
+    ntt16_fwd_ntt_reference, ntt16_inv_ntt_reference, ntt16_large_fwd_ntt_reference, ntt16_large_inv_ntt_reference,
+
     ntt32_modn_7681, ntt32_muln_7681, ntt32_sqrn_7681,
     ntt32_mult_sparse_32_generic, ntt32_mult_sparse_16_generic,
     ntt32_mult_pointwise_7681, ntt32_mult_pointwise_16_7681, ntt32_mult_scalar_generic,
     ntt32_fft_32_7681, ntt32_large_fft_32_7681,
     ntt32_fft_16_7681, ntt32_large_fft_16_7681,
-    ntt32_pwr_7681, ntt32_invert_7681, ntt32_flip_generic,
-    ntt32_center_32_7681, ntt32_normalize_32_7681, ntt32_center_16_7681, ntt32_normalize_16_7681,
+    ntt32_pwr_7681, ntt32_invert_7681, ntt32_div_7681, ntt32_flip_generic,
+    ntt32_center_7681, ntt32_normalize_7681,
     ntt32_fwd_ntt_32_7681, ntt32_inv_ntt_32_7681, ntt32_large_fwd_ntt_32_7681, ntt32_large_inv_ntt_32_7681,
     ntt32_fwd_ntt_16_7681, ntt32_inv_ntt_16_7681, ntt32_large_fwd_ntt_16_7681, ntt32_large_inv_ntt_16_7681,
 
@@ -233,7 +268,7 @@ static const utils_arith_ntt_t utils_arith_ntt_7681 = {
     ntt_fft_7681, ntt_large_fft_7681,
     ntt_fft_32_7681, ntt_large_fft_32_7681,
     ntt_fft_16_7681, ntt_large_fft_16_7681,
-    ntt_pwr_7681, ntt_invert_7681, ntt_flip_generic,
+    ntt_pwr_7681, ntt_invert_7681, ntt_div_7681, ntt_flip_generic,
     ntt_center_7681, ntt_normalize_7681,
     ntt_fwd_ntt_7681, ntt_inv_ntt_7681, ntt_large_fwd_ntt_7681, ntt_large_inv_ntt_7681,
     ntt_fwd_ntt_32_7681, ntt_inv_ntt_32_7681, ntt_large_fwd_ntt_32_7681, ntt_large_inv_ntt_32_7681,
@@ -241,13 +276,20 @@ static const utils_arith_ntt_t utils_arith_ntt_7681 = {
 };
 
 static const utils_arith_ntt_t utils_arith_ntt_8380417 = {
+    ntt16_modn_reference, ntt16_muln_reference, ntt16_sqrn_reference,
+    ntt16_mult_sparse_generic, ntt16_mult_pointwise_reference, ntt16_mult_scalar_generic,
+    ntt16_fft_reference, ntt16_large_fft_reference,
+    ntt16_pwr_reference, ntt16_invert_reference, ntt16_div_reference, ntt16_flip_generic,
+    ntt16_center_reference, ntt16_normalize_reference,
+    ntt16_fwd_ntt_reference, ntt16_inv_ntt_reference, ntt16_large_fwd_ntt_reference, ntt16_large_inv_ntt_reference,
+
     ntt32_modn_8380417, ntt32_muln_8380417, ntt32_sqrn_8380417,
     ntt32_mult_sparse_32_generic, ntt32_mult_sparse_16_generic,
     ntt32_mult_pointwise_8380417, ntt32_mult_pointwise_16_8380417, ntt32_mult_scalar_generic,
     ntt32_fft_32_8380417, ntt32_large_fft_32_8380417,
     ntt32_fft_16_8380417, ntt32_large_fft_16_8380417,
-    ntt32_pwr_8380417, ntt32_invert_8380417, ntt32_flip_generic,
-    ntt32_center_32_8380417, ntt32_normalize_32_8380417, ntt32_center_16_8380417, ntt32_normalize_16_8380417,
+    ntt32_pwr_8380417, ntt32_invert_8380417, ntt32_div_8380417, ntt32_flip_generic,
+    ntt32_center_8380417, ntt32_normalize_8380417,
     ntt32_fwd_ntt_32_8380417, ntt32_inv_ntt_32_8380417, ntt32_large_fwd_ntt_32_8380417, ntt32_large_inv_ntt_32_8380417,
     ntt32_fwd_ntt_16_8380417, ntt32_inv_ntt_16_8380417, ntt32_large_fwd_ntt_16_8380417, ntt32_large_inv_ntt_16_8380417,
 
@@ -258,7 +300,7 @@ static const utils_arith_ntt_t utils_arith_ntt_8380417 = {
     ntt_fft_8380417, ntt_large_fft_8380417,
     ntt_fft_32_8380417, ntt_large_fft_32_8380417,
     ntt_fft_16_8380417, ntt_large_fft_16_8380417,
-    ntt_pwr_8380417, ntt_invert_8380417, ntt_flip_generic,
+    ntt_pwr_8380417, ntt_invert_8380417, ntt_div_8380417, ntt_flip_generic,
     ntt_center_8380417, ntt_normalize_8380417,
     ntt_fwd_ntt_8380417, ntt_inv_ntt_8380417, ntt_large_fwd_ntt_8380417, ntt_large_inv_ntt_8380417,
     ntt_fwd_ntt_32_8380417, ntt_inv_ntt_32_8380417, ntt_large_fwd_ntt_32_8380417, ntt_large_inv_ntt_32_8380417,

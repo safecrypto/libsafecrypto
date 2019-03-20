@@ -263,6 +263,9 @@ SINT32 dilithium_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
         return SC_FUNC_FAILURE;
     }
 
+#ifdef USE_RUNTIME_NTT_TABLES
+    SINT32 *temp;
+#endif
     if (SC_SCHEME_SIG_DILITHIUM_G == sc->scheme) {
         // Retrieve the Gaussian Sampler standard deviation
         FLOAT sigma   = sc->dilithium->params->sigma;
@@ -275,7 +278,7 @@ SINT32 dilithium_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
 
 #ifdef USE_RUNTIME_NTT_TABLES
         // Dynamically allocate memory for the necessary NTT tables
-        SINT32 *temp = (SINT32*) SC_MALLOC(sizeof(SINT32) * 2 * n);
+        temp = (SINT32*) SC_MALLOC(sizeof(SINT32) * 2 * n);
         sc->dilithium->params->w = temp;
         sc->dilithium->params->r = temp + n;
         roots_of_unity_s32(sc->dilithium->params->w, sc->dilithium->params->r,
