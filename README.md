@@ -18,6 +18,7 @@ Signatures:
 - ENS
 - DLP
 - Ring-TESLA
+- Falcon (this branch only)
              
 KEM:
 - ENS
@@ -62,6 +63,7 @@ pkg-config, check-devel, subunit-devel
 
 Optionally: gmp, mpfr
 
+Dockerfile available in master branch
 
 ---
 # Installation
@@ -108,6 +110,7 @@ The source code for the test functions can be found in ./test/functional. Differ
     ./func_alg_function
 
 Within the test files, parameter sets can be modified (specified by the i index) and flags can be set to specify sampling techniques used or countermeasures switched on. The list of available flags is found in include/safecrypto.h.
+
 ---
 # Licensing
 
