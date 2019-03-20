@@ -280,6 +280,16 @@ static void sha3_keccakf(uint64_t st[25], int rounds)
 #endif
 }
 
+// Copy the SHA3 context
+
+int tinysha3_make_copy(void *c, void *c_copy)
+{
+    sha3_ctx_t *ctx      = (sha3_ctx_t *) c;
+    sha3_ctx_t *ctx_copy = (sha3_ctx_t *) c_copy;
+    *ctx_copy = *ctx;
+    return SC_FUNC_SUCCESS;
+}
+
 // Initialize the context for SHA3
 
 int tinysha3_init(void *c, int mdlen)
@@ -592,6 +602,14 @@ void shake_out_4x(sha3_4x_ctx_t *c, void *out, size_t len)
         ((uint8_t *) out)[i] = c->st.b[k++];
     }
     c->pt = k;
+}
+
+int tinysha3_make_copy_4x(void *c, void *c_copy)
+{
+    sha3_4x_ctx_t *ctx      = (sha3_4x_ctx_t *) c;
+    sha3_4x_ctx_t *ctx_copy = (sha3_4x_ctx_t *) c_copy;
+    *ctx_copy = *ctx;
+    return SC_FUNC_SUCCESS;
 }
 
 int tinysha3_init_4x(void *c, int mdlen)

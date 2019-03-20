@@ -34,6 +34,7 @@
 #include "utils/entropy/entropy.h"
 #include "utils/entropy/packer.h"
 #include "utils/sampling/sampling.h"
+#include "utils/arith/falcon_keygen.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -138,6 +139,10 @@ SINT32 dlp_ibe_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
         case 1:  sc->dlp_ibe->params = &param_dlp_ibe_1;
                  sc->dlp_ibe->entropy = sc->coding_encryption.type;
                  break;
+#if 0
+        case 1:  sc->dlp_ibe->params = &param_dlp_ibe_1;
+                 sc->dlp_ibe->entropy = sc->coding_encryption.type;
+                 break;
         case 2:  sc->dlp_ibe->params = &param_dlp_ibe_2;
                  sc->dlp_ibe->entropy = sc->coding_encryption.type;
                  break;
@@ -150,7 +155,6 @@ SINT32 dlp_ibe_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
         case 5:  sc->dlp_ibe->params = &param_dlp_ibe_5;
                  sc->dlp_ibe->entropy = sc->coding_encryption.type;
                  break;
-#if 0
         case 6:  sc->dlp_ibe->params = &param_dlp_ibe_6;
                  sc->dlp_ibe->entropy = sc->coding_encryption.type;
                  break;
@@ -298,6 +302,9 @@ SINT32 dlp_ibe_create(safecrypto_t *sc, SINT32 set, const UINT32 *flags)
         }
     }
 
+    // Initialise the master_tree to a NULL pointer
+    sc->dlp_ibe->master_tree = NULL;
+
     return SC_FUNC_SUCCESS;
 }
 
@@ -349,10 +356,12 @@ SINT32 dlp_ibe_destroy(safecrypto_t *sc)
     }
 
     if (sc->dlp_ibe) {
-        utils_crypto_hash_destroy(sc->hash);
-        utils_crypto_xof_destroy(sc->xof);
+        SC_FREE(sc->dlp_ibe->master_tree, sc->dlp_ibe->master_tree_len);
         SC_FREE(sc->dlp_ibe, sizeof(dlp_ibe_cfg_t));
     }
+
+    utils_crypto_hash_destroy(sc->hash);
+    utils_crypto_xof_destroy(sc->xof);
 
     SC_PRINT_DEBUG(sc, "SAFEcrypto IBE algorithm destroyed");
 
@@ -382,6 +391,41 @@ SINT32 dlp_ibe_keygen(safecrypto_t *sc)
 
 #else // !DISABLE_IBE_SERVER
 
+#if DLP_IBE_USE_ENHANCED_EXTRACT == 1
+static SINT32 create_master_tree(safecrypto_t *sc,
+    UINT32 q, size_t nbits,
+    const SINT32 *f, const SINT32 *g,
+    const SINT32 *F, const SINT32 *G)
+{
+    DOUBLE *temp;
+    size_t master_tree_len = ((size_t)(nbits + 5) << nbits) * sizeof(DOUBLE);
+    size_t temp_len = ((size_t)7 << nbits) * sizeof(DOUBLE);
+
+    // Allocate memory for the temporary buffer
+    temp = SC_MALLOC(temp_len);
+    if (NULL == temp) {
+        return SC_FUNC_FAILURE;
+    }
+
+    // Allocate memory for the IBE tree
+    if (sc->dlp_ibe->master_tree) {
+        SC_FREE(sc->dlp_ibe->master_tree, master_tree_len);
+    }
+    sc->dlp_ibe->master_tree = SC_MALLOC(master_tree_len);
+    sc->dlp_ibe->master_tree_len = master_tree_len;
+    if (NULL == temp) {
+        SC_FREE(temp, temp_len);
+        return SC_FUNC_FAILURE;
+    }
+
+    // Create the DLP IBE master tree
+    load_skey(sc->dlp_ibe->master_tree, q, f, g, F, G, nbits, 0, temp);
+
+    // Release temporary memory resources
+    SC_FREE(temp, temp_len);
+}
+#endif
+
 SINT32 dlp_ibe_keygen(safecrypto_t *sc)
 {
     size_t i;
@@ -396,8 +440,9 @@ SINT32 dlp_ibe_keygen(safecrypto_t *sc)
 
     SC_PRINT_DEBUG(sc, "SAFEcrypto IBE KeyGen\n");
 
-    n = sc->dlp_ibe->params->n;
-    q = sc->dlp_ibe->params->q;
+    n      = sc->dlp_ibe->params->n;
+    n_bits = sc->dlp_ibe->params->n_bits;
+    q      = sc->dlp_ibe->params->q;
 
     // Allocate temporary memory
     gpv.f = sc->temp;
@@ -449,6 +494,9 @@ SINT32 dlp_ibe_keygen(safecrypto_t *sc)
     sc->privkey->len = 4 * n;
     sc->pubkey->len = n;
 
+#if DLP_IBE_USE_ENHANCED_EXTRACT == 1
+    create_master_tree(sc, q, n_bits, gpv.f, gpv.g, gpv.F, gpv.G);
+#else
     // Create the polynomial basis matrices if they are to be maintained in memory
     if (sc->dlp_ibe->keep_matrices) {
 #ifdef DLP_IBE_EXPAND_BASIS
@@ -477,17 +525,12 @@ SINT32 dlp_ibe_keygen(safecrypto_t *sc)
         // Precompute the norm of each row of b_gs
         GPV_PRECOMPUTE_INV(sc->dlp_ibe->b_gs, sc->dlp_ibe->b_gs_inv_norm, 2*n);
     }
-
-#ifdef DLP_IBE_USE_SPARSE_MULTIPLICATION
-    {//if (sc->dlp_ibe->params->q_bits >= 26) {
-#else
-    {
 #endif
-        // Store an NTT domain version of the public key
-        sc->sc_ntt->fwd_ntt_32_32_large(key + n, &sc->dlp_ibe->ntt,
-            h, sc->dlp_ibe->params->w);
-        sc->sc_ntt->normalize_32(key + n, n, &sc->dlp_ibe->ntt);
-    }
+
+    // Store an NTT domain version of the public key
+    sc->sc_ntt->fwd_ntt_32_32_large(key + n, &sc->dlp_ibe->ntt,
+        h, sc->dlp_ibe->params->w);
+    sc->sc_ntt->normalize_32(key + n, n, &sc->dlp_ibe->ntt);
 
     SC_PRINT_DEBUG(sc, "Print keys\n");
     SC_PRINT_KEYS(sc, SC_LEVEL_DEBUG, 32);
@@ -615,9 +658,11 @@ static SINT32 extract_signed_key(safecrypto_t *sc, SINT32 *sc_key,
 SINT32 dlp_ibe_privkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len)
 {
     SINT32 *privkey;
-    UINT16 n;
+    UINT32 n, n_bits, q;
 
-    n = sc->dlp_ibe->params->n;
+    n      = sc->dlp_ibe->params->n;
+    n_bits = sc->dlp_ibe->params->n_bits;
+    q      = sc->dlp_ibe->params->q;
 
     if (sc->privkey->key) {
         SC_FREE(sc->privkey->key, 4 * n * sizeof(SINT32));
@@ -633,6 +678,10 @@ SINT32 dlp_ibe_privkey_load(safecrypto_t *sc, const UINT8 *key, size_t key_len)
     // Extract the private key
     extract_signed_key(sc, privkey, &sc->coding_priv_key, key, key_len);
     sc->privkey->len = 4 * n;
+
+#if DLP_IBE_USE_ENHANCED_EXTRACT == 1
+    create_master_tree(sc, q, n_bits, privkey, privkey+n, privkey+2*n, privkey+3*n);
+#endif
 
     SC_PRINT_DEBUG(sc, "Private key loaded\n");
     SC_PRINT_KEYS(sc, SC_LEVEL_DEBUG, 32);
@@ -827,7 +876,7 @@ SINT32 dlp_ibe_extract(safecrypto_t *sc, size_t idlen, const UINT8 *id,
 {
     SINT32 retval = SC_FUNC_FAILURE;
     size_t i;
-    UINT32 n, q, q_bits;
+    UINT32 n, q, n_bits, q_bits;
     SINT32 *f, *g, *F, *G;
     SINT32 *c, *v;
     LONGDOUBLE sig;
@@ -861,6 +910,7 @@ SINT32 dlp_ibe_extract(safecrypto_t *sc, size_t idlen, const UINT8 *id,
 
     // Obtain all the constants and variables
     n        = sc->dlp_ibe->params->n;
+    n_bits   = sc->dlp_ibe->params->n_bits;
     q        = sc->dlp_ibe->params->q;
     //q_bits   = sc->dlp_ibe->params->q_bits - 5;
     q_bits   = 6 * 1.17 * sqrt((DOUBLE)sc->dlp_ibe->params->q / (DOUBLE)(2*n));
@@ -893,6 +943,7 @@ SINT32 dlp_ibe_extract(safecrypto_t *sc, size_t idlen, const UINT8 *id,
     GSO_TYPE *b_gs SC_DEFAULT_ALIGNED = NULL;
     GSO_TYPE *b_gs_inv_norm SC_DEFAULT_ALIGNED = NULL;
 
+#if DLP_IBE_USE_ENHANCED_EXTRACT == 0
     if (0 == sc->dlp_ibe->keep_matrices) {
 #ifdef DLP_IBE_EXPAND_BASIS
         gpv.b = SC_MALLOC(sizeof(SINT32) * 4*n*n);
@@ -923,14 +974,19 @@ SINT32 dlp_ibe_extract(safecrypto_t *sc, size_t idlen, const UINT8 *id,
         b_gs = sc->dlp_ibe->b_gs;
         b_gs_inv_norm = sc->dlp_ibe->b_gs_inv_norm;
     }
+#endif
 
     // Generate a sampled polynomial using the polynomial basis
+#if DLP_IBE_USE_ENHANCED_EXTRACT == 1
+    gaussian_sample_with_tree(sc, sc->dlp_ibe->master_tree, 0, n, q, n_bits, c, gaussian_flags, NULL, v);
+#else
     sig = 2.0L / b_gs_inv_norm[0];
     SC_PRINT_DEBUG(sc, "Extract() sigma = %3.6Lf\n", sig);
 #ifdef DLP_IBE_EXPAND_BASIS
     gaussian_lattice_sample(sc, &gpv, b_gs, b_gs_inv_norm, c, v, NULL, q, sig, gaussian_flags);
 #else
     gaussian_lattice_sample_on_the_fly(sc, &gpv, b_gs, b_gs_inv_norm, c, v, q, sig);
+#endif
 #endif
     SC_PRINT_1D_UINT8(sc, SC_LEVEL_DEBUG, "id", id, idlen);
     SC_PRINT_1D_INT32(sc, SC_LEVEL_DEBUG, "sk", v, n);
@@ -958,6 +1014,7 @@ SINT32 dlp_ibe_extract(safecrypto_t *sc, size_t idlen, const UINT8 *id,
     sc->stats.extract_num++;
 
 finish:
+#if DLP_IBE_USE_ENHANCED_EXTRACT == 0
     // Free all memory resources
     if (0 == sc->dlp_ibe->keep_matrices) {
         if (gpv.b) {
@@ -967,6 +1024,7 @@ finish:
             SC_FREE(b_gs, sizeof(GSO_TYPE) * (4*n*n + 2*n));
         }
     }
+#endif
 
     // Reset the temporary memory
     SC_MEMZERO(sc->temp, 1 * n * sizeof(SINT32));

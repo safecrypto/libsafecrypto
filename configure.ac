@@ -5,6 +5,7 @@
 AC_PREREQ([2.69])
 
 AC_INIT([SAFEcrypto], m4_esyscmd([tr -d '\n' < version]), [n.smyth@qub.ac.uk])
+AC_CONFIG_AUX_DIR([.])
 
 # Version-info specifications.  Update the table below for ANY change of version number.
 #
@@ -1166,6 +1167,7 @@ AC_CONFIG_FILES([Makefile docs/Doxygen/Makefile \
     src/utils/Makefile \
     src/utils/arith/Makefile \
     src/utils/crypto/Makefile \
+    src/utils/ecc/Makefile \
     src/utils/sampling/Makefile \
     src/utils/entropy/Makefile \
     src/unit/crypto/Makefile \
@@ -1190,6 +1192,7 @@ fi
 if test "x${enable_kem}" = "xyes"; then
     AC_CONFIG_FILES([src/schemes/kem/Makefile])
 fi
+AC_CONFIG_FILES([src/schemes/dh/Makefile])
 AC_MSG_NOTICE(enable_kem_kyber = ${enable_kem_kyber})
 if test "x${enable_multithreading}" = "xyes"; then
     AC_CONFIG_FILES([src/utils/threading/Makefile])
@@ -1224,6 +1227,8 @@ fi
 if test "x${enable_kem_ens}" = "xyes"; then
     AC_CONFIG_FILES([src/schemes/kem/ens/Makefile])
 fi
+AC_CONFIG_FILES([src/schemes/dh/ecdh/Makefile])
+AC_CONFIG_FILES([src/schemes/sig/ecdsa/Makefile])
 
 #AC_CONFIG_SUBDIRS([src/utils/crypto])
 #AX_SUBDIRS_CONFIGURE([src/utils/crypto])
