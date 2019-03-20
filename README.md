@@ -18,15 +18,15 @@ Signatures:
 - ENS
 - DLP
 - Ring-TESLA
-             
+
 KEM:
 - ENS
 - Kyber
-             
+
 Encryption:
 - RLWE
 - Kyber
-             
+
 IBE:
 - DLP
 
@@ -58,16 +58,29 @@ Copyright (C) Queen’s University Belfast, ECIT, 2016, 2017
 # Dependencies
 
 autotools, autoconf, autoconf-archive, automake, libtool, doxygen, texlive,
-pkg-config, check-devel, subunit-devel
+pkg-config, check-devel, subunit-devel, texlive-latex-extra, graphviz
 
 Optionally: gmp, mpfr
 
+
+### Docker
+
+Alternatively a dockerfile is provided to create a development environment with
+all prerequisites already installed
+
+**Bulid container**
+
+    docker build --tag safecrypto-docker docker
+
+**Run container sharing current directory**
+
+    docker run --rm -it -v "$(pwd)":/"$(basename "$(pwd)")" -w /"$(basename "$(pwd)")" safecrypto-docker
 
 ---
 # Installation
 
 If building from a cloned version control repository (rather than a source
-code distribution) the user must configure autotools by running the 
+code distribution) the user must configure autotools by running the
 following script:
 
     ./autogen.sh
@@ -107,9 +120,9 @@ execute the following command:
 The MIT License applies to this software, please refer to the LICENSE file
 in the root directory for details.
 
-Portions of this Software utilise open source software. No open source software 
-used in libsafecrypto has been endorsed by any of the authors. We would like to 
-thank the following for their contribution to the open source community. Please 
+Portions of this Software utilise open source software. No open source software
+used in libsafecrypto has been endorsed by any of the authors. We would like to
+thank the following for their contribution to the open source community. Please
 refer to the associated src/utils/third_party directory for the
 relevant source code.
 
@@ -140,7 +153,7 @@ relevant source code.
      and related and neighboring rights to this software to the public domain
      worldwide. This software is distributed without any warranty.
 
-     You should have received a copy of the CC0 Public Domain Dedication along 
+     You should have received a copy of the CC0 Public Domain Dedication along
      with this software. If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 
 ---
@@ -176,8 +189,8 @@ relevant source code.
         notice, this list of conditions and the following disclaimer in the
         documentation and/or other materials provided with the distribution.
 
-     3. The names of its contributors may not be used to endorse or promote 
-        products derived from this software without specific prior written 
+     3. The names of its contributors may not be used to endorse or promote
+        products derived from this software without specific prior written
         permission.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
@@ -196,7 +209,7 @@ relevant source code.
     Any feedback is very welcome.
     http://www.math.sci.hiroshima-u.ac.jp/~m-mat/MT/emt.html
     email: m-mat @ math.sci.hiroshima-u.ac.jp (remove space)
-   
+
 ---
 ## SALSA20 - src/utils/crypto/salsa
 
@@ -227,7 +240,7 @@ relevant source code.
     in which case the provisions of the GPL apply INSTEAD OF those given above.
 
     DISCLAIMER
-  
+
     This software is provided 'as is' with no explicit or implied warranties
     in respect of its properties, including, but not limited to, correctness
     and/or fitness for purpose.
@@ -241,14 +254,14 @@ relevant source code.
 ## Whirlpool - src/utils/crypto/whirlpool
 
     Copyright: 2009-2012 Aleksey Kravchenko <rhash.admin@gmail.com>
-   
+
     Permission is hereby granted,  free of charge,  to any person  obtaining a
     copy of this software and associated documentation files (the "Software"),
     to deal in the Software without restriction,  including without limitation
     the rights to  use, copy, modify,  merge, publish, distribute, sublicense,
     and/or sell copies  of  the Software,  and to permit  persons  to whom the
     Software is furnished to do so.
-   
+
     This program  is  distributed  in  the  hope  that it will be usefu,  but
     WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
     or FITNESS FOR A PARTICULAR PURPOSE.  Use this program  at  your own risk!
@@ -264,10 +277,9 @@ relevant source code.
 ---
 # Legal Notices
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS 
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR 
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN 
-AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION 
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
+AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
-

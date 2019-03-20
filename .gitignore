@@ -7,6 +7,9 @@
 # Unignore all dirs
 !*/
 
+# Unignore dockerfile
+!*/Dockerfile
+
 # The above combination will ignore all files without an extension (the "version" is committed and tracked)
 
 # General file ignores
