@@ -113,6 +113,14 @@ execute the following command:
     make install
 
 
+---
+# Running Tests
+
+The source code for the test functions can be found in ./test/functional. Different variants of the schemes are included, e.g. func_alg_dlp_sig.c refers to the DLP signature scheme, whilst func_alg_dlp_sig_recovery.c refers to the variant with the message recovery property. Test files for components such as sampling and NTT are also present. After building the project, to run a given signature scheme:
+
+    ./test/functional/func_<alg>_<function>
+
+Within the test files, parameter sets can be modified (specified by the i index) and flags can be set to specify sampling techniques used or countermeasures switched on. The list of available flags is found in include/safecrypto.h.
 
 ---
 # Licensing
