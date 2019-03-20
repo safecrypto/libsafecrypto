@@ -18,6 +18,7 @@ Signatures:
 - ENS
 - DLP
 - Ring-TESLA
+- Falcon (note currently exists on seperate branch)
 
 KEM:
 - ENS
