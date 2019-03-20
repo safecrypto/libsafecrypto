@@ -98,6 +98,7 @@ static SINT32 discard_sample(prng_ctx_t *csprng, UINT32 thresh)
         return 0;
     }
     else {
+//fprintf(stderr, "DISCARDING \n" );
         UINT32 rnd = prng_32(csprng);
         return sc_const_time_u32_lessthan(rnd, thresh);
     }

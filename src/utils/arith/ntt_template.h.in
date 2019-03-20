@@ -5,6 +5,27 @@
 typedef struct ntt_params_t ntt_params_t;
 
 
+SINT16 NTT_FUNC_NAME(ntt16_modn)(SINT16 x, const ntt_params_t *p);
+SINT16 NTT_FUNC_NAME(ntt16_muln)(SINT16 x, SINT16 y, const ntt_params_t *p);
+SINT16 NTT_FUNC_NAME(ntt16_sqrn)(SINT16 x, const ntt_params_t *p);
+void NTT_FUNC_NAME(ntt16_mult_pointwise)(SINT16 *v, const ntt_params_t *p,
+    const SINT16 *t, const SINT16 *u);
+void NTT_FUNC_NAME(ntt16_fft)(SINT16 *v, const ntt_params_t *p, const SINT16 *w);
+void NTT_FUNC_NAME(ntt16_large_fft)(SINT16 *v, const ntt_params_t *p, const SINT16 *w);
+SINT32 NTT_FUNC_NAME(ntt16_pwr)(SINT16 x, SINT16 e, const ntt_params_t *p);
+SINT32 NTT_FUNC_NAME(ntt16_invert)(SINT16 *v, const ntt_params_t *p, size_t n);
+SINT32 NTT_FUNC_NAME(ntt16_div)(SINT16 *num, const SINT16 *den, const ntt_params_t *p, size_t n);
+void NTT_FUNC_NAME(ntt16_center)(SINT16 *v, size_t, const ntt_params_t *p);
+void NTT_FUNC_NAME(ntt16_normalize)(SINT16 *v, size_t, const ntt_params_t *p);
+void NTT_FUNC_NAME(ntt16_fwd_ntt)(SINT16 *v, const ntt_params_t *p,
+    const SINT16 *t, const SINT16 *w);
+void NTT_FUNC_NAME(ntt16_inv_ntt)(SINT16 *v, const ntt_params_t *p,
+    const SINT16 *t, const SINT16 *w, const SINT16 *r);
+void NTT_FUNC_NAME(ntt16_large_fwd_ntt)(SINT16 *v, const ntt_params_t *p,
+    const SINT16 *t, const SINT16 *w);
+void NTT_FUNC_NAME(ntt16_large_inv_ntt)(SINT16 *v, const ntt_params_t *p,
+    const SINT16 *t, const SINT16 *w, const SINT16 *r);
+
 SINT32 NTT_FUNC_NAME(ntt32_modn)(SINT32 x, const ntt_params_t *p);
 SINT32 NTT_FUNC_NAME(ntt32_muln)(SINT32 x, SINT32 y, const ntt_params_t *p);
 SINT32 NTT_FUNC_NAME(ntt32_sqrn)(SINT32 x, const ntt_params_t *p);
@@ -18,10 +39,9 @@ void NTT_FUNC_NAME(ntt32_fft_16)(SINT32 *v, const ntt_params_t *p, const SINT16 
 void NTT_FUNC_NAME(ntt32_large_fft_16)(SINT32 *v, const ntt_params_t *p, const SINT16 *w);
 SINT32 NTT_FUNC_NAME(ntt32_pwr)(SINT32 x, SINT32 e, const ntt_params_t *p);
 SINT32 NTT_FUNC_NAME(ntt32_invert)(SINT32 *v, const ntt_params_t *p, size_t n);
-void NTT_FUNC_NAME(ntt32_center_32)(SINT32 *v, size_t, const ntt_params_t *p);
-void NTT_FUNC_NAME(ntt32_normalize_32)(SINT32 *v, size_t, const ntt_params_t *p);
-void NTT_FUNC_NAME(ntt32_center_16)(SINT16 *v, size_t, const ntt_params_t *p);
-void NTT_FUNC_NAME(ntt32_normalize_16)(SINT16 *v, size_t, const ntt_params_t *p);
+SINT32 NTT_FUNC_NAME(ntt32_div)(SINT32 *num, const SINT32 *den, const ntt_params_t *p, size_t n);
+void NTT_FUNC_NAME(ntt32_center)(SINT32 *v, size_t, const ntt_params_t *p);
+void NTT_FUNC_NAME(ntt32_normalize)(SINT32 *v, size_t, const ntt_params_t *p);
 void NTT_FUNC_NAME(ntt32_fwd_ntt_32)(SINT32 *v, const ntt_params_t *p,
     const SINT32 *t, const SINT32 *w);
 void NTT_FUNC_NAME(ntt32_inv_ntt_32)(SINT32 *v, const ntt_params_t *p,
@@ -56,6 +76,7 @@ void NTT_FUNC_NAME(ntt_fft_16)(sc_slimb_t *v, const ntt_params_t *p, const SINT1
 void NTT_FUNC_NAME(ntt_large_fft_16)(sc_slimb_t *v, const ntt_params_t *p, const SINT16 *w);
 sc_slimb_t NTT_FUNC_NAME(ntt_pwr)(sc_slimb_t x, sc_slimb_t e, const ntt_params_t *p);
 SINT32 NTT_FUNC_NAME(ntt_invert)(sc_slimb_t *v, const ntt_params_t *p, size_t n);
+SINT32 NTT_FUNC_NAME(ntt_div)(sc_slimb_t *num, const sc_slimb_t *den, const ntt_params_t *p, size_t n);
 void NTT_FUNC_NAME(ntt_center)(sc_slimb_t *v, size_t, const ntt_params_t *p);
 void NTT_FUNC_NAME(ntt_normalize)(sc_slimb_t *v, size_t, const ntt_params_t *p);
 void NTT_FUNC_NAME(ntt_fwd_ntt)(sc_slimb_t *v, const ntt_params_t *p,

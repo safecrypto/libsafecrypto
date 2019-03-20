@@ -185,7 +185,23 @@ void sc_print_privkey(safecrypto_t *sc, sc_debug_level_e level, SINT32 bits)
     if (sc->privkey->len < 0 ||
         sc->pubkey->len < 0) return;
 
-    if (16 == bits) {
+    if (8 == bits) {
+        UINT8 *p = NULL;
+        p = sc->privkey->key;
+        sc_printf(sc, level, "\nPrivate key");
+        for (i=0; i<sc->privkey->len; i++) {
+            if ((i&0xf) == 0) sc_printf(sc, level, "\n  ");
+            sc_printf(sc, level, "%3d, ", *p++);
+        }
+
+        p = sc->pubkey->key;
+        sc_printf(sc, level, "\nPublic key");
+        for (i=0; i<sc->pubkey->len; i++) {
+            if ((i&0xf) == 0) sc_printf(sc, level, "\n  ");
+            sc_printf(sc, level, "%3d, ", *p++);
+        }
+    }
+    else if (16 == bits) {
         SINT16 *p = NULL;
         p = sc->privkey->key;
         sc_printf(sc, level, "\nPrivate key");

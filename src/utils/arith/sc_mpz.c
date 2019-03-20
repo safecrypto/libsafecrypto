@@ -72,21 +72,58 @@ DOUBLE sc_mpz_get_d(const sc_mpz_t *in)
     return mpz_get_d(in);
 }
 
-SINT32 sc_mpz_get_bytes(UINT8 *out, const sc_mpz_t *in)
+SINT32 sc_mpz_get_bytes(UINT8 *out, const sc_mpz_t *in, size_t n)
 {
     sc_ulimb_t *limbs;
-    size_t num_limbs = sc_mpz_get_size(in);
+    SINT32 in_used;
 
     if (NULL == in || NULL == out) {
         return SC_FUNC_FAILURE;
     }
 
+    // Ensure that the most significant bytes of the output byte array are zeroed
+    in_used = sc_mpz_get_size(in);
+    if ((SC_LIMB_BYTES * in_used) < n) {
+        n = n - SC_LIMB_BYTES * in_used;
+        while (n--) {
+            out[SC_LIMB_BYTES * in_used + n] = 0;
+        }
+        n = sizeof(sc_ulimb_t) * in_used;
+    }
+
+    // Obtain a pointer to the limbs and copy them to the output
     limbs = sc_mpz_get_limbs(in);
 #if SC_LIMB_BITS == 64
-    SC_BIG_ENDIAN_64_COPY(out, 0, limbs, num_limbs * 8);
+    SC_LITTLE_ENDIAN_64_COPY(out, 0, limbs, n);
 #else
-    SC_BIG_ENDIAN_32_COPY(out, 0, limbs, num_limbs * 4);
+    SC_LITTLE_ENDIAN_32_COPY(out, 0, limbs, n);
 #endif
+
+    return SC_FUNC_SUCCESS;
+}
+
+SINT32 sc_mpz_get_u32(UINT32 *out, const sc_mpz_t *in, size_t n)
+{
+    sc_ulimb_t *limbs;
+    SINT32 in_used;
+
+    if (NULL == in || NULL == out) {
+        return SC_FUNC_FAILURE;
+    }
+
+    // Ensure that the most significant bytes of the output byte array are zeroed
+    in_used = sc_mpz_get_size(in);
+    if (((SC_LIMB_BYTES * in_used) >> 2) < n) {
+        n = n - ((SC_LIMB_BYTES * in_used) >> 2);
+        while (n--) {
+            out[((SC_LIMB_BYTES * in_used) >> 2) + n] = 0;
+        }
+        n = sizeof(sc_ulimb_t) * in_used;
+    }
+
+    // Obtain a pointer to the limbs and copy them to the output
+    limbs = sc_mpz_get_limbs(in);
+    SC_LITTLE_ENDIAN_32_COPY(out, 0, limbs, n);
 
     return SC_FUNC_SUCCESS;
 }
@@ -298,6 +335,21 @@ void sc_mpz_set_bytes(sc_mpz_t *out, const UINT8 *bytes, size_t n)
     mpz_clear(&temp);
 }
 
+void sc_mpz_set_u32(sc_mpz_t *out, const UINT32 *u32, size_t n)
+{
+    size_t i;
+    sc_mpz_t temp;
+    mpz_init(&temp);
+
+    sc_mpz_set_ui(out, 0);
+    for (i=n; i--;) {
+        sc_mpz_mul_2exp(&temp, out, 32);
+        sc_mpz_add_ui(out, &temp, u32[i]);
+    }
+
+    mpz_clear(&temp);
+}
+
 void sc_mpz_set_limbs(sc_mpz_t *out, const sc_ulimb_t *limbs, size_t n)
 {
     size_t i;
@@ -316,6 +368,11 @@ void sc_mpz_set_limbs(sc_mpz_t *out, const sc_ulimb_t *limbs, size_t n)
 SINT32 sc_mpz_set_str(sc_mpz_t *out, SINT32 base, const char *str)
 {
     return mpz_set_str(out, str, base);
+}
+
+void sc_mpz_sqr(sc_mpz_t *out, const sc_mpz_t *in)
+{
+    mpz_mul(out, in, in);
 }
 
 void sc_mpz_mul(sc_mpz_t *out, const sc_mpz_t *in1, const sc_mpz_t *in2)
@@ -388,6 +445,11 @@ void sc_mpz_divquo(sc_mpz_t *q, const sc_mpz_t *n, const sc_mpz_t *d)
     mpz_fdiv_q(q, n, d);
 }
 
+void sc_mpz_divquo_2exp(sc_mpz_t *q, const sc_mpz_t *n, size_t exp)
+{
+    mpz_fdiv_q_2exp(q, n, exp);
+}
+
 void sc_mpz_sqrt(sc_mpz_t *out, const sc_mpz_t *in)
 {
     mpz_sqrt(out, in);
@@ -401,6 +463,49 @@ void sc_mpz_pow_ui(sc_mpz_t *out, const sc_mpz_t *in, sc_ulimb_t exp)
     }
 
     mpz_pow_ui(out, in, exp);
+}
+
+void sc_mpz_mod_barrett(sc_mpz_t *out, const sc_mpz_t *in, const sc_mpz_t *m, size_t k, const sc_mpz_t *mu)
+{
+    // q1 = floor(in / b^(k-1))    i.e. right shift (k-1) words
+    // q2 = q1 * mu
+    // q3 = floor(q2 / b^(k+1))    i.e. right shift (k+1) words, or truncate the (k+1) least significant words of q2
+    // r1 = in mod b^(k+1)          i.e. mask of the least significant (k+1) words
+    // r2 = (q3 * m) mod b^(k+1)   i.e. mask of the least significant (k+1) words
+    // r  = r1 - r2
+    // if (r < 0)
+    //   r += b^(k+1)
+    // while (r >= m)
+    //   r -= m
+
+    sc_mpz_t temp, q1_q3;
+    mpz_init2(&temp, SC_LIMB_BITS*2*(k+1));
+    //mpz_init2(&q1_q3, SC_LIMB_BITS*2*k);
+
+    //sc_mpz_set_limbs(&q1_q3, sc_mpz_get_limbs(in) + k - 1, sc_mpz_get_size(in) - k + 1);
+    sc_mpz_divquo_2exp(out, in, SC_LIMB_BITS*(k-1));
+    mpz_mul(&temp, out, mu);
+    sc_mpz_divquo_2exp(out, &temp, SC_LIMB_BITS*(k+1));
+    mpz_mul(&temp, out, m);
+    if (sc_mpz_get_size(&temp) > (k+1)) {
+        sc_mpz_set_size(&temp, k+1);             // r2
+    }
+    sc_mpz_copy(out, in);
+    if (sc_mpz_get_size(out) > (k+1)) {
+        sc_mpz_set_size(out, k+1);            // r1
+    }
+    mpz_sub(out, out, &temp);           // r = r1 - r2
+    /*if (sc_mpz_is_neg(out)) {
+        sc_mpz_set_ui(&temp, 2);
+        sc_mpz_pow_ui(&temp, &temp, SC_LIMB_BITS*(k+1));
+        sc_mpz_add(out, out, &temp);
+    }*/
+    while (sc_mpz_cmp(out, m) >= 0) {
+        mpz_sub(out, out, m);
+    }
+
+    mpz_clear(&temp);
+    //mpz_clear(&q1_q3);
 }
 
 void sc_mpz_mod(sc_mpz_t *out, const sc_mpz_t *in, const sc_mpz_t *m)

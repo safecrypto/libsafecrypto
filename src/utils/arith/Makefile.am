@@ -40,7 +40,13 @@ libarith_la_SOURCES       = arith.c \
                             limb_base.c \
                             limb_base.h \
                             sc_mp.c \
-                            sc_mp.h
+                            sc_mp.h \
+                            falcon_ldl.c \
+                            falcon_ldl.h \
+			                falcon_fft.c \
+					        falcon_fft.h \
+			                falcon_keygen.c \
+					        falcon_keygen.h
 #                            ntt_barrett_rev.c \
 #                            ntt_barrett_rev.h \
 #                            ntt_fp_rev.c \
@@ -83,6 +89,7 @@ libarith_la_SOURCES      += sc_mpf.c \
                             sc_mpf128.c \
                             sc_mpf128.h
 endif WITH_ARITH_FLOAT_MP
+
 
 if WITH_ARITH_NATURAL_MP
 libarith_la_SOURCES      += sc_mpn.c \

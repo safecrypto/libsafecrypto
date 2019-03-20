@@ -77,7 +77,7 @@ int main(void)
     int32_t i, j, k, l;
     uint8_t message[32768];
     size_t length;
-    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM,
+    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_AES_CTR_DRBG,
         SC_PRNG_THREADING_NONE, 0x00100000);
     prng_init(prng_ctx, NULL, 0);
     SINT32 retval;
@@ -95,7 +95,7 @@ int main(void)
     SC_TIMER_CREATE(enc_timer);
     SC_TIMER_CREATE(dec_timer);
 
-    for (i=0; i<6; i++) {
+    for (i=0; i<2; i++) {
         SC_TIMER_RESET(keygen_timer);
         SC_TIMER_RESET(extract_timer);
         SC_TIMER_RESET(enc_timer);
@@ -184,7 +184,7 @@ int main(void)
         SC_FREE(masterkey[1], masterkey_priv_len);
 
 #ifdef SC_IBE_MESSAGE_LENGTH_N
-        length = (i < 3)? 64 : 128;
+        length = (i < 1)? 64 : 128;
 #else
         length = MIN_MSG_LEN;
 #endif

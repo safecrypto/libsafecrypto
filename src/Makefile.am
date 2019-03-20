@@ -46,6 +46,7 @@ __top_builddir__libs_libsafecrypto_la_SOURCES = \
 DEFAULT_LIBS             = schemes/helloworld/libhelloworld.la \
                            utils/arith/libarith.la \
                            utils/crypto/libcrypto.la \
+                           utils/ecc/libecc.la \
                            utils/sampling/libsampling.la \
                            utils/entropy/libentropy.la
 
@@ -92,6 +93,8 @@ if WITH_DLP_IBE
 OPTIONAL_LIBS           += schemes/ibe/dlp/libibe.la
 endif WITH_DLP_IBE
 
+OPTIONAL_LIBS           += schemes/dh/ecdh/libecdh.la
+OPTIONAL_LIBS           += schemes/sig/ecdsa/libecdsa.la
 if WITH_FALCON_SIG
 OPTIONAL_LIBS           += schemes/sig/falcon/libfalcon.la
 endif WITH_FALCON_SIG

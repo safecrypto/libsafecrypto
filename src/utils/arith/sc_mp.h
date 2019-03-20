@@ -169,8 +169,8 @@ sc_ulimb_t mpz_fdiv_qr_ui(sc_mpz_t *q, sc_mpz_t *r,
 sc_ulimb_t mpz_fdiv_q_ui(sc_mpz_t *q,
     const sc_mpz_t *n, sc_ulimb_t d);
 sc_ulimb_t mpz_fdiv_r_ui(sc_mpz_t *r, const sc_mpz_t *in, sc_ulimb_t d);
-sc_ulimb_t mpz_tdiv_q_2exp(sc_mpz_t *q,
-    const sc_mpz_t *n, sc_ulimb_t b);
+sc_ulimb_t mpz_tdiv_q_2exp(sc_mpz_t *q, const sc_mpz_t *n, sc_ulimb_t b);
+sc_ulimb_t mpz_fdiv_q_2exp(sc_mpz_t *q, const sc_mpz_t *n, sc_ulimb_t b);
 sc_ulimb_t mpz_cdiv_ui (const sc_mpz_t *n, sc_ulimb_t d);
 sc_ulimb_t mpz_fdiv_ui (const sc_mpz_t *n, sc_ulimb_t d);
 sc_ulimb_t mpz_tdiv_ui(const sc_mpz_t *n, sc_ulimb_t d);

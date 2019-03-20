@@ -78,7 +78,7 @@ int main(void)
     size_t c_len, k_len;
     UINT8 *kem_e = NULL, *sig_1 = NULL, *sig_2 = NULL, *a_secret = NULL, *b_secret = NULL, *b_md = NULL;
     utils_crypto_hash_t *hash = NULL;
-    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM,
+    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_AES_CTR_DRBG,
         SC_PRNG_THREADING_NONE, 0x00100000);
     prng_init(prng_ctx, NULL, 0);
 

@@ -167,7 +167,7 @@ static SINT32 config_entropy(safecrypto_entropy_e entropy,
     // If the POSIX random() function is used as an entropy source or 
     // the PRNG type ensure that it is seeded once using a fine
     // granularity timestamp
-    if (SC_ENTROPY_RANDOM == entropy || SC_PRNG_SYSTEM == type) {
+    if (SC_ENTROPY_RANDOM == entropy) {
         if (SC_OK != init_rand()) {
             return SC_FUNC_FAILURE;
         }
@@ -345,15 +345,6 @@ static SINT32 config_csprng(prng_ctx_t *ctx,
             } break;
 
 #if !defined(ENABLE_BAREMETAL)
-        case SC_PRNG_SYSTEM:
-            {
-#if defined( __linux__ ) || defined( __GNUC__ ) || defined( __GNU_LIBRARY__ )
-                ctx->get_random_32 = get_random_32_posix;
-#else
-                ctx->get_random_32 = get_random_32_windows;
-#endif
-            } break;
-
 #ifdef _ENABLE_CSPRNG_FILE
         case SC_PRNG_FILE:
             {
@@ -448,15 +439,6 @@ static SINT32 config_csprng(prng_ctx_t *ctx,
             } break;
 
 #if !defined(ENABLE_BAREMETAL)
-        case SC_PRNG_SYSTEM:
-            {
-#if defined( __linux__ ) || defined( __GNUC__ ) || defined( __GNU_LIBRARY__ )
-                ctx->get_random_64 = get_random_64_posix;
-#else
-                ctx->get_random_64 = get_random_64_windows;
-#endif
-            } break;
-
 #ifdef _ENABLE_CSPRNG_FILE
         case SC_PRNG_FILE:
             {
@@ -600,7 +582,7 @@ prng_ctx_t * prng_create(safecrypto_entropy_e entropy,
     }
 #endif
 
-    if (SC_PRNG_SYSTEM                  != type
+    if (1
 #ifdef ENABLE_AES
         && SC_PRNG_AES_CTR_DRBG            != type
 #endif
@@ -762,7 +744,7 @@ SINT32 prng_init(prng_ctx_t *ctx, const UINT8 *nonce, size_t len_nonce)
 safecrypto_prng_e prng_get_type(prng_ctx_t *ctx)
 {
     if (NULL == ctx) {
-        return SC_PRNG_SYSTEM;
+        return SC_PRNG_MAX;
     }
     return ctx->type;
 }

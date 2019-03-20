@@ -184,7 +184,7 @@ START_TEST(test_small_rand_dist_512_a)
     const utils_arith_vec_t *sc_vec = utils_arith_vectors();
     const UINT16 *c = param_ens_kem_0.coeff_rnd;
 
-    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM,
+    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_AES_CTR_DRBG,
         SC_PRNG_THREADING_NONE, 0x00100000);
     prng_init(prng_ctx, NULL, 0);
 
@@ -213,7 +213,7 @@ START_TEST(test_small_rand_dist_512_b)
     const utils_arith_vec_t *sc_vec = utils_arith_vectors();
     const UINT16 *c = param_ens_kem_1.coeff_rnd;
 
-    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM,
+    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_AES_CTR_DRBG,
         SC_PRNG_THREADING_NONE, 0x00100000);
     prng_init(prng_ctx, NULL, 0);
 
@@ -242,7 +242,7 @@ START_TEST(test_small_rand_dist_1024_a)
     const utils_arith_vec_t *sc_vec = utils_arith_vectors();
     const UINT16 *c = param_ens_kem_2.coeff_rnd;
 
-    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM,
+    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_AES_CTR_DRBG,
         SC_PRNG_THREADING_NONE, 0x00100000);
     prng_init(prng_ctx, NULL, 0);
 
@@ -271,7 +271,7 @@ START_TEST(test_small_rand_dist_1024_b)
     const utils_arith_vec_t *sc_vec = utils_arith_vectors();
     const UINT16 *c = param_ens_kem_3.coeff_rnd;
 
-    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_SYSTEM,
+    prng_ctx_t *prng_ctx = prng_create(SC_ENTROPY_RANDOM, SC_PRNG_AES_CTR_DRBG,
         SC_PRNG_THREADING_NONE, 0x00100000);
     prng_init(prng_ctx, NULL, 0);
 
