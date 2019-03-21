@@ -23,6 +23,3 @@ RUN dpkg --add-architecture i386 && \
   check \
   texlive-latex-extra \
   graphviz
-
-RUN useradd -s /bin/bash dev
-USER dev

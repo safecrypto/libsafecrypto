@@ -76,7 +76,9 @@ all prerequisites already installed
 
 **Run container sharing current directory**
 
-    docker run --rm -it -v "$(pwd)":/"$(basename "$(pwd)")" -w /"$(basename "$(pwd)")" safecrypto-docker
+    docker run --rm -it -v "$(pwd)":/"$(basename "$(pwd)")" -w /"$(basename "$(pwd)")" -u $(id -u):$(id -g) safecrypto-docker
+
+note as user/group ids are shared with the container to enable editing of code from within container, the name in the container is "I have no name!" as the name cannot be found, and a message is printed on running the container saying no name for the group can be found.
 
 ---
 # Installation
