@@ -26,7 +26,10 @@ RUN dpkg --add-architecture i386 && \
   gmpc \
   check \
   texlive-latex-extra \
-  graphviz
+  graphviz \
+  gcc-multilib \
+  g++-multilib \
+  libc6-dev-i386
 
 # set up user to match uid/gid of host when container is run in order to allow
 # modification of files in the shared folder

@@ -116,3 +116,6 @@ docs/*.pdf
 
 # generated files during testing
 test/functional/*.dat
+
+# jetbrains project folders
+.idea
