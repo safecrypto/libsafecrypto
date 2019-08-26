@@ -20,6 +20,9 @@
 #include "safecrypto_types.h"
 #include "prng_types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 // A bucket of random bits
 #ifdef CONSTRAINED_RAM
@@ -99,4 +102,8 @@ SINT32 prng_mem(prng_ctx_t *ctx, UINT8 *mem, SINT32 length);
 
 #ifdef _ENABLE_CSPRNG_FILE
 SINT32 prng_set_debug_file(prng_ctx_t *ctx, const char *filename);
+#endif
+
+#ifdef __cplusplus
+}
 #endif
