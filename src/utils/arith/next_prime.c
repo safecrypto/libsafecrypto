@@ -251,7 +251,7 @@ SINT32 prime_miller_rabin(sc_ulimb_t a, sc_ulimb_t b)
 
     // Compute y = b**r mod a
     y = b;
-    for (j=1; j<t; t++) {
+    for (j=1; j<t; j++) {
         y = limb_sqr_mod_norm(y, mod.m, mod.m_inv, mod.norm);
         if (r & (1 << j)) {
             y = limb_mul_mod_norm(y, r, mod.m, mod.m_inv, mod.norm);
