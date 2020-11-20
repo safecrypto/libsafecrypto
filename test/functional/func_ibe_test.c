@@ -54,7 +54,7 @@ int main(void)
 
     // Create an instance of the ENS signature scheme
     UINT32 flags[1] = {SC_FLAG_NONE};
-	safecrypto_t *sc = safecrypto_create(SC_SCHEME_SIG_ENS, 0, flags);
+	safecrypto_t *sc = safecrypto_create(SC_SCHEME_IBE_DLP, 0, flags);
 
     // Create a CSPRNG with a reasonably larger buffer size
 #if 0

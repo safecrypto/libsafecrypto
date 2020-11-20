@@ -197,8 +197,8 @@ hash_drbg_t* hash_drbg_create(func_get_random func,
 
     // Reseed the context for initial operation
     if (SC_FUNC_FAILURE == hash_drbg_instantiate(ctx, ctx->nonce, len_nonce)) {
+        SC_FREE(ctx->temp, (((4*ctx->ctx_hash->length - 1 + len_nonce)/ctx->ctx_hash->length)*ctx->ctx_hash->length) * sizeof(UINT8));
         utils_crypto_hash_destroy(ctx->ctx_hash);
-        SC_FREE(ctx->temp, (3*ctx->ctx_hash->length) * sizeof(UINT8));
         SC_FREE(ctx, sizeof(hash_drbg_t));
         return NULL;
     }

@@ -733,7 +733,7 @@ START_TEST(test_poly_limb_xgcd_mod)
     // a Gaussian distribution
     SINT32 deg_a   = poly_limb_degree(a, n);
     SINT32 deg_b   = poly_limb_degree(b, n);
-    sc_ulimb_t x[deg_b-1], y[deg_a-1];
+    sc_ulimb_t x[deg_b], y[deg_a];
     SINT32 len_gcd = poly_limb_xgcd_mod(gcd, x, y, a, deg_a+1, b, deg_b+1, &modulus);
 
     // Verify that the remainder is 0 when a or b is divided by the GCD
