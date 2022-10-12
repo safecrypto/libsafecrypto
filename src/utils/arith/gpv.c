@@ -632,6 +632,8 @@ DOUBLE gram_schmidt_norm(SINT32 *f, SINT32 *g, size_t n,
         F[i] = fb_fft[i] * temp;
         G[i] = gb_fft[i] * temp;
     }
+    inv_fft_dbl(ctx_fft, f2, F);
+    inv_fft_dbl(ctx_fft, g2, G);
 #else
     // SECOND NORM
     // Floating-point precision is required
@@ -654,11 +656,11 @@ DOUBLE gram_schmidt_norm(SINT32 *f, SINT32 *g, size_t n,
         G[i] = g_fft[i] / temp;
     }
 
+    inv_fft_dbl(ctx_fft, f2, F);
+    inv_fft_dbl(ctx_fft, g2, G);
     SC_FREE(f_fft, sizeof(sc_complex_t) * 4 * n);
 #endif
 
-    inv_fft_dbl(ctx_fft, f2, F);
-    inv_fft_dbl(ctx_fft, g2, G);
     destroy_fft(ctx_fft);
 
     DOUBLE b_N1 = 0;
