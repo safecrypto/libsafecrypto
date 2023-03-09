@@ -1403,6 +1403,10 @@ const sc_prng_t *safecrypto_get_prng_schemes(void)
     return (SC_PRNG_MAX == g_prng_schemes[0].scheme)? NULL : g_prng_schemes;
 }
 
+void safecrypto_internal_rng_reset(safecrypto_t *sc){
+  safecrypto_prng_reset(sc -> prng_ctx[0]);
+}
+
 safecrypto_prng_t * safecrypto_prng_create(safecrypto_prng_e type, size_t seed_period,
     safecrypto_prng_entropy_callback cb)
 {
