@@ -4923,7 +4923,7 @@ solve_NTRU_intermediate(falcon_keygen *fk,
 		 * manage to reduce the maximum bit length.
 		 */
 		if (maxbl_FG <= maxbl_fg || maxbl_FG >= prev_maxbl_FG) {
-			fprintf(stderr, "scaling ended %d %d %d\n", maxbl_fg, maxbl_FG , prev_maxbl_FG);
+		  //fprintf(stderr, "scaling ended %d %d %d\n", maxbl_fg, maxbl_FG , prev_maxbl_FG);
 			break;
 		}
 		prev_maxbl_FG = maxbl_FG;
@@ -5034,7 +5034,7 @@ solve_NTRU_intermediate(falcon_keygen *fk,
 	 * this is a failure.
 	 */
 	if (maxbl_FG > (slen * 31)) {
-		fprintf(stderr, "%d could not fit in slen=%d\n", maxbl_FG, slen);
+	  //fprintf(stderr, "%d could not fit in slen=%d\n", maxbl_FG, slen);
 		return 0;
 	}
 
@@ -5966,7 +5966,7 @@ int solve_NTRU(falcon_keygen *fk, int32_t *F, int32_t *G,
 	n = MKN(logn, fk->ternary);
 
 	if (!solve_NTRU_deepest(fk, f, g)) {
-		fprintf(stderr, "Failed to solve deepest\n");
+	  //fprintf(stderr, "Failed to solve deepest\n");
 		return 0;
 	}
 
@@ -5982,7 +5982,7 @@ int solve_NTRU(falcon_keygen *fk, int32_t *F, int32_t *G,
 		depth = logn;
 		while (depth -- > 0) {
 			if (!solve_NTRU_intermediate(fk, f, g, depth)) {
-				fprintf(stderr, "Failed intermediate at depth = %d\n", depth);
+			  //fprintf(stderr, "Failed intermediate at depth = %d\n", depth);
 				return 0;
 			}
 		}

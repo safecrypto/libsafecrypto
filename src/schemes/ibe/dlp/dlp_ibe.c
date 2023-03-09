@@ -722,7 +722,6 @@ SINT32 dlp_ibe_privkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
 {
     size_t i;
     UINT16 n, q_bits_1, q_bits_2;
-
     if (NULL == sc || NULL == key) {
         return SC_FUNC_FAILURE;
     }
@@ -738,7 +737,6 @@ SINT32 dlp_ibe_privkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
     sc->stats.components[SC_STAT_PRIV_KEY][2].bits += n * q_bits_2;
     sc->stats.components[SC_STAT_PRIV_KEY][3].bits += n * q_bits_2;
     sc->stats.components[SC_STAT_PRIV_KEY][4].bits += 2 * n * (q_bits_1 + q_bits_2);
-
     // Create a bit packer to compress the private key polynomial f
     SINT32 *privkey = (SINT32 *) sc->privkey->key;
     sc_packer_t *packer = utils_entropy.pack_create(sc, &sc->coding_priv_key,
@@ -751,7 +749,6 @@ SINT32 dlp_ibe_privkey_encode(safecrypto_t *sc, UINT8 **key, size_t *key_len)
         SIGNED_COEFF, sc->coding_priv_key.type, 1, &packer->sc->stats.components[SC_STAT_PRIV_KEY][2].bits_coded);
     entropy_poly_encode_32(packer, n, privkey + 3*n, q_bits_2,
         SIGNED_COEFF, sc->coding_priv_key.type, 1, &packer->sc->stats.components[SC_STAT_PRIV_KEY][3].bits_coded);
-
     // Extract the buffer with the polynomial f and release the packer resources
     utils_entropy.pack_get_buffer(packer, key, key_len);
     utils_entropy.pack_destroy(&packer);

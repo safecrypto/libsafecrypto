@@ -835,6 +835,12 @@ extern safecrypto_prng_e safecrypto_prng_get_type(safecrypto_prng_t *ctx);
  */
 extern void safecrypto_prng_reset(safecrypto_prng_t *ctx);
 
+/** @brief Reset the PRNG buffers for internal RNG
+ *
+ *  @param ctx A pointer to the safecrypto struct
+ */
+extern void safecrypto_internal_rng_reset(safecrypto_t *sc);
+
 /** @name PRNG functions to return specified types with random content
  */
 /**@{*/
